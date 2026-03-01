@@ -1,0 +1,4 @@
+line_id,speech_id,text
+1,1,"Hello world"
+2,1,"This is a test line"
+3,2,"Another speech"
