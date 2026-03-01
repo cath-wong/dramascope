@@ -1,0 +1,195 @@
+import { Link, useLocation } from "wouter";
+import { useUI } from "@/contexts/UIContext";
+import { 
+  LayoutDashboard, 
+  Search, 
+  BarChart3, 
+  Database,
+  Filter
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
+export function Sidebar() {
+  const [location] = useLocation();
+  const {
+    corpusScope, setCorpusScope,
+    selectedPlayTitle, setSelectedPlayTitle,
+    timeMode, setTimeMode,
+    topN, setTopN,
+    selectedGenre, setSelectedGenre,
+    selectedSpeaker, setSelectedSpeaker,
+    excludeStageDirections, setExcludeStageDirections,
+    availablePlays, availableGenres, availableSpeakers
+  } = useUI();
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/browser", label: "Corpus Browser", icon: Search },
+    { href: "/analysis", label: "Linguistic Analysis", icon: BarChart3 },
+  ];
+
+  return (
+    <aside className="w-80 border-r bg-sidebar flex flex-col h-screen overflow-y-auto shrink-0">
+      <div className="p-4 font-bold text-lg border-b flex items-center gap-2 shrink-0">
+        <Database className="w-5 h-5 text-primary" />
+        <span>Corpus Explorer</span>
+      </div>
+
+      <nav className="p-2 space-y-1 shrink-0">
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <div className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer",
+              location === item.href 
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm" 
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+            )}>
+              <item.icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </div>
+          </Link>
+        ))}
+      </nav>
+
+      <Separator />
+
+      <div className="p-4 space-y-6 flex-1">
+        <div className="space-y-4">
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+            Global Scope
+          </Label>
+          
+          <div className="space-y-1.5">
+            <Label htmlFor="scope" className="text-xs">Corpus Scope</Label>
+            <Select value={corpusScope} onValueChange={(v: any) => setCorpusScope(v)}>
+              <SelectTrigger id="scope" className="h-8 text-xs">
+                <SelectValue placeholder="Select scope" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Full Corpus</SelectItem>
+                <SelectItem value="play">Single Play</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {corpusScope === "play" && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+              <Label htmlFor="play" className="text-xs">Select Play</Label>
+              <Select value={selectedPlayTitle || ""} onValueChange={setSelectedPlayTitle}>
+                <SelectTrigger id="play" className="h-8 text-xs">
+                  <SelectValue placeholder="Choose a play" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePlays.map(play => (
+                    <SelectItem key={play} value={play}>{play}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Time Granularity</Label>
+            <div className="flex bg-muted p-0.5 rounded-md">
+              <button 
+                onClick={() => setTimeMode("year")}
+                className={cn(
+                  "flex-1 text-[10px] py-1 rounded-sm transition-all",
+                  timeMode === "year" ? "bg-background shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Year
+              </button>
+              <button 
+                onClick={() => setTimeMode("decade")}
+                className={cn(
+                  "flex-1 text-[10px] py-1 rounded-sm transition-all",
+                  timeMode === "decade" ? "bg-background shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Decade
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="top-n" className="text-xs">Top-N Results</Label>
+            <Select value={String(topN)} onValueChange={(v) => setTopN(Number(v) as any)}>
+              <SelectTrigger id="top-n" className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Separator className="opacity-50" />
+
+        <div className="space-y-4">
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
+            <Filter className="w-3 h-3" /> Filters
+          </Label>
+          
+          <div className="space-y-1.5">
+            <Label htmlFor="genre" className="text-xs">Genre</Label>
+            <Select value={selectedGenre || "all"} onValueChange={(v) => setSelectedGenre(v === "all" ? null : v)}>
+              <SelectTrigger id="genre" className="h-8 text-xs">
+                <SelectValue placeholder="All Genres" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Genres</SelectItem>
+                {availableGenres.map(genre => (
+                  <SelectItem key={genre} value={genre}>{genre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="speaker" className="text-xs">Speaker</Label>
+            <Select 
+              value={selectedSpeaker || "all"} 
+              onValueChange={(v) => setSelectedSpeaker(v === "all" ? null : v)}
+              disabled={corpusScope !== "play" || !selectedPlayTitle}
+            >
+              <SelectTrigger id="speaker" className="h-8 text-xs">
+                <SelectValue placeholder={corpusScope === "play" ? "All Speakers" : "Select play first"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Speakers</SelectItem>
+                {availableSpeakers.map(speaker => (
+                  <SelectItem key={speaker} value={speaker}>{speaker}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <Label htmlFor="stage-directions" className="text-xs cursor-pointer">Exclude Stage Directions</Label>
+            <Switch 
+              id="stage-directions" 
+              checked={excludeStageDirections} 
+              onCheckedChange={setExcludeStageDirections}
+              className="scale-75 origin-right"
+            />
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}

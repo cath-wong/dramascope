@@ -1,0 +1,140 @@
+Build ONLY Step 2 on top of the existing Step 1 loader (DataContext + LoadingStatus already works with real CSVs). Do NOT implement lexical/semantic/discursive computations yet.
+
+Goal
+
+Add the app shell and routing with the corrected IA:
+
+Left sidebar pages (only these 3):
+
+Dashboard
+
+Corpus Browser
+
+Linguistic Analysis
+
+Important: Lexical/Semantic/Discursive are NOT sidebar pages. They will be tabs later inside Linguistic Analysis (Step 5).
+
+Requirements
+1) Routing
+
+Use React Router.
+
+Routes:
+
+/ → redirect to /dashboard
+
+/dashboard
+
+/browser
+
+/analysis
+
+Each page can be a simple placeholder panel for now.
+
+2) Layout
+
+Main layout with:
+
+Left sidebar (fixed width)
+
+Main content area
+
+Right panel labelled “Upload Corpus Dataset” (placeholder; no upload logic required yet)
+
+Keep LoadingStatus always visible (top bar OR inside sidebar header/footer). It must remain visible on every route.
+
+3) Sidebar navigation
+
+Buttons/links for:
+
+Dashboard
+
+Corpus Browser
+
+Linguistic Analysis
+
+Highlight active route.
+
+4) Global sidebar controls (state only for now)
+
+Create a UIContext (or AppStateContext) to store global selections:
+
+corpusScope: "full" or "play"
+
+selectedPlayTitle: string | null
+
+timeMode: "year" | "decade"
+
+topN: 10 | 20 | 50 | 100
+
+Optional filter state placeholders (no logic yet):
+
+selectedGenre?: string | null
+
+selectedSpeaker?: string | null
+
+excludeStageDirections?: boolean
+
+unitType?: "all" | "verse" | "prose"
+
+Populate dropdown options dynamically from loaded data in DataContext:
+
+Play titles list derived from lines dataset (unique title)
+
+Genre list derived from lines dataset (unique genre)
+
+Speaker list should be enabled only when a single play is selected (can be placeholder until Step 4)
+
+Controls UI:
+
+Corpus selector dropdown: Full corpus / Single play
+
+If Single play: show second dropdown for title
+
+Time granularity toggle: Year / Decade
+
+Top-N dropdown: 10 / 20 / 50 / 100
+
+Filters (optional): genre dropdown, exclude stage directions toggle (can be disabled for now)
+
+5) Scope summary panel
+
+Add a compact “Current scope” box (sidebar or main header) that shows:
+
+Scope: Full / Single play (title)
+
+Time: year/decade
+
+Top-N
+
+Any selected filters (even if not applied yet)
+
+This is just to confirm state wiring.
+
+6) Guardrails
+
+Do NOT add analysis features yet.
+
+Do NOT compute KPIs yet (that’s Step 3).
+
+Do NOT create Lexical/Semantic/Discursive sidebar items.
+
+Do NOT hardcode titles/genres; derive options from loaded data.
+
+Acceptance tests
+
+App still loads real CSVs and LoadingStatus remains green on every route.
+
+Sidebar navigation switches pages without losing loaded data.
+
+Changing global controls updates the Scope summary text immediately.
+
+Title dropdown is populated from the dataset (not hardcoded).
+
+After implementation, list:
+
+Files created
+
+Files modified
+
+Where the global UI state lives
