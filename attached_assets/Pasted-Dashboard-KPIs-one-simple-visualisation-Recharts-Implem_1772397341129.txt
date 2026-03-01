@@ -1,0 +1,149 @@
+Dashboard KPIs + one simple visualisation (Recharts)
+
+Implement ONLY Step 3 in the existing React (Vite) + TypeScript app.
+Do NOT implement Corpus Browser features or Linguistic Analysis tabs yet.
+
+Goal
+
+On the Dashboard page only, compute and display basic corpus statistics (KPI cards) driven by the existing global sidebar controls (scope/time/topN/filters), using the loaded CSV data from DataContext.
+
+Keep computations efficient (memoisation + lightweight caching). No dummy data.
+
+1) Stats to compute (Dashboard)
+A. Corpus scope rules
+
+Use the global UI state from Step 2:
+
+If corpusScope = full: use all rows
+
+If corpusScope = play: filter by selectedPlayTitle (match title)
+
+Apply optional genre filter if present
+
+Apply excludeStageDirections only to lines dataset if implemented; otherwise ignore for now but keep UI label
+
+B. Required KPI metrics
+
+Compute and show as KPI cards at top of Dashboard:
+
+Plays included
+
+Unique count of title within the currently selected scope (use lines dataset as source of truth)
+
+Total lines rows
+
+number of rows in filtered lines dataset
+
+Total speeches rows
+
+number of rows in filtered speeches dataset
+
+Total tokens (lines)
+
+Tokenise text_norm in lines:
+
+token count = whitespace split after basic normalisation (lowercase + trim)
+
+do NOT lemmatise yet (that’s fine later)
+
+ignore empty tokens
+
+Total tokens (speeches)
+
+Token count from speeches:
+
+use text_raw (or normalised) whitespace split
+
+ignore empty tokens
+
+Types + TTR
+Compute separately for lines tokens and speeches tokens:
+
+types = unique token count
+
+TTR = types / tokens (display 3 decimals)
+
+Optional (only if easy):
+
+lexical density proxy (e.g. % tokens not in stoplist) — but keep optional
+
+2) Sensitivity / Scope summary panel
+
+On Dashboard, include a small panel labelled “Current scope” showing:
+
+Scope: Full / Single play (title)
+
+Time mode: Year / Decade
+
+Top-N
+
+Active filters (genre, exclude stage, speaker if present)
+
+This is a display-only summary.
+
+3) ONE simple chart (Recharts)
+
+Add exactly one chart on Dashboard so we can see visualisation early.
+
+Chart: “Plays by time slice”
+
+Choose time slice based on global timeMode:
+
+if year: use year_est if available, else year_mid, else year_min
+
+if decade: use decade if available, else decade_num
+
+Compute: count of unique titles per time slice (within current scope + filters)
+
+Display as a simple Recharts bar chart or line chart (either is fine):
+
+x = time slice (sorted ascending)
+
+y = unique play count
+
+If the time field is missing/blank, group as “Unknown” and show it at the end.
+
+4) Performance requirements
+
+Do not recompute on every render.
+
+Use useMemo for derived arrays/tokens.
+
+Add a tiny cache Map keyed by:
+
+scope + selected title + timeMode + genre + excludeStageDirections
+for the computed Dashboard stats.
+
+(Keep it simple: a Map in a useRef inside Dashboard is fine.)
+
+5) Guardrails
+
+Do NOT build Lexical/Semantic/Discursive tabs yet.
+
+Do NOT implement KWIC / Browser yet.
+
+Do NOT join lines and speeches into one table.
+
+Do NOT hardcode play titles, years, etc.
+
+6) Acceptance tests
+
+Dashboard shows KPI cards with non-zero values when scope=full.
+
+Switching scope to a single play changes KPI values.
+
+Chart updates when switching year/decade mode.
+
+LoadingStatus still visible and still green.
+
+No console spam from repeated recomputation.
+
+7) After implementation
+
+List:
+
+files changed
+
+where stats computation lives
+
+how memoisation/caching is done
