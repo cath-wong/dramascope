@@ -1,0 +1,195 @@
+Corpus Browser page (search + filters + KWIC + download)
+
+Implement ONLY Step 4 in the existing React (Vite) + TypeScript app.
+Step 1 loader + Step 2 shell + Step 3 Dashboard already exist and must remain working.
+
+Do NOT implement Linguistic Analysis tabs yet (that’s Step 5+).
+
+Goal
+
+Build the Corpus Browser page with:
+
+dataset switcher: Lines vs Speeches
+
+search box over text_raw and text_norm (where available)
+
+filters: play/title, speaker, act, scene, year/decade (based on global toggle)
+
+KWIC / concordance-style results with keyword highlighted
+
+download filtered subset as CSV
+
+All filtering must use the currently loaded data (no dummy data).
+Results must be traceable: show title/act/scene/speaker + excerpt.
+
+1) Data separation + dataset selection
+
+On Corpus Browser page, add a local toggle:
+
+Browse dataset: Lines (default) or Speeches
+
+Rules:
+
+If Lines selected → use DataContext.lines
+
+If Speeches selected → use DataContext.speeches
+
+Do NOT merge datasets.
+
+2) Use global sidebar controls
+
+Apply existing global controls from UIContext:
+
+corpus scope (full vs single play by title)
+
+time mode (year vs decade)
+
+Top-N is irrelevant here (ignore)
+
+genre filter can apply if present
+
+speaker filter in global state can be displayed but browser should have its own speaker filter too
+
+Browser page must respect global scope:
+
+If global scope is single play, lock play filter to that title (or set it automatically).
+
+3) Browser page UI requirements
+A. Controls (top of page)
+
+Search input (free text)
+
+Checkbox: “Search in text_norm” (if available) OR default search both text_raw and text_norm
+
+Filters (dropdowns/inputs):
+
+Play / title
+
+Speaker
+
+Act
+
+Scene
+
+Time slice (depends on global timeMode):
+
+Year: filter by year_est (fallback: year_mid)
+
+Decade: filter by decade (fallback: decade_num)
+
+Result count display: “Showing N of M matches”
+
+Button: “Download filtered CSV”
+
+B. Results (KWIC style)
+
+Render each match as a concordance row:
+
+Left context (up to ~40 chars or ~6–8 tokens)
+
+Keyword highlighted
+
+Right context (similar length)
+
+Metadata line below:
+
+title, act, scene, speaker
+
+For lines dataset also show unit and line_id if present
+
+If the search term is empty:
+
+show the most recent N rows (e.g. 50) from the filtered subset, or show a prompt “Enter a search term”.
+
+4) KWIC logic (implementable and robust)
+
+Case-insensitive matching.
+
+For each row, choose search field:
+
+Lines: prefer text_norm if “search norm” enabled and it exists; otherwise text_raw
+
+Speeches: use text_raw (or text_norm if it exists; handle both)
+
+Find first occurrence of query term in the chosen text.
+
+Extract:
+
+left = substring before match (truncate to last ~40 chars)
+
+match = matched substring
+
+right = substring after match (truncate to first ~40 chars)
+
+If multiple occurrences exist, you may show only the first for now.
+
+5) Filtering logic
+
+Filtering should be applied in this order (fast + predictable):
+
+Apply global scope (full vs single play)
+
+Apply local filters (play/speaker/act/scene/time)
+
+Apply search term
+
+Use useMemo for:
+
+unique values lists for dropdowns (derived from currently scoped dataset)
+
+filtered subset
+
+KWIC rows
+
+Do not recompute on every keystroke without memoisation (basic memo is fine).
+
+6) CSV download (required)
+
+Implement src/utils/exportCsv.ts if not already present.
+On “Download filtered CSV”:
+
+download exactly the filtered subset (not just matches)
+
+include original columns for that dataset
+
+filename examples:
+
+corpus_lines_filtered.csv
+
+corpus_speeches_filtered.csv
+
+No server code; client-side only.
+
+7) Guardrails
+
+Do NOT implement Linguistic Analysis computations yet.
+
+Do NOT introduce dummy data.
+
+Do NOT silently fail if a column is missing; handle gracefully:
+
+If a column doesn’t exist (e.g., text_norm for speeches), hide the option or fall back.
+
+8) Acceptance tests
+
+Switching Lines/Speeches changes dataset and available filters.
+
+Search term highlights correctly in KWIC rows.
+
+Filtering by title/speaker/act/scene reduces results.
+
+Year/Decade filter changes when global timeMode changes.
+
+Download exports the filtered subset CSV.
+
+LoadingStatus remains visible and stays green.
+
+9) After implementation
+
+List:
+
+files created/modified
+
+where KWIC logic lives
+
+how memoisation is handled
