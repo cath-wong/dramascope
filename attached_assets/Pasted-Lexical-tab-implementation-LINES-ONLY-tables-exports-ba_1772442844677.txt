@@ -1,0 +1,286 @@
+Lexical tab implementation (LINES ONLY) + tables + exports + basic charts
+
+Implement ONLY Step 6: the Lexical tab inside /analysis.
+Do NOT implement Semantic or Discursive computations yet.
+
+Also: Do NOT modify DataContext loading logic, and do NOT change Step 1 CSV paths.
+
+0) Hard constraints (must obey)
+
+Lexical tab must use ONLY DataContext.lines (from corpus_lines_real.csv).
+
+Tokenisation must use ONLY text_norm.
+
+Do NOT read from speeches anywhere in Lexical code.
+
+Do NOT do qualitative/literary commentary.
+
+1) Utilities (create/complete these)
+
+Create (or complete) src/utils/linguistics.ts with:
+
+A. normaliseText(text)
+
+lowercase
+
+replace punctuation with spaces (keep apostrophes if you want, but be consistent)
+
+collapse whitespace
+
+B. tokenize(text)
+
+apply normaliseText
+
+split on whitespace
+
+filter empty
+
+C. stoplist
+
+Implement getStoplist(): Set<string> including at least:
+and,the,to,of,i,a,it,is,in,that,you,not,for,with,be,me,thou,thee,thy,thine,hath,doth,shall,art,hast,come,do,go,st,re
+
+D. lightLemmatize(token)
+
+Very lightweight regex normaliser (pilot). For example:
+
+plural: ies -> y, ves -> f (optional), s -> '' for length>3
+
+ing -> '' for length>5
+
+ed -> '' for length>4
+
+er -> '' optional
+
+Don’t overdo it; keep it interpretable.
+
+E. pipeline
+
+Create helper:
+processTokens(text: string, opts: { useStoplist: boolean; useLemmas: boolean }): string[]
+
+tokenize
+
+filter length < 2
+
+filter purely numeric
+
+optionally stoplist filter
+
+optionally lemmatise
+
+2) Lexical tab UI controls (wire to real computation)
+
+Use the controls you created in Step 5 (or create now if missing):
+
+Checkbox: Apply stoplist (default ON)
+
+Checkbox: Light lemmatisation (default ON)
+
+Result limit uses global topN
+
+N-gram size dropdown: bigram/trigram (default bigram)
+
+Collocation query term input (default empty)
+
+Collocation window size (default 5)
+
+Verse/prose options:
+
+toggle: Compare verse vs prose (default OFF)
+
+checkbox: Exclude stage directions (default ON if feasible)
+
+Important: these controls must actually change results.
+
+3) Core computations (LINES ONLY)
+
+Use the globally scoped subset of lines:
+
+Apply global scope (full vs single play by title)
+
+Apply genre filter if present
+
+Apply speaker filter if present (optional)
+
+Apply exclude stage directions if possible:
+
+if unit has a value for stage directions (e.g., "stage_direction"), exclude it
+
+if you can’t reliably detect, keep the toggle but show “(unit tag not found; not applied)” rather than silently doing nothing
+
+Token source:
+
+Always from text_norm (not text_raw)
+
+A) Word frequency list
+
+Compute:
+
+raw frequency counts for tokens
+
+total token count
+
+normalised frequency per 10,000 tokens: freq_per_10k = (count / totalTokens) * 10000
+Show table columns:
+
+rank
+
+token (or lemma if lemmatisation on)
+
+count
+
+per_10k
+
+Limit to Top-N (global topN).
+
+Add CSV export for this table.
+
+B) N-grams (bi/tri)
+
+Compute ngrams from token sequences within each row (line/prose chunk) to avoid spanning across rows.
+
+For each row: tokens -> generate ngrams -> count
+Table columns:
+
+rank
+
+ngram
+
+count
+
+per_10k (normalise by total tokens, acceptable for pilot)
+
+Limit to Top-N.
+Add CSV export.
+
+C) Collocations for a query term
+
+If query term is empty: show a helpful message and no results.
+
+If query term present:
+
+Process tokens for each row.
+
+For each occurrence of query term, collect context tokens within ±window (default 5).
+
+Count collocates (exclude the query term itself; optionally exclude stoplist regardless of toggle to reduce noise, but be explicit).
+Association measure (pilot, simple and interpretable):
+
+Use PMI or a simple “observed / expected” proxy. If implementing PMI:
+
+p(x,y) estimated from co-occurrence within windows
+
+p(x), p(y) from unigram counts
+If too complex, use:
+
+score = cooc_count (pilot) AND show cooc_count clearly
+But prefer PMI if feasible without bugs.
+
+Collocation output table:
+
+collocate
+
+cooc_count
+
+score
+
+example_sources (count)
+
+Traceability panel (required):
+When user clicks a collocate row, show up to 5 example line excerpts where query term and collocate co-occur within the window:
+
+title, act, scene, speaker, line_id (if present)
+
+excerpt (~200 chars) with both terms highlighted (best effort)
+
+Add CSV export of collocation table.
+
+D) Verse vs prose comparison
+
+Using unit:
+
+verse group: verse_line
+
+prose group: prose_chunk
+Compute for each group:
+
+total tokens
+
+Top-N tokens with per_10k
+Show:
+
+a small summary table
+
+one simple Recharts bar chart comparing token totals or comparing per_10k for the Top 10 tokens (pick one and keep it readable)
+
+Add CSV export for the comparison table.
+
+4) Visualisations (minimal but real)
+
+Use Recharts, keep it simple:
+
+For Word frequency: bar chart of Top 10 tokens by count (or per_10k).
+
+For verse vs prose: one comparison chart.
+(Do not add more charts yet.)
+
+5) Performance
+
+Use useMemo for:
+
+scoped lines
+
+processed tokens
+
+unigram counts
+
+ngram counts
+
+collocations results (keyed by query term + window + options)
+
+Add a small cache Map keyed by:
+
+scope/title/timeMode/genre/speaker/topN + lexical options + query/window
+Do not recompute on every render.
+
+6) Guardrails + UI clarity
+
+Show a small note in Lexical tab:
+“Computed from corpus_lines_real.csv using text_norm. No speeches data used.”
+
+If total tokens = 0, show a clear error message and likely causes (e.g., filter too strict, missing text_norm).
+
+7) Acceptance tests
+
+With scope=full and minimal filters:
+
+Word freq table shows Top-N results (non-empty)
+
+Export downloads CSV with correct columns
+
+N-gram table shows results
+
+Collocations:
+
+Enter a query term known to exist → collocates appear
+
+Clicking a collocate shows traceable excerpts
+
+Verse/prose:
+
+Toggle ON → shows comparison and chart
+
+Changing stoplist/lemmatisation changes counts.
+
+8) After implementation
+
+List:
+
+files created/modified
+
+where computations live
+
+how caching is keyed
+
+Stop after Step 6. Do NOT implement Step 7 or Step 8.
