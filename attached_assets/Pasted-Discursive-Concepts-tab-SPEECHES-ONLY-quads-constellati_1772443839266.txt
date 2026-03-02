@@ -1,0 +1,345 @@
+Discursive Concepts tab (SPEECHES ONLY) — quads → constellations → diachronic drift + traceability + exports
+
+Implement ONLY Step 8: the Discursive Concepts tab inside /analysis.
+Steps 1–7 must remain working.
+
+Do NOT modify DataContext loading logic or CSV paths.
+Do NOT add embeddings.
+Do NOT mix in lines dataset anywhere.
+
+0) Hard constraints (must obey)
+
+Discursive Concepts uses ONLY DataContext.speeches from corpus_speeches_real.csv.
+
+Never read from DataContext.lines in this tab.
+
+A “quad” is not a 4-gram.
+
+Every result must be traceable to source speeches:
+
+title, act, scene, speaker, excerpt (~200 chars)
+
+No qualitative literary commentary.
+
+1) Controls (must be functional)
+
+Use / implement these controls in the Discursive tab and wire them to computations:
+
+Required controls
+
+Node lemma selector:
+
+defaults: lord, father, king + free text input
+
+Time mode: use global (year/decade)
+
+Top-N: use global (10/20/50/100) for displayed co-lemmas
+
+Token span (default 100)
+
+Top pairs P (default 20)
+
+Stoplist toggle (default ON)
+
+Light lemmatisation toggle (default ON)
+
+Time slice navigator
+
+A time-slice dropdown or slider populated from available slices in current scope.
+
+Buttons: Prev / Next
+
+Optional play/pause animation (can be a simple interval).
+
+2) Time slicing rules (same as Step 7)
+
+Based on global timeMode:
+
+Year slice: year_est else year_mid else year_min
+
+Decade slice: decade else decade_num
+Missing → "Unknown" (exclude from drift comparisons by default).
+
+Implement getTimeSlice(speechRow).
+
+3) Token pipeline (shared utilities)
+
+Use src/utils/linguistics.ts pipeline:
+
+normalise → tokenize → optional stoplist filter → optional light lemmatise
+Additional filters:
+
+drop tokens length < 2
+
+drop purely numeric tokens
+
+Token source: text_raw (speeches dataset).
+
+4) Define “co-occurrence pairs” within a speech window
+
+Default modelling window = one speech row.
+
+Within each speech:
+
+take token list after preprocessing
+
+restrict to first tokenSpan tokens (default 100), or full speech if shorter
+
+build pair co-occurrence counts within that span:
+
+Pilot-friendly rule:
+
+count all unordered pairs that occur in the same span (i < j), but to avoid O(n^2) blow-up:
+
+Use a local window within the span (e.g., ±10 tokens) OR
+
+Use unique tokens in span and count pair once per speech
+Choose ONE approach and document it in a short “Preprocessing note” in code comments + UI tooltip.
+
+Recommended for performance + interpretability:
+
+Unique-token-in-speech approach:
+
+get unique tokens from the span
+
+each unordered pair gets +1 count for that speech
+This produces stable co-occurrence without heavy computation.
+
+Store for each speech:
+
+localPairs: Map "a|b" → count (usually 1 in unique-token approach)
+
+5) Quad extraction (LDNA-inspired pilot)
+
+Operational definition:
+
+For each speech window:
+
+Compute pair scores (use count; PMI optional but not required).
+
+Select top P pairs by score (default P=20; if fewer pairs exist, use all).
+
+Form candidate quads:
+
+choose two distinct pairs that share one lemma
+
+union of their terms must yield 4 unique lemmas
+
+quad terms are sorted alphabetically to deduplicate
+
+Deduplicate quads within the speech.
+
+For each quad, store metadata:
+
+window_id (unique, e.g. row index or stable hash)
+
+title, play_id if present
+
+act, scene, speaker
+
+timeSlice
+
+quad_terms (t1,t2,t3,t4)
+
+supporting_pairs (optional: the two pairs used)
+
+This is not a 4-gram; do not rely on adjacency.
+
+6) Constellation building (node lemma centred)
+
+For the selected nodeLemma and selected timeSlice:
+
+Pull all quads in that time slice that include nodeLemma.
+
+For each co-lemma appearing with nodeLemma in those quads:
+
+edge weight = number of quads where nodeLemma and coLemma co-occur
+
+Produce:
+
+Edge list: node, coLemma, weight, timeSlice
+
+Node list: lemma, weightedDegree
+
+Limit display to Top-N coLemmas by weight.
+
+CSV export required for:
+
+edge list (Top-N and full)
+
+node list
+
+quad list for the slice (optional but recommended)
+
+7) Traceability (mandatory, click to sources)
+
+Implement an interactive traceability panel:
+
+Clicking an edge (node → coLemma)
+
+Show up to 5 example source speeches that support this edge:
+
+title, act, scene, speaker
+
+excerpt (~200 chars) with nodeLemma + coLemma highlighted (best effort)
+
+also show the example quad terms that include both (up to 5)
+
+Clicking a coLemma node
+
+Show up to 5 speeches where nodeLemma and coLemma co-occur in a quad (same as edge).
+
+Export optional:
+
+“Download examples CSV” for the traceability list.
+
+8) Diachronic change measures (interpretable)
+
+Across all time slices (excluding Unknown by default), compute per slice for the nodeLemma:
+
+constellation_size = # unique coLemmas
+
+density_proxy = total edge weight / max(1, constellation_size)
+
+entropy_proxy = Shannon entropy over coLemma weights
+
+stability vs previous slice:
+
+Jaccard similarity of Top-N coLemmas sets
+
+overlap_count
+
+Show as a table with CSV export:
+Columns:
+
+timeSlice
+
+constellation_size
+
+density_proxy
+
+entropy_proxy
+
+jaccard_prev
+
+overlap_prev
+
+9) Visualisations (keep minimal but real)
+
+Provide at least TWO visuals:
+
+A) Constellation network view (pilot-friendly)
+
+Do NOT block on perfect network rendering.
+Any of these is acceptable:
+
+a simple node/edge “network” rendered as:
+
+left: list of coLemmas sized by weight + clickable
+
+right: edge table with clickable rows
+OR
+
+a basic force graph using a lightweight library IF already available and stable.
+
+Minimum requirement:
+
+visually indicate weight (bar length, font size, or simple edge thickness)
+
+clicks open traceability panel
+
+B) Drift chart over time (Recharts)
+
+Implement a Recharts chart with toggle:
+
+Mode 1 (constellation-level):
+
+x = timeSlice
+
+y = constellation_size (or entropy_proxy)
+(line chart)
+
+Mode 2 (stability):
+
+x = timeSlice
+
+y = jaccard_prev
+(line chart)
+
+Tooltip should show:
+
+top coLemmas for that slice (Top 5 terms + weights) if feasible.
+
+Optional (only if easy):
+
+a scatter plot of coLemma weight over time for Top 10 coLemmas.
+
+10) Performance requirements (important)
+
+Quad extraction can be expensive. Implement caching:
+
+Cache keys must include:
+
+scope/title/genre/speaker (global filters)
+
+timeMode
+
+nodeLemma
+
+tokenSpan
+
+topPairsP
+
+stoplist toggle
+
+lemmatisation toggle
+
+Recommended approach:
+
+Precompute per-speech token lists once per options set (memoised).
+
+Precompute quads per time slice once per options set (cache Map).
+
+Then constellation for nodeLemma/timeSlice is a cheap filter.
+
+Avoid recomputing quads on every UI interaction like moving the slider:
+
+compute once, then slice.
+
+11) Guardrails / fail loudly
+
+If nodeLemma not found in current scope:
+
+show message: “Node lemma not found in this scope.”
+
+If no quads formed (too few tokens / too strict filters):
+
+show clear message and suggest increasing token span or disabling stoplist.
+
+Never silently return empty results.
+
+12) Acceptance tests
+
+Discursive tab uses speeches only (no lines imports).
+
+Choosing nodeLemma + timeSlice produces a Top-N constellation table.
+
+Clicking an edge shows traceable speeches with excerpts.
+
+Drift table + drift chart render and update when toggling year/decade.
+
+CSV exports download correctly (edges, change table; optional quads).
+
+13) After implementation
+
+List:
+
+files created/modified
+
+where quad extraction is implemented
+
+how caching is keyed
+
+what co-occurrence approach was chosen (unique-token vs local window)
+
+Stop after Step 8.
