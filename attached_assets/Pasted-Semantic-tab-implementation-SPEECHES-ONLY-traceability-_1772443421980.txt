@@ -1,0 +1,266 @@
+Semantic tab implementation (SPEECHES ONLY) + traceability + exports + 1–2 charts
+
+Implement ONLY Step 7: the Semantic tab inside /analysis.
+Do NOT implement Discursive Concepts (Step 8) yet.
+
+Also: Do NOT modify DataContext loading logic, and do NOT change Step 1 CSV paths.
+
+0) Hard constraints (must obey)
+
+Semantic tab must use ONLY DataContext.speeches (from corpus_speeches_real.csv).
+
+Do NOT read from lines anywhere in Semantic code.
+
+No embeddings.
+
+Every result must be traceable to source speeches:
+
+title, act, scene, speaker, and an excerpt (~200 chars).
+
+1) Token pipeline (use existing utils)
+
+Use src/utils/linguistics.ts:
+
+normaliseText
+
+tokenize
+
+getStoplist
+
+lightLemmatize
+
+For Semantic tab:
+
+Default: apply stoplist ON, lemmatisation ON (user toggles allowed).
+
+Token source:
+
+use text_raw (speeches dataset)
+
+if text_norm exists in speeches, you may allow a toggle, but default to text_raw normalised.
+
+Create helper inside Semantic tab:
+processSpeechTokens(text: string, opts) using the shared pipeline.
+
+2) Shared controls (wire them to computation)
+
+Semantic tab controls (must actually work):
+
+Target term input (required)
+
+Association measure dropdown:
+
+"PMI" (default) OR "Log-likelihood" OR "Cooc count"
+
+Checkbox: Apply stoplist (default ON)
+
+Checkbox: Light lemmatisation (default ON)
+
+Window basis dropdown:
+
+"within speech" only (for now)
+
+Compare slices control:
+
+"Early vs Late" (default)
+
+Parameter: sliceSize (e.g., 3 time slices each side) OR use first/last quartile; keep simple and explicit.
+
+Use global UI controls:
+
+scope (full vs play by title)
+
+timeMode (year/decade)
+
+topN (10/20/50/100)
+
+optional filters: genre, speaker (apply if present in speeches)
+
+3) Time slicing rules
+
+Based on global timeMode:
+
+If year: use year_est if available, else year_mid, else year_min
+
+If decade: use decade if available, else decade_num
+
+Create a getTimeSlice(row) function for speeches.
+
+Sort time slices ascending and treat missing as "Unknown" (put at end; exclude from early/late comparison by default).
+
+4) Core semantic computations (interpretable)
+A) Co-occurrence association around a target term
+
+If target term is empty → show instruction message.
+
+Else:
+
+Filter speeches by global scope/filters.
+
+For each speech:
+
+tokenise
+
+find occurrences of target term
+
+collect co-occurring tokens within the speech (simple: all tokens in that speech excluding the target; or, better: within ±N tokens around each occurrence where N is fixed like 10 — choose one and document it in UI; default N=10 is fine)
+
+Compute:
+
+unigram counts across corpus (within the same filtered subset)
+
+cooc counts for tokens that co-occur with target (within the chosen basis)
+
+Score:
+
+Prefer PMI:
+
+p(x,y) = cooc(x,y) / totalCoocEvents
+
+p(x) = count(x) / totalTokens
+
+p(y) = count(y) / totalTokens
+
+PMI = log2(p(x,y)/(p(x)p(y)))
+
+If PMI too fiddly, implement log-likelihood or keep count, but PMI is preferred.
+
+Output table (Top-N by score):
+
+term
+
+cooc_count
+
+score
+
+speech_hits (number of speeches contributing)
+
+CSV export required.
+
+B) Traceability panel (mandatory)
+
+When the user clicks a row in the association table:
+Show up to 5 example source speeches where the target term and the selected co-term co-occur (within the chosen basis):
+
+title, act, scene, speaker
+
+excerpt ~200 chars
+
+highlight both terms (best-effort)
+
+Also provide a “Download examples CSV” button (optional but nice).
+
+5) Semantic shift pilot (Early vs Late)
+
+Goal: compare co-occurrence profiles across early vs late time slices.
+
+Method (keep simple + explicit):
+
+Compute association table separately for:
+
+Early period: first K time slices (K=3 by default)
+
+Late period: last K time slices (K=3 by default)
+
+For each co-term, compute:
+
+early_score, late_score
+
+delta = late_score - early_score
+
+Show:
+
+“Top risers” (highest delta) table (Top-N)
+
+“Top fallers” (lowest delta) table (Top-N)
+CSV export for each (or one combined export).
+
+Traceability:
+
+Clicking a riser/faller term shows example excerpts from early vs late (up to 3 each) if available.
+
+6) Visualisations (Recharts)
+
+Add 1–2 charts maximum:
+
+Association chart:
+
+Bar chart for Top 10 associated terms (score on y-axis)
+
+Shift chart:
+
+Scatterplot where:
+
+x = early_score
+
+y = late_score
+
+point label = term (tooltip)
+This makes change visible without embeddings.
+
+Keep charts readable; do not block on perfect styling.
+
+7) Performance requirements
+
+Use useMemo for:
+
+filtered speeches
+
+tokenised speeches (cache by options)
+
+unigram counts
+
+association table (cache by target + options + scope)
+
+early/late comparisons
+
+Add a small cache Map keyed by:
+
+scope/title/timeMode/genre/speaker/topN
+
+targetTerm
+
+stoplist/lemma toggles
+
+basis + window size
+
+association method
+
+Avoid recomputation on every keystroke: debounce target input lightly (e.g., 250ms) if easy; otherwise memo is fine.
+
+8) Guardrails
+
+No embeddings.
+
+No mixing lines dataset.
+
+If target term not found, show clear message:
+“Target term not found in current scope/filters.”
+
+If early/late slices insufficient, show a clear message and reduce K automatically.
+
+9) Acceptance tests
+
+Enter a target term that exists → association table appears.
+
+Clicking a term shows traceable excerpts.
+
+Switching scope to single play changes results.
+
+Switching year/decade changes early/late slicing.
+
+Shift view shows risers/fallers and exports CSV.
+
+10) After implementation
+
+List:
+
+files created/modified
+
+where scoring is implemented
+
+how traceability examples are extracted
+
+cache key structure
+
+Stop after Step 7. Do NOT implement Step 8.
