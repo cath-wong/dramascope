@@ -1,0 +1,174 @@
+Linguistic Analysis page tabs + shared controls + dataset guardrails
+
+Implement ONLY Step 5 in the existing React (Vite) + TypeScript app.
+Steps 1–4 (loader, shell, Dashboard, Corpus Browser) must remain working.
+
+Do NOT implement the actual Lexical/Semantic/Discursive calculations yet (that’s Steps 6–8).
+
+Goal
+
+On the Linguistic Analysis page (/analysis), implement:
+
+A 3-tab interface:
+
+Lexical (lines-only)
+
+Semantic (speeches-only)
+
+Discursive Concepts (speeches-only)
+
+Shared controls area (per-tab + global state awareness)
+
+Clear “dataset separation” guardrails displayed in the UI
+
+Placeholder output regions (tables/charts sections) to show layout
+
+A “Parameters / sensitivity summary” box (display-only for now)
+
+1) Tabs inside Linguistic Analysis page
+
+Create tabs within /analysis:
+
+Lexical
+
+Semantic
+
+Discursive Concepts
+
+Default tab: Lexical.
+
+Each tab should have:
+
+title + short description
+
+a prominent dataset rule banner:
+
+Lexical banner:
+
+“Dataset: LINES ONLY (corpus_lines_real.csv). Tokenisation uses text_norm.”
+
+Semantic banner:
+
+“Dataset: SPEECHES ONLY (corpus_speeches_real.csv). No embeddings.”
+
+Discursive banner:
+
+“Dataset: SPEECHES ONLY (corpus_speeches_real.csv). Quad/constellation pilot (counts-based).”
+
+Do NOT add these as sidebar navigation items.
+
+2) Shared controls panel (layout + state only)
+
+At top of Linguistic Analysis page, create a shared controls panel that shows and uses:
+
+Global controls (read from UIContext):
+
+scope (full vs play)
+
+selected title (if play)
+
+time mode (year/decade)
+
+topN (10/20/50/100)
+
+optional filters (genre, speaker etc.)
+
+Plus tab-specific controls (store locally per tab, but show UI now):
+
+Lexical controls (UI only for now)
+
+checkbox: “Apply stoplist”
+
+checkbox: “Light lemmatisation”
+
+dropdown: “N-gram size” (2 or 3)
+
+input: “Collocation query term”
+
+number input: “Collocation window” (default 5)
+
+checkbox: “Exclude stage directions” (if unit supports it)
+
+Semantic controls (UI only)
+
+input: “Target term”
+
+dropdown: “Association measure” (PMI / log-likelihood / count)
+
+dropdown: “Compare slices” (early vs late) (just UI state for now)
+
+Discursive controls (UI only)
+
+node lemma selector:
+
+defaults: lord, father, king + free text
+
+number input: “Token span” default 100
+
+number input: “Top pairs P” default 20
+
+time slider UI (based on available time slices; can be disabled with “(will activate in Step 8)”)
+
+3) Parameters / sensitivity summary box
+
+Add a panel that summarises current settings (display-only):
+
+scope + title
+
+time mode
+
+topN
+
+lexical toggles (stoplist/lemmatisation)
+
+semantic target term + measure
+
+discursive node lemma + token span + top pairs
+
+This helps ensure state is wired correctly before analysis logic.
+
+4) Placeholder outputs (no real calculations yet)
+
+For each tab, create layout placeholders:
+
+“Chart area” card (empty state text like “Chart will appear here in Step 6/7/8”)
+
+“Table area” card (empty state)
+
+“Download CSV” buttons should exist but be disabled for now with tooltip “Enabled when results are computed (Step 6+)”
+
+5) Data separation guardrails (code-level)
+
+Even though calculations are not implemented yet, enforce separation in component structure:
+
+LexicalTab component may only import/use lines from DataContext
+
+SemanticTab and DiscursiveTab may only import/use speeches
+
+Do not pass both datasets into a single tab component.
+
+6) Acceptance tests
+
+/analysis shows tabs and switching works.
+
+Global sidebar selections are reflected in the “Parameters summary”.
+
+Each tab shows the correct dataset banner.
+
+No analysis computations are implemented yet; placeholders only.
+
+Steps 1–4 still work and LoadingStatus stays visible/green.
+
+7) After implementation
+
+List:
+
+files created/modified
+
+where tab state lives
+
+where shared controls live
+
+how dataset guardrails are enforced
+
+Stop after Step 5.
