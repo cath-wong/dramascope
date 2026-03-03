@@ -1,0 +1,158 @@
+Better result presentation (tables + visuals) for Lexical / Semantic / Discursive
+
+Implement ONLY Step 9.2.
+Do NOT change any core computations from Steps 6–8.5.
+Do NOT change token pipeline or quad logic.
+
+Goal: make results easier to read, compare, and curate.
+
+1) Universal table upgrades (apply to all analysis tabs)
+
+Create a reusable ResultsTable component (or enhance existing tables) with:
+
+Column sorting (client-side) for numeric columns (count, per_10k, score, weight, delta, jaccard)
+
+Search/filter within table (simple input that filters rows by token/term)
+
+Sticky header
+
+Row count display: “Showing X of Y”
+
+Copy-to-clipboard button (copies visible rows as TSV)
+
+CSV export button stays as-is, but:
+
+include timestamp + scope in filename
+
+include method summary (scope/time/topN/toggles) as metadata rows at top OR as a separate JSON download (either is fine)
+
+No heavy refactors—just usability.
+
+2) Lexical tab: add “content-focus” display mode (presentation only)
+
+Without changing token pipeline, add a display toggle:
+
+“Hide function-word heavy n-grams”
+Implementation:
+
+When ON, filter n-gram rows where all tokens are in stoplist OR where ≥2 tokens are in stoplist (choose a simple rule and explain in tooltip).
+
+This is a view filter only; do not alter underlying counts.
+
+Add a small badge showing:
+
+“Filtered view” when this toggle is on.
+
+Add one extra chart:
+
+For n-grams: bar chart of Top 10 n-grams (count or per_10k).
+
+3) Semantic tab: improve shift readability
+
+Add a two-column layout:
+
+Left:
+
+Top risers table
+
+Top fallers table
+
+Right:
+
+“Shift scatter” chart (early_score vs late_score) with:
+
+tooltip showing term, early, late, delta
+
+optional reference diagonal line y=x (if easy)
+
+Also add a “minimum cooc_count” slider (presentation filter only) to hide noisy rare terms in the table and chart.
+
+4) Discursive Concepts tab: constellation-focused visual display (high value)
+
+Add a “View mode” toggle:
+
+Table view (existing)
+
+Constellation view (new)
+
+Constellation view (no new network library required)
+
+Implement a clean “ranked bars” constellation:
+
+List Top N co-lemmas as horizontal bars
+
+Bar length = weight
+
+Clicking a bar opens the existing traceability panel (same as clicking edge row)
+
+Show:
+
+co-lemma
+
+weight
+
+windowHits (if available)
+
+This is more readable than a half-baked force graph and genuinely supports curation.
+
+Add one more discursive chart (drift clarity)
+
+A compact Recharts line chart with toggle:
+
+constellation_size
+
+entropy_proxy
+
+jaccard_prev
+
+Show tooltip including:
+
+slice
+
+top 3 co-lemmas
+
+5) “Pin / shortlist” curation feature (lightweight, optional but very useful)
+
+Add a small “pin” icon in tables for:
+
+lexical tokens/ngrams
+
+semantic terms
+
+discursive co-lemmas
+
+Pinned items appear in a small “Pinned” panel (per tab) with:
+
+label + key metric
+
+remove button
+
+“Download pinned as CSV”
+
+This supports your “curation” goal without changing modelling.
+
+6) Acceptance tests
+
+Tables are sortable and searchable.
+
+Lexical: content-focus toggle changes displayed n-grams; charts render.
+
+Semantic: risers/fallers layout is clear; scatter plot works; min-count filter works.
+
+Discursive: constellation view shows clickable bars; drift chart toggle works; traceability still works.
+
+No changes to underlying computed values when toggles are OFF.
+
+7) After implementation
+
+List:
+
+files created/modified
+
+where ResultsTable lives
+
+how “Pinned” state is stored (local state is fine)
+
+what view filters were added (and confirm they don’t alter computation)
+
+Stop after Step 9.2.
