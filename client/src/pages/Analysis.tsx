@@ -225,7 +225,7 @@ const SemanticTab = () => {
   );
 };
 
-// --- Discursive Tab ---
+// --- Discursive Tab (Step 9.2A TRUE Quad Implementation) ---
 const DiscursiveTab = () => {
   const { speeches } = useData();
   const ui = useUI();
@@ -236,7 +236,7 @@ const DiscursiveTab = () => {
   const [useLemmas, setUseLemmas] = useState(true);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedCoLemma, setSelectedCoLemma] = useState<string | null>(null);
+  const [selectedQuadKey, setSelectedQuadKey] = useState<string | null>(null);
   const [driftMetric, setDriftMetric] = useState<"jaccard" | "size">("jaccard");
   const [pinned, setPinned] = useState<any[]>([]);
   const quadCache = useRef<Map<string, any>>(new Map());
@@ -248,10 +248,11 @@ const DiscursiveTab = () => {
       if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
       return true;
     });
-    const cacheKey = JSON.stringify({ scope: corpusScope, node: nodeLemma, stop: useStoplist, lem: useLemmas, time: timeMode });
-    if (computationCache.current.has(cacheKey)) return computationCache.current.get(cacheKey);
+    const cacheKey = JSON.stringify({ scope: corpusScope, play: selectedPlayTitle, node: nodeLemma, stop: useStoplist, lem: useLemmas, time: timeMode, topN });
+    if (quadCache.current.has(cacheKey)) return quadCache.current.get(cacheKey);
 
     let totalNodeWindows = 0;
+    let totalQuadWindows = 0;
     const lemmaFreqs = new Map<string, { count: number; speeches: Set<number> }>();
     const speechTokens = filtered.map((s, idx) => {
       const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
@@ -260,9 +261,10 @@ const DiscursiveTab = () => {
     });
 
     const activeNode = nodeLemma.trim().toLowerCase();
-    const quadsByTime = new Map<string, any[]>();
+    const quadInstancesBySlice = new Map<string, any[]>();
+    const quadFreqBySlice = new Map<string, Map<string, number>>();
+    const quadExamples = new Map<string, any[]>();
     const allSlices = new Set<string>();
-    const edgeExamples = new Map<string, any[]>();
 
     speechTokens.forEach(s => {
       if (s.time === "Unknown") return;
@@ -270,38 +272,92 @@ const DiscursiveTab = () => {
       if (nodeIndices.length === 0) return;
       allSlices.add(s.time);
       totalNodeWindows += nodeIndices.length;
-      const coocInSlice = new Map<string, number>();
+
+      if (!quadInstancesBySlice.has(s.time)) quadInstancesBySlice.set(s.time, []);
+      if (!quadFreqBySlice.has(s.time)) quadFreqBySlice.set(s.time, new Map());
+
       nodeIndices.forEach(idx => {
-        const win = s.tokens.slice(Math.max(0, idx - 50), Math.min(s.tokens.length, idx + 51));
-        win.forEach(t => { if (t === activeNode) return; coocInSlice.set(t, (coocInSlice.get(t) || 0) + 1); const ek = `${activeNode}|${t}`; if (!edgeExamples.has(ek)) edgeExamples.set(ek, []); if (edgeExamples.get(ek)!.length < 5) edgeExamples.get(ek)!.push({ title: s.title || s.play_id, speaker: s.speaker, text: s.text_raw || "" }); });
+        const start = Math.max(0, idx - 50);
+        const end = Math.min(s.tokens.length, idx + 51);
+        const winTokens = s.tokens.slice(start, end);
+
+        const winCounts = new Map<string, number>();
+        winTokens.forEach(t => {
+          if (t === activeNode) return;
+          winCounts.set(t, (winCounts.get(t) || 0) + 1);
+        });
+
+        const sortedWin = Array.from(winCounts.entries()).sort((a, b) => b[1] - a[1]);
+        if (sortedWin.length >= 3) {
+          totalQuadWindows++;
+          const co = sortedWin.slice(0, 3);
+          const quadArray = [activeNode, ...co.map(pair => pair[0])].sort();
+          const quadKey = quadArray.join("|");
+
+          const instance = {
+            slice: s.time,
+            quadKey,
+            node: activeNode,
+            co: co.map(p => p[0]),
+            weights: co.map(p => p[1]),
+            source: {
+              title: s.title || s.play_id,
+              speaker: s.speaker,
+              excerpt: (s.text_raw || "").substring(0, 200) + "..."
+            }
+          };
+
+          quadInstancesBySlice.get(s.time)!.push(instance);
+          const sliceFreq = quadFreqBySlice.get(s.time)!;
+          sliceFreq.set(quadKey, (sliceFreq.get(quadKey) || 0) + 1);
+
+          if (!quadExamples.has(quadKey)) quadExamples.set(quadKey, []);
+          if (quadExamples.get(quadKey)!.length < 5) quadExamples.get(quadKey)!.push(instance);
+        }
       });
-      if (!quadsByTime.has(s.time)) quadsByTime.set(s.time, []);
-      quadsByTime.get(s.time)!.push({ node: activeNode, cooc: coocInSlice });
     });
 
     const sortedSlices = Array.from(allSlices).sort();
     const driftTable = sortedSlices.map((slice, idx) => {
-      const sliceData = quadsByTime.get(slice) || [];
-      const agg = new Map<string, number>();
-      sliceData.forEach(sd => sd.cooc.forEach((c: number, t: string) => agg.set(t, (agg.get(t) || 0) + c)));
-      const sorted = Array.from(agg.entries()).sort((a, b) => b[1] - a[1]);
-      const topNSet = new Set(sorted.slice(0, topN).map(([t]) => t));
-      
+      const freqMap = quadFreqBySlice.get(slice) || new Map();
+      const sortedQuads = Array.from(freqMap.entries()).sort((a, b) => b[1] - a[1]);
+      const topNQuads = sortedQuads.slice(0, topN).map(([quadKey, count]) => ({ quadKey, count }));
+      const top3 = topNQuads.slice(0, 3).map(q => q.quadKey);
+
       let jaccard = 0;
       if (idx > 0) {
-        const prevAgg = quadsByTime.get(sortedSlices[idx-1]) || [];
-        const prevMap = new Map<string, number>();
-        prevAgg.forEach(sd => sd.cooc.forEach((c: number, t: string) => prevMap.set(t, (prevMap.get(t) || 0) + c)));
-        const prevSet = new Set(Array.from(prevMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, topN).map(([t]) => t));
-        const intersection = Array.from(topNSet).filter(t => prevSet.has(t)).length;
-        const union = new Set([...Array.from(topNSet), ...Array.from(prevSet)]).size;
+        const prevFreqMap = quadFreqBySlice.get(sortedSlices[idx - 1]) || new Map();
+        const prevSet = new Set(Array.from(prevFreqMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, topN).map(([k]) => k));
+        const currSet = new Set(topNQuads.map(q => q.quadKey));
+        const intersection = Array.from(currSet).filter(k => prevSet.has(k)).length;
+        const union = new Set([...Array.from(currSet), ...Array.from(prevSet)]).size;
         jaccard = union > 0 ? intersection / union : 0;
       }
 
-      return { slice, size: agg.size, topN: sorted.slice(0, topN).map(([term, count]) => ({ term, count })), top3: sorted.slice(0, 3).map(([t]) => t), jaccard: parseFloat(jaccard.toFixed(3)) };
+      return { 
+        slice, 
+        size: freqMap.size, 
+        topN: topNQuads, 
+        top3, 
+        jaccard: parseFloat(jaccard.toFixed(3)),
+        totalQuadWindows: Array.from(freqMap.values()).reduce((a, b) => a + b, 0)
+      };
     });
 
-    const output = { sortedSlices, driftTable, totalNodeWindows, edgeExamples, topNodes: Array.from(lemmaFreqs.entries()).map(([lemma, d]) => ({ lemma, count: d.count })).sort((a, b) => b.count - a.count).slice(0, 50) };
+    const quadFreqBySliceObj: Record<string, any[]> = {};
+    quadFreqBySlice.forEach((val, key) => {
+      quadFreqBySliceObj[key] = Array.from(val.entries()).map(([quadKey, count]) => ({ quadKey, count })).sort((a, b) => b.count - a.count);
+    });
+
+    const output = { 
+      sortedSlices, 
+      driftTable, 
+      totalNodeWindows, 
+      totalQuadWindows,
+      quadFreqBySliceObj,
+      quadExamplesObj: Object.fromEntries(quadExamples),
+      topNodes: Array.from(lemmaFreqs.entries()).map(([lemma, d]) => ({ lemma, count: d.count })).sort((a, b) => b.count - a.count).slice(0, 50) 
+    };
     quadCache.current.set(cacheKey, output);
     return output;
   }, [speeches, corpusScope, nodeLemma, useStoplist, useLemmas, timeMode, topN, selectedPlayTitle]);
@@ -312,6 +368,15 @@ const DiscursiveTab = () => {
     <div className="space-y-6">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
+      
+      {results?.totalNodeWindows > 0 && results?.totalQuadWindows === 0 && (
+        <Alert variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Insufficient Neighbours</AlertTitle>
+          <AlertDescription>Node occurs, but not enough neighbours found to form quads (need ≥3 per window). Try disabling stoplist.</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-3 shadow-none border-muted/60">
           <CardHeader className="pb-3 bg-muted/5 border-b flex flex-row items-center justify-between">
@@ -322,24 +387,27 @@ const DiscursiveTab = () => {
             </div>
           </CardHeader>
           <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase">NODE</span><p className="text-sm font-bold text-amber-600">{nodeLemma}</p></div>
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase">WINDOWS</span><p className="text-sm font-bold">{results?.totalNodeWindows || 0}</p></div>
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase">SLICE</span><p className="text-sm font-bold">{currentTimeIndex + 1} of {results?.sortedSlices.length}</p></div>
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase">QUAD</span><p className="text-[10px] font-bold text-primary truncate">{activeSliceData?.top3.join(', ')}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">NODE WINDOWS</span><p className="text-sm font-bold text-amber-600">{results?.totalNodeWindows || 0}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">QUAD WINDOWS (FORMED)</span><p className="text-sm font-bold">{results?.totalQuadWindows || 0}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">SLICE</span><p className="text-sm font-bold">{currentTimeIndex + 1} of {results?.sortedSlices.length || 0}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">TOP QUAD</span><p className="text-[10px] font-bold text-primary truncate" title={activeSliceData?.top3[0]}>{activeSliceData?.top3[0]?.replace(/\|/g, ', ') || '-'}</p></div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-none border-amber-100 bg-amber-50/5">
-          <CardHeader className="bg-amber-100/20 border-b border-amber-100"><CardTitle className="text-sm font-bold">Constellation: {nodeLemma} ({results?.sortedSlices[currentTimeIndex]})</CardTitle></CardHeader>
+          <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold">Top Quads in Slice ({results?.sortedSlices[currentTimeIndex]})</CardTitle>
+            <Button variant="outline" size="icon" onClick={() => exportToCsv(`quads_${results?.sortedSlices[currentTimeIndex]}.csv`, activeSliceData?.topN || [])} className="h-7 w-7"><Download className="h-3 w-3"/></Button>
+          </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {viewMode === "constellation" ? (
               <div className="space-y-2">
                 {activeSliceData?.topN.map((item: any) => (
-                  <div key={item.term} className="group cursor-pointer" onClick={() => setSelectedCoLemma(item.term)}>
+                  <div key={item.quadKey} className="group cursor-pointer" onClick={() => setSelectedQuadKey(item.quadKey)}>
                     <div className="flex justify-between text-[10px] mb-1">
-                      <span className="font-medium group-hover:text-primary transition-colors">{item.term}</span>
+                      <span className="font-medium group-hover:text-primary transition-colors">{item.quadKey.replace(/\|/g, ' · ')}</span>
                       <span className="opacity-60">{item.count}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -349,33 +417,40 @@ const DiscursiveTab = () => {
                 ))}
               </div>
             ) : (
-              <ResultsTable data={activeSliceData?.topN || []} columns={[{ key: "term", label: "Term" }, { key: "count", label: "Weight", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.term, metric: item.count }])} />
+              <ResultsTable data={activeSliceData?.topN || []} columns={[{ key: "quadKey", label: "Quad (4-lemma set)" }, { key: "count", label: "Frequency", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} />
             )}
           </CardContent>
         </Card>
 
         <div className="space-y-4">
-          <h4 className="text-[10px] font-bold uppercase text-muted-foreground px-1">Window Traceability (±50 tokens)</h4>
-          {selectedCoLemma ? (
+          <h4 className="text-[10px] font-bold uppercase text-muted-foreground px-1">Quad Traceability (±50 tokens)</h4>
+          {selectedQuadKey ? (
             <div className="space-y-2 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
-              {results?.edgeExamples.get(`${nodeLemma.trim().toLowerCase()}|${selectedCoLemma}`)?.map((ex: any, i: number) => (
+              <div className="p-2 mb-2 bg-primary/5 rounded border border-primary/10 text-[9px] font-bold text-primary flex items-center gap-2"><Network className="h-3 w-3"/> ACTIVE QUAD: {selectedQuadKey.replace(/\|/g, ', ')}</div>
+              {results?.quadExamplesObj[selectedQuadKey]?.map((ex: any, i: number) => (
                 <div key={i} className="p-3 rounded-lg border bg-background text-[10px] italic shadow-sm border-amber-100">
-                  "...{ex.text.substring(0, 200)}..."
-                  <div className="mt-1 text-[8px] font-bold opacity-60 uppercase">{ex.title} | {ex.speaker}</div>
+                  <p className="mb-2">"...{ex.source.excerpt}"</p>
+                  <div className="flex justify-between items-center text-[8px] font-bold opacity-60 uppercase border-t pt-2">
+                    <span>{ex.source.title} | {ex.source.speaker}</span>
+                    <span className="text-amber-600">Context: {ex.co.join(', ')}</span>
+                  </div>
                 </div>
               ))}
             </div>
-          ) : <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">Select a neighbor to view context</div>}
+          ) : <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">Select a quad to view source windows</div>}
         </div>
       </div>
 
       <Card className="shadow-none border-muted/60">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Diachronic Metrics</CardTitle>
-          <Select value={driftMetric} onValueChange={(v: any) => setDriftMetric(v)}>
-            <SelectTrigger className="h-7 text-[10px] w-32"><SelectValue/></SelectTrigger>
-            <SelectContent><SelectItem value="jaccard">Jaccard Stability</SelectItem><SelectItem value="size">Constellation Size</SelectItem></SelectContent>
-          </Select>
+          <CardTitle className="text-sm font-bold">Diachronic Stability (Quad Distribution)</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={driftMetric} onValueChange={(v: any) => setDriftMetric(v)}>
+              <SelectTrigger className="h-7 text-[10px] w-40"><SelectValue/></SelectTrigger>
+              <SelectContent><SelectItem value="jaccard">Jaccard Stability (vs Prev)</SelectItem><SelectItem value="size">Unique Quad Count</SelectItem></SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => exportToCsv("drift_metrics.csv", results?.driftTable || [])}><Download className="h-3 w-3 mr-1"/> Export Drift</Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="h-[250px] w-full">
@@ -385,12 +460,25 @@ const DiscursiveTab = () => {
                 <XAxis dataKey="slice" fontSize={9} />
                 <YAxis fontSize={9} />
                 <Tooltip contentStyle={{ fontSize: '10px' }} />
-                <Line type="monotone" dataKey={driftMetric} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey={driftMetric} name={driftMetric === 'jaccard' ? 'Jaccard Index' : 'Quad Variety'} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex items-center gap-2 p-4 border rounded-xl bg-card">
+        <div className="space-y-1 flex-1">
+          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Node Lemma</Label>
+          <Input value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-8 text-xs w-48" placeholder="Node..."/>
+        </div>
+        <div className="flex items-center gap-2 pt-5">
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
+          <div className="text-center min-w-[100px]"><p className="text-[10px] font-bold text-muted-foreground">{timeMode} Slice</p><p className="text-xs font-bold">{results?.sortedSlices[currentTimeIndex]}</p></div>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
+        </div>
+        <div className="pt-5"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-8 gap-2">{isPlaying ? <Pause className="h-3 w-3"/> : <Play className="h-3 w-3"/>} {isPlaying ? 'Stop' : 'Play Sequence'}</Button></div>
+      </div>
     </div>
   );
 };

@@ -1,0 +1,244 @@
+Discursive Concepts: implement TRUE quad extraction (node + top3 per ±50 node window), per time-slice, with traceability + CSV export
+
+Implement ONLY Step 9.2A inside src/pages/Analysis.tsx DiscursiveTab.
+
+Do NOT modify:
+
+DataContext/CSV loading
+
+Dashboard / Corpus Browser
+
+Lexical tab
+
+Semantic tab
+
+UI routing / layout
+
+Goal: In Discursive Concepts, compute and expose actual quads as 4-lemma sets (node + 3 co-lemmas) derived from each node occurrence window.
+
+1) Definitions (hard constraints)
+
+Dataset: speeches only.
+
+Preprocessing: existing processTokens(text_raw, { useStoplist, useLemmas }).
+
+Window: node-centred symmetric ±50 tokens around each node occurrence; overlaps allowed.
+
+Quad (true): for each node-window, take the top 3 most frequent co-lemmas within that window (excluding node), then form the 4-lemma set:
+
+{node, c1, c2, c3} sorted for stability.
+
+We build many quad instances across windows and aggregate them.
+
+2) Data structures to add
+
+Inside useMemo results computation, add:
+
+A) Quad instance list (traceable)
+
+For each node window that yields ≥3 neighbours, create a QuadInstance with:
+
+slice (time slice string)
+
+quadKey (string like act|law|power|will in sorted order)
+
+node
+
+co = [c1,c2,c3] (sorted by weight or lexical)
+
+weights = [w1,w2,w3] (within-window counts)
+
+source:
+
+title, act, scene, speaker, play_id optional
+
+excerpt (first 200 chars of text_raw)
+
+(optional) window position index
+
+Store instances in:
+
+quadInstancesBySlice: Map<string, QuadInstance[]>
+
+B) Aggregated quad frequency per slice
+
+quadFreqBySlice: Map<string, Map<string, number>>
+
+increment count per quadKey per slice
+
+C) Quad traceability index
+
+quadExamples: Map<string, QuadInstance[]>
+Keep up to 5 instances per quadKey (per slice or globally) for drill-down.
+
+3) How to compute quads (replace/extend current cooc logic)
+
+Currently you compute coocInSlice by aggregating neighbours across node indices in a speech.
+
+Instead, do it per node occurrence:
+
+For each speech s:
+
+compute nodeIndices as you already do
+
+for each node index:
+
+compute winTokens = tokens[idx-50 : idx+50]
+
+build winCounts = Map<lemma, count> for tokens in winTokens excluding node
+
+sort winCounts desc
+
+take top 3 neighbours (if <3, skip this window)
+
+build quad = [node, n1, n2, n3] then sort lexicographically for stable key
+
+quadKey = quad.join("|")
+
+push a QuadInstance into quadInstancesBySlice.get(slice)
+
+increment quadFreqBySlice.get(slice).set(quadKey, +1)
+
+add up to 5 examples in quadExamples for that quadKey
+Also increment totalNodeWindows regardless; but increment totalQuadWindows only when a quad was formed (>=3 neighbours). Expose both counts.
+
+Important: this is now “true quad extraction” and must replace any text that implies you’re only doing pair co-occurrence.
+
+4) Outputs to expose in results
+
+Extend output to include:
+
+totalNodeWindows
+
+totalQuadWindows
+
+sortedSlices
+
+driftTable (update definition below)
+
+topNodes (keep)
+
+quadFreqBySlice (serialisable format)
+
+topQuadsOverall (Top N quads across all slices)
+
+quadExamples (Map or plain object)
+
+Because Maps don’t render well in React props/state, convert Maps to plain objects for UI:
+
+quadFreqBySliceObj: Record<string, Array<{ quadKey: string; count: number }>>
+
+for each slice, store sorted list of {quadKey,count}
+
+quadExamplesObj: Record<string, QuadInstance[]>
+
+Keep existing edgeExamples if you want, but the quadExamples becomes primary.
+
+5) Update driftTable to be quad-aware
+
+Right now driftTable is based on co-lemma weights.
+
+Change driftTable to be based on quad distributions per slice:
+
+For each slice:
+
+get quad list = quadFreqBySliceObj[slice]
+
+size = number of unique quads in slice
+
+topN = top N quads (quadKey + count)
+
+top3 = top 3 quads (quadKey list)
+
+Jaccard vs previous:
+
+compare sets of top N quadKeys between slice i and slice i-1
+
+Also add (optional but easy):
+
+quadTotal = total quad windows in that slice (sum of counts)
+
+This makes diachronic metrics about quads, not only neighbour lemmas.
+
+6) UI changes (minimal; preserve existing layout)
+
+In DiscursiveTab UI:
+
+A) Sanity Checks card
+
+Update labels to show both:
+
+WINDOWS (node windows): totalNodeWindows
+
+QUAD WINDOWS (formed): totalQuadWindows
+
+Update QUAD display:
+
+show activeSliceData?.top3[0] as the top quadKey (or join nicely)
+
+B) Constellation panel becomes “Top Quads in slice”
+
+Where you currently display activeSliceData.topN as terms+weights, change it to display:
+
+quadKey + count
+
+bar length by count
+
+Click behaviour:
+
+clicking a quad selects selectedQuadKey (new state) instead of selectedCoLemma
+
+traceability panel shows quadExamplesObj[selectedQuadKey]
+
+Add a small toggle:
+
+“Show: Quads / Neighbours”
+Default = Quads.
+If Neighbours is selected, you can keep your current neighbour list logic as a secondary view (optional). If too much, skip neighbours and only show quads for now.
+
+C) Traceability panel
+
+Replace edgeExamples lookup with quadExamples lookup:
+
+show up to 5 examples with title/speaker/excerpt
+
+show quadKey at top
+
+D) CSV export
+
+Add a “Download Top Quads (slice)” CSV
+and “Download Quad Drift Table” CSV (driftTable already)
+
+7) Guardrails
+
+If totalNodeWindows > 0 but totalQuadWindows === 0, show a warning:
+
+“Node occurs, but not enough neighbours to form quads under current preprocessing. Try disabling stoplist or lemmatisation, or widen scope.”
+
+If slice list empty, show “Node lemma not found in scope”.
+
+8) Performance / caching
+
+Update cacheKey to include:
+
+selectedPlayTitle
+
+topN
+
+any new toggles (Quads/Neighbours if you add it)
+
+Use existing quadCache.current.
+
+9) Acceptance tests
+
+Discursive tab loads.
+
+For common node (lord), totalNodeWindows > 0 and totalQuadWindows > 0.
+
+Top Quads list shows quadKeys and counts.
+
+Clicking a quad shows traceable examples.
+
+Drift chart now reflects jaccard/size over quad distributions.
+
+Stop after Step 9.2A.
