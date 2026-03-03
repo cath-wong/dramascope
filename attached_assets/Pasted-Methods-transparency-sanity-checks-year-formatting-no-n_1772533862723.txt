@@ -1,0 +1,162 @@
+Methods transparency + sanity checks + year formatting (no new modelling)
+
+Implement ONLY Step 9.1.
+Do NOT change DataContext loading, routing, or any core analysis computations in Steps 6–8.5.
+
+Goal: make assumptions explicit and add sanity-check readouts so results are interpretable and debuggable.
+
+1) Add a “Docs / Methods” page (or panel link)
+
+In the sidebar bottom (optional links area), add Docs.
+
+Create src/pages/Docs.tsx (or similar) containing:
+
+A) Data sources
+
+Built-in bundled corpus:
+
+/public/corpus_lines_real.csv
+
+/public/corpus_speeches_real.csv
+
+Clear statement: browser shows text as stored; analysis uses processed tokens.
+
+B) Token processing pipeline (exact)
+
+Document the pipeline as implemented:
+
+normaliseText (lowercase, punctuation handling)
+
+tokenize (whitespace)
+
+stoplist filter (toggle)
+
+light lemmatisation (toggle)
+
+numeric/short token removal
+
+Show:
+
+Stoplist contents in a scrollable code block (from getStoplist()).
+
+Lemmatisation rules: list the regex transformations used (describe briefly).
+
+C) Tab dataset separation
+
+Explicitly state:
+
+Lexical uses lines only (text_norm)
+
+Semantic uses speeches only (text_raw normalised)
+
+Discursive uses speeches only
+
+D) Discursive model definition (Step 8.5)
+
+State clearly:
+
+node-centred symmetric window ±50 tokens around each node occurrence
+
+overlaps allowed
+
+co-occurrence aggregation definition (count-based)
+
+quad definition in this app: node + top 3 co-lemmas (per slice or overall)
+
+drift metrics: constellation size, density proxy, entropy proxy, Jaccard overlap of Top-N
+
+E) Time slicing
+
+Document the column fallback chain used:
+
+Year: year_est → year_mid → year_min
+
+Decade: decade → decade_num
+Missing → “Unknown” (excluded from stability chain by default)
+
+2) Add a compact “Method summary” collapsible on each analysis tab
+
+On Lexical, Semantic, Discursive tabs, add a small collapsible component (e.g. <DetailsPanel />) that shows:
+
+Dataset used (lines/speeches)
+
+Token source column (text_norm/text_raw)
+
+Active toggles (stoplist/lemmatisation)
+
+Scope summary (full vs play, title, timeMode, topN, active filters)
+
+This panel should be read-only and not affect computation.
+
+3) Discursive tab sanity-check box (must be visible)
+
+On Discursive Concepts tab, add a “Sanity checks” card that displays (from existing computed results, without recomputation):
+
+Node lemma (current)
+
+Node occurrences or “node windows extracted” count (whichever you currently track; if not tracked, add a simple counter during window extraction but do not change results)
+
+Number of co-lemmas in constellation for:
+
+current slice
+
+overall scope (if available)
+
+Top 3 co-lemmas (the quad) for:
+
+current slice
+
+Time slice label + index (e.g., “Slice 4 of 17: 1601”)
+
+If node not found / too few windows:
+
+show warning text, not empty UI.
+
+4) Fix year/decade display formatting (remove .0)
+
+Everywhere you display years/decades (Dashboard, Browser filters, tooltips, labels):
+
+If value is a number like 1601 or 1601.0, display as integer string.
+
+If value is non-integer (e.g., year_mid might be 1601.5), either:
+
+round to nearest integer for display with a tooltip “midpoint”, OR
+
+display without trailing .0 but keep decimals when meaningful.
+
+Minimum requirement:
+
+Never show 1601.0 — show 1601.
+
+Implement a helper:
+formatTimeValue(value: unknown): string
+
+handles string/number/null safely
+
+trims trailing .0
+
+Use it in UI labels (not changing underlying data).
+
+5) Acceptance tests
+
+Docs page exists and accurately reflects implemented rules.
+
+Each analysis tab has a collapsible “Method summary”.
+
+Discursive tab shows “Sanity checks” card with real counts.
+
+Years no longer show with trailing .0 in UI.
+
+No modelling outputs change due to this step.
+
+6) After implementation
+
+List:
+
+files created/modified
+
+where formatTimeValue lives
+
+what sanity check counters were added (if any)
+
+Stop after Step 9.1. Do NOT implement Step 9.2 visuals yet.

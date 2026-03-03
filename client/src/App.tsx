@@ -9,16 +9,16 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Browser from "@/pages/Browser";
 import Analysis from "@/pages/Analysis";
+import Docs from "@/pages/Docs";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/">
-        <Redirect to="/dashboard" />
-      </Route>
+      <Route path="/"><Redirect to="/dashboard" /></Route>
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/browser" component={Browser} />
       <Route path="/analysis" component={Analysis} />
+      <Route path="/docs" component={Docs} />
       <Route component={NotFound} />
     </Switch>
   );

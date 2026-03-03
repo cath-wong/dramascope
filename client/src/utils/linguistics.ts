@@ -21,6 +21,20 @@ export function getStoplist(): Set<string> {
   ]);
 }
 
+/**
+ * Formats a time value (year or decade) to remove trailing .0
+ * Handles numbers, strings, and null/undefined safely.
+ */
+export function formatTimeValue(value: unknown): string {
+  if (value === null || value === undefined) return "Unknown";
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+  // If it's an integer or ends in .0, return as integer string
+  if (num % 1 === 0) return Math.floor(num).toString();
+  // Otherwise keep decimal (e.g. midpoint years)
+  return num.toString();
+}
+
 export function lightLemmatize(token: string): string {
   if (token.length <= 3) return token;
 
