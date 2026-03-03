@@ -1,0 +1,336 @@
+Refactor Discursive Concepts quad/constellation extraction to Node-Centred ±50 window (overlaps allowed) + node browse list + manual search
+
+Implement ONLY Step 8.5: replace the modelling logic inside the Discursive Concepts tab to match the refined method.
+
+Do NOT modify:
+
+CSV loading (Step 1)
+
+routing/layout (Step 2)
+
+Dashboard (Step 3)
+
+Corpus Browser (Step 4)
+
+Lexical tab (Step 6)
+
+Semantic tab (Step 7)
+
+Keep the Discursive Concepts UI structure, exports, and traceability panel, but update controls as specified.
+
+0) Hard constraints
+
+Discursive Concepts uses ONLY DataContext.speeches (corpus_speeches_real.csv).
+
+No embeddings.
+
+No mixing lines dataset.
+
+A “quad” is not a 4-gram.
+
+Window definition must be node-centred symmetric ±50 tokens (total span ≤ 101 tokens), overlaps allowed.
+
+Results must be traceable to source speeches: title, act, scene, speaker, excerpt (~200 chars).
+
+1) Define the modelling unit (scope)
+
+Use the existing global scope controls:
+
+If scope = full corpus → use all speeches after filters.
+
+If scope = single play → use speeches filtered by title.
+
+(We are no longer forcing “play” as the only unit. The “unit” is whatever the user selects as scope, but within single-play scope it behaves exactly as play-level modelling.)
+
+2) Token pipeline (must be explicit and shared)
+
+Use your existing src/utils/linguistics.ts:
+
+normaliseText
+
+tokenize
+
+getStoplist (expandable later)
+
+lightLemmatize
+
+Implement a helper used ONLY by this tab:
+
+processSpeechTokens(text: string, opts: { useStoplist: boolean; useLemmas: boolean }): string[]
+
+Pipeline:
+
+normalise → tokenize
+
+drop tokens length < 2
+
+drop purely numeric tokens
+
+optionally stoplist filter
+
+optionally light lemmatise
+
+Token source: speech.text_raw (use text_norm only if it exists and you explicitly add a toggle; default raw).
+
+3) Build a scoped token stream (critical)
+
+To do node-centred windows, you need a stable token stream per speech, but windows are centred on node occurrences inside each speech.
+
+Approach:
+
+For each speech row in the scoped set:
+
+compute processed tokens array (memoised)
+
+store alongside metadata: title, act, scene, speaker, play_id if present, time slice
+
+This keeps traceability aligned to speeches.
+
+4) Node lemma selection (two routes)
+
+Implement BOTH:
+
+A) Browse list (Top N nodes)
+
+Compute a node-candidate list from scoped speeches:
+
+Count lemma frequencies across processed tokens.
+
+Exclude stoplist (if stoplist toggle ON).
+
+Show Top N nodes (N = global topN or a separate small dropdown; use global topN for simplicity).
+UI:
+
+A table or dropdown list: lemma + frequency + speech count.
+
+B) Manual search box
+
+Allow user to type any node lemma, even if not in Top N.
+
+If node not found in current scope, show clear message.
+
+Default node lemma:
+
+if user hasn’t typed anything, prefill with lord (or first item in Top list if available).
+
+5) Window definition (non-negotiable)
+
+For each occurrence of the node lemma inside a speech’s token array:
+
+windowStart = max(0, index - 50)
+
+windowEnd = min(tokens.length, index + 51)
+
+windowTokens = tokens[windowStart:windowEnd]
+
+Overlaps are allowed (do not deduplicate overlapping windows).
+
+This guarantees:
+
+all co-lemmas are within 50 tokens of node
+
+total span is bounded and interpretable
+
+6) Co-occurrence counting (node-centred)
+
+Within each node window:
+
+Build counts of neighbour lemmas in that window excluding the node itself.
+
+Aggregate across all node windows in the scope:
+
+Maintain:
+
+coocCount[lemma] += occurrences_in_window (count-based)
+Also track:
+
+windowHits[lemma] += 1 when lemma appears at least once in a window (optional but useful)
+
+Important:
+
+This is not “anywhere in 100 before + anywhere in 100 after across different windows”.
+
+Each window is explicitly tied to an occurrence of the node.
+
+7) Define “quad” and “constellation” under this model
+Constellation
+
+For chosen node lemma in current scope:
+
+Ranked list of co-lemmas by coocCount (or by a score)
+
+Edge list:
+
+node, coLemma, weight (= coocCount), windowHits (optional)
+
+Quad (node-centred quad)
+
+Define a quad as:
+
+node + top 3 co-lemmas (by weight) within a time slice OR within selected scope (configurable below)
+
+Implement time slicing as in Step 7:
+
+year: year_est else year_mid else year_min
+
+decade: decade else decade_num
+Missing → "Unknown"
+
+Now implement:
+
+For a selected time slice: compute cooc counts restricted to that slice, then pick top 3 co-lemmas → quad for that slice.
+
+Also allow “All time (scope)” view: pick top 3 overall.
+
+Store quad object:
+
+node, co1, co2, co3
+
+timeSlice (or “ALL”)
+
+weights for co1/co2/co3
+
+total node window count used
+
+This matches your intention: “3 lemmas surrounding the node in 100-word proximity”.
+
+8) Time slice navigation + drift metrics
+
+Keep your existing drift table/chart structure but recompute based on the new constellation:
+
+Per time slice compute:
+
+constellation_size (unique co-lemmas with weight > 0)
+
+density_proxy = total edge weight / max(1, constellation_size)
+
+entropy_proxy over co-lemma weights
+
+stability vs previous slice:
+
+Jaccard similarity of Top-N co-lemmas
+
+overlap_count
+
+Exclude “Unknown” from stability chain by default (still display it separately if present).
+
+9) Traceability (mandatory)
+
+Update traceability to reflect node-window evidence.
+
+When user clicks an edge (node → coLemma):
+Show up to 5 example speeches where:
+
+node occurs AND coLemma appears within ±50 tokens of that node occurrence.
+
+For each example show:
+
+title, act, scene, speaker
+
+excerpt (~200 chars) from the original text_raw
+
+highlight node and coLemma (best-effort)
+
+Implementation note:
+
+You can locate an example by scanning the speech tokens for node indices and checking if coLemma occurs in the corresponding ±50 window.
+
+For excerpt: take a substring from text_raw; exact alignment to tokens not required, but include both terms if possible.
+
+10) Visualisations (keep existing, adapt data)
+
+Do NOT add a brand new network library unless already present.
+
+Minimum:
+
+Constellation table (Top N co-lemmas)
+
+Edge table clickable (node → coLemma)
+
+Drift chart (Recharts line chart) for constellation_size and/or jaccard_prev
+
+Optional:
+
+simple “bar list” view where bar length = weight for Top N co-lemmas
+
+11) CSV exports (required)
+
+Ensure CSV export works for:
+
+Constellation edge list (Top N and full)
+
+Drift metrics table
+
+Quad summary per time slice (node+top3 per slice)
+
+Optional: traceability examples list
+
+Include in exported rows:
+
+node lemma
+
+scope info (full vs title)
+
+timeMode (year/decade)
+
+slice value (if applicable)
+
+12) Performance requirements
+
+This must be responsive.
+
+Memoise processed tokens per speech based on (stoplist, lemmatise).
+
+Cache computed results keyed by:
+
+scope/title/genre/speaker
+
+timeMode
+
+nodeLemma
+
+stoplist toggle
+
+lemmatise toggle
+
+Avoid recomputing everything when the user changes only the selected time slice (slice selection should filter cached per-slice results).
+
+13) Fail loudly / user guidance
+
+If node lemma not found:
+
+show: “Node lemma not found in this scope.”
+
+If node occurs but too few windows:
+
+show warning:
+
+“Only X node windows found; results may be unstable.”
+
+14) Acceptance tests
+
+With a common node (e.g., “lord”), constellation table is non-empty.
+
+Switching scope (full vs single play) changes results.
+
+Time slices change the top 3 co-lemmas (quad per slice).
+
+Clicking an edge shows traceable examples.
+
+CSV exports download correctly.
+
+Lexical and Semantic tabs remain unchanged.
+
+15) After implementation
+
+List:
+
+files modified
+
+where the new window logic lives
+
+cache key structure
+
+what data structure stores per-slice results
+
+Stop after Step 8.5. Do NOT implement Step 9.

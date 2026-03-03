@@ -193,18 +193,17 @@ const SemanticTab = () => {
   );
 };
 
-// --- Discursive Concepts Tab Component ---
+// --- Discursive Concepts Tab Component (Refactored 8.5) ---
 const DiscursiveTab = () => {
   const { speeches } = useData();
   const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, timeMode } = useUI();
 
   const [nodeLemma, setNodeLemma] = useState("lord");
-  const [tokenSpan, setTokenSpan] = useState(100);
-  const [topPairsP, setTopPairsP] = useState(20);
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedCoLemma, setSelectedCoLemma] = useState<string | null>(null);
 
   const quadCache = useRef<Map<string, any>>(new Map());
 
@@ -218,111 +217,164 @@ const DiscursiveTab = () => {
       return true;
     });
 
-    const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, node: nodeLemma, span: tokenSpan, p: topPairsP, stop: useStoplist, lem: useLemmas, time: timeMode });
+    const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, node: nodeLemma, stop: useStoplist, lem: useLemmas, time: timeMode, topN });
     if (quadCache.current.has(cacheKey)) return quadCache.current.get(cacheKey);
 
-    // 1. Process speeches into quads
+    // 1. Process speeches into tokens and compute global top nodes for browse list
+    const lemmaFreqs = new Map<string, { count: number; speeches: Set<number> }>();
+    const speechTokens = filtered.map((s, idx) => {
+      const tokens = processTokens(s.text_raw || s.text_norm || "", { useStoplist, useLemmas });
+      tokens.forEach(t => {
+        if (!lemmaFreqs.has(t)) lemmaFreqs.set(t, { count: 0, speeches: new Set() });
+        const entry = lemmaFreqs.get(t)!;
+        entry.count++;
+        entry.speeches.add(idx);
+      });
+      return { ...s, tokens, time: String(getTimeSlice(s)) };
+    });
+
+    const topNodes = Array.from(lemmaFreqs.entries())
+      .map(([lemma, data]) => ({ lemma, count: data.count, speeches: data.speeches.size }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 50);
+
+    // 2. Node-Centred Windowing logic (±50 tokens)
+    const activeNode = nodeLemma.trim().toLowerCase();
     const quadsByTime = new Map<string, any[]>();
     const allSlices = new Set<string>();
+    const edgeExamples = new Map<string, any[]>();
 
-    filtered.forEach(s => {
-      const tokens = processTokens(s.text_raw || s.text_norm || "", { useStoplist, useLemmas }).slice(0, tokenSpan);
-      if (tokens.length < 4) return;
-      const slice = String(getTimeSlice(s));
-      if (slice === "Unknown") return;
-      allSlices.add(slice);
+    speechTokens.forEach(s => {
+      if (s.time === "Unknown") return;
+      allSlices.add(s.time);
 
-      // Preprocessing note: Using "Unique-token-in-speech" approach for quad candidate pairs.
-      const uniqueTokens = Array.from(new Set(tokens));
-      const pairs: [string, string][] = [];
-      for (let i = 0; i < uniqueTokens.length; i++) {
-        for (let j = i + 1; j < uniqueTokens.length; j++) {
-          pairs.push([uniqueTokens[i], uniqueTokens[j]].sort() as [string, string]);
-        }
-      }
+      const nodeIndices = s.tokens.reduce((acc: number[], t, i) => {
+        if (t === activeNode) acc.push(i);
+        return acc;
+      }, []);
 
-      // Sample P pairs (in this pilot, we just take first P as we don't have complex scoring per speech yet)
-      const topPairs = pairs.slice(0, topPairsP);
-      
-      // Form candidate quads: pairs sharing one lemma, union has 4 unique
-      const quadsInSpeech: Set<string> = new Set();
-      for (let i = 0; i < topPairs.length; i++) {
-        for (let j = i + 1; j < topPairs.length; j++) {
-          const p1 = topPairs[i], p2 = topPairs[j];
-          const union = Array.from(new Set([...p1, ...p2])).sort();
-          if (union.length === 4) {
-            const shared = p1.filter(t => p2.includes(t));
-            if (shared.length === 1) {
-              quadsInSpeech.add(union.join("|"));
-            }
+      if (nodeIndices.length === 0) return;
+
+      const coocInSlice = new Map<string, number>();
+
+      nodeIndices.forEach(idx => {
+        const start = Math.max(0, idx - 50);
+        const end = Math.min(s.tokens.length, idx + 51);
+        const windowTokens = s.tokens.slice(start, end);
+
+        windowTokens.forEach(t => {
+          if (t === activeNode) return;
+          coocInSlice.set(t, (coocInSlice.get(t) || 0) + 1);
+          
+          const exampleKey = `${activeNode}|${t}`;
+          if (!edgeExamples.has(exampleKey)) edgeExamples.set(exampleKey, []);
+          if (edgeExamples.get(exampleKey)!.length < 5) {
+            edgeExamples.get(exampleKey)!.push({
+              title: s.title || s.play_id,
+              act: s.act,
+              scene: s.scene,
+              speaker: s.speaker,
+              text: s.text_raw || s.text_norm || ""
+            });
           }
-        }
-      }
-
-      if (!quadsByTime.has(slice)) quadsByTime.set(slice, []);
-      quadsInSpeech.forEach(qStr => {
-        quadsByTime.get(slice)!.push({ terms: qStr.split("|"), speaker: s.speaker, title: s.title || s.play_id, act: s.act, scene: s.scene, text: s.text_raw || s.text_norm || "" });
+        });
       });
+
+      if (!quadsByTime.has(s.time)) quadsByTime.set(s.time, []);
+      quadsByTime.get(s.time)!.push({ node: activeNode, cooc: coocInSlice });
     });
 
     const sortedSlices = Array.from(allSlices).sort((a, b) => a.localeCompare(b));
     
-    // 2. Compute diachronic metrics
+    // 3. Aggregate per slice
     const driftTable = sortedSlices.map((slice, idx) => {
-      const sliceQuads = quadsByTime.get(slice) || [];
-      const nodeQuads = sliceQuads.filter(q => q.terms.includes(nodeLemma));
-      const coLemmas = new Map<string, number>();
-      nodeQuads.forEach(q => q.terms.filter(t => t !== nodeLemma).forEach(t => coLemmas.set(t, (coLemmas.get(t) || 0) + 1)));
-      
-      const topCoLemmas = Array.from(coLemmas.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      
+      const sliceData = quadsByTime.get(slice) || [];
+      const aggregatedCooc = new Map<string, number>();
+      sliceData.forEach(sd => {
+        sd.cooc.forEach((count: number, term: string) => {
+          aggregatedCooc.set(term, (aggregatedCooc.get(term) || 0) + count);
+        });
+      });
+
+      const sortedCooc = Array.from(aggregatedCooc.entries()).sort((a, b) => b[1] - a[1]);
+      const top3 = sortedCooc.slice(0, 3).map(([t]) => t);
+      const topNCooc = sortedCooc.slice(0, topN);
+
       // Jaccard similarity to previous
       let jaccard = 0;
       if (idx > 0) {
-        const prevSlice = sortedSlices[idx - 1];
-        const prevQuads = quadsByTime.get(prevSlice) || [];
-        const prevNodeQuads = prevQuads.filter(q => q.terms.includes(nodeLemma));
-        const prevCoLemmas = new Set(prevNodeQuads.flatMap(q => q.terms.filter(t => t !== nodeLemma)));
-        const currCoLemmas = new Set(coLemmas.keys());
-        const intersection = Array.from(currCoLemmas).filter(t => prevCoLemmas.has(t));
-        const union = new Set([...Array.from(currCoLemmas), ...Array.from(prevCoLemmas)]);
+        const prevCooc = driftTable[idx - 1].aggregatedCooc;
+        const prevSet = new Set(Array.from(prevCooc.keys()).slice(0, topN));
+        const currSet = new Set(topNCooc.map(([t]) => t));
+        const intersection = Array.from(currSet).filter(t => prevSet.has(t));
+        const union = new Set([...Array.from(currSet), ...Array.from(prevSet)]);
         jaccard = union.size > 0 ? intersection.length / union.size : 0;
       }
 
-      return { slice, size: coLemmas.size, top: topCoLemmas, jaccard: parseFloat(jaccard.toFixed(3)), quads: nodeQuads };
+      return { 
+        slice, 
+        size: aggregatedCooc.size, 
+        topN: topNCooc, 
+        top3, 
+        jaccard: parseFloat(jaccard.toFixed(3)),
+        aggregatedCooc // stored for Jaccard next pass
+      };
     });
 
-    const output = { sortedSlices, driftTable, quadsByTime };
+    const output = { sortedSlices, driftTable, topNodes, edgeExamples };
     quadCache.current.set(cacheKey, output);
     return output;
-  }, [speeches, corpusScope, selectedPlayTitle, nodeLemma, tokenSpan, topPairsP, useStoplist, useLemmas, timeMode]);
+  }, [speeches, corpusScope, selectedPlayTitle, nodeLemma, useStoplist, useLemmas, timeMode, topN]);
 
-  // Animation effect
   useEffect(() => {
     let interval: any;
     if (isPlaying && results?.sortedSlices.length) {
-      interval = setInterval(() => {
-        setCurrentTimeIndex(prev => (prev + 1) % results.sortedSlices.length);
-      }, 1500);
+      interval = setInterval(() => setCurrentTimeIndex(prev => (prev + 1) % results.sortedSlices.length), 1500);
     }
     return () => clearInterval(interval);
   }, [isPlaying, results?.sortedSlices.length]);
 
-  const activeSliceData = useMemo(() => {
-    if (!results || !results.sortedSlices.length) return null;
-    return results.driftTable[currentTimeIndex];
-  }, [results, currentTimeIndex]);
+  const activeSliceData = useMemo(() => results?.driftTable[currentTimeIndex], [results, currentTimeIndex]);
 
-  if (!results?.sortedSlices.length) return <div className="py-12 text-center text-muted-foreground">No discursive data found for this scope/lemma.</div>;
+  if (!results || results.sortedSlices.length === 0) return <div className="py-12 text-center text-muted-foreground">Node lemma "{nodeLemma}" not found in current scope.</div>;
 
   return (
     <div className="space-y-6">
-      <Alert className="bg-amber-500/10 border-amber-500/20"><Info className="h-4 w-4 text-amber-500" /><AlertTitle className="text-amber-700 font-semibold">Dataset: SPEECHES ONLY (Quads)</AlertTitle><AlertDescription className="text-amber-600/80 text-xs italic">Preprocessing: Unique-token-in-speech co-occurrence within first {tokenSpan} tokens.</AlertDescription></Alert>
+      <Alert className="bg-amber-500/10 border-amber-500/20">
+        <Info className="h-4 w-4 text-amber-500" />
+        <AlertTitle className="text-amber-700 font-semibold">Node-Centred ±50 Window Model (Step 8.5 Refinement)</AlertTitle>
+        <AlertDescription className="text-amber-600/80 text-xs italic">
+          Preprocessing: Symmetry window ±50 tokens from each occurrence of "{nodeLemma}". Overlaps allowed.
+        </AlertDescription>
+      </Alert>
 
-      <Card><CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4 text-amber-500" /> Discursive Parameters</CardTitle></CardHeader>
-      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6"><div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Node Lemma</Label><Input value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-9 text-xs" /></div><div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Token Span</Label><Input type="number" value={tokenSpan} onChange={e => setTokenSpan(parseInt(e.target.value)||10)} className="h-9 text-xs" /></div><div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Top Pairs P</Label><Input type="number" value={topPairsP} onChange={e => setTopPairsP(parseInt(e.target.value)||1)} className="h-9 text-xs" /></div></CardContent></Card>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="lg:col-span-1 shadow-none border-muted/60">
+          <CardHeader className="pb-2 bg-muted/5 border-b"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Top Scoped Nodes</CardTitle></CardHeader>
+          <CardContent className="p-0 max-h-[400px] overflow-auto">
+            <Table>
+              <TableBody>
+                {results.topNodes.map(n => (
+                  <TableRow key={n.lemma} className={`h-8 cursor-pointer ${nodeLemma === n.lemma ? 'bg-amber-50' : 'hover:bg-muted/30'}`} onClick={() => setNodeLemma(n.lemma)}>
+                    <TableCell className="py-1 text-[10px] font-medium">{n.lemma}</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right text-muted-foreground">{n.count}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-      {/* Time Navigator */}
+        <Card className="lg:col-span-3 shadow-none border-muted/60">
+          <CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4 text-amber-500" /> Discursive Controls</CardTitle></CardHeader>
+          <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Node Lemma</Label><Input value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-9 text-xs" /></div>
+            <div className="flex items-center gap-4 pt-6"><div className="flex items-center space-x-2"><Checkbox id="d-stop" checked={useStoplist} onCheckedChange={v => setUseStoplist(!!v)}/><Label htmlFor="d-stop" className="text-xs">Stoplist</Label></div><div className="flex items-center space-x-2"><Checkbox id="d-lemma" checked={useLemmas} onCheckedChange={v => setUseLemmas(!!v)}/><Label htmlFor="d-lemma" className="text-xs">Lemmatize</Label></div></div>
+            <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Current Slice Quad (Top 3)</Label><div className="flex gap-1.5">{activeSliceData?.top3.map(t => <Badge key={t} variant="outline" className="text-[9px] bg-amber-50/50">{t}</Badge>)}</div></div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4" /></Button>
@@ -333,65 +385,65 @@ const DiscursiveTab = () => {
           <Button variant="outline" size="sm" onClick={() => setCurrentTimeIndex(p => Math.min(results.sortedSlices.length - 1, p + 1))} disabled={currentTimeIndex === results.sortedSlices.length - 1}><ChevronRight className="h-4 w-4" /></Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="gap-2 h-9 px-4">{isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />} {isPlaying ? "Stop" : "Play Sequence"}</Button>
-          <Button variant="outline" size="sm" onClick={() => exportToCsv("discursive_edges.csv", activeSliceData?.top || [])} className="h-9 text-[10px] gap-1.5"><Download className="h-3 w-3" /> Export Slice</Button>
+          <Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-9 gap-2">{isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />} {isPlaying ? "Stop" : "Play"}</Button>
+          <Button variant="outline" size="sm" onClick={() => exportToCsv("drift_metrics.csv", results.driftTable)} className="h-9 text-[10px] gap-1.5"><Download className="h-3 w-3" /> Export Drift</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Constellation View */}
-        <Card className="shadow-none border-amber-100 bg-amber-50/10">
-          <CardHeader className="bg-amber-100/30 border-b border-amber-100"><CardTitle className="text-sm font-bold flex items-center gap-2"><Network className="h-4 w-4 text-amber-600" /> Constellation: {nodeLemma}</CardTitle></CardHeader>
+        <Card className="shadow-none border-amber-100 bg-amber-50/5">
+          <CardHeader className="bg-amber-100/20 border-b border-amber-100"><CardTitle className="text-sm font-bold flex items-center gap-2"><Network className="h-4 w-4 text-amber-600" /> Constellation: {nodeLemma} ({results.sortedSlices[currentTimeIndex]})</CardTitle></CardHeader>
           <CardContent className="pt-6 space-y-4">
-            <div className="space-y-2">
-              {activeSliceData?.top.map(([term, weight]) => (
-                <div key={term} className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold w-16 truncate">{term}</span>
-                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-amber-500" style={{ width: `${(weight / activeSliceData.top[0][1]) * 100}%` }} /></div>
-                  <span className="text-[10px] font-mono w-8 text-right">{weight}</span>
-                </div>
-              ))}
-            </div>
-            <div className="max-h-[300px] overflow-auto border rounded-md bg-background mt-4">
-              <Table><TableHeader><TableRow><TableHead className="h-8 text-[9px]">Term</TableHead><TableHead className="h-8 text-[9px] text-right">Weight</TableHead></TableRow></TableHeader>
-              <TableBody>{activeSliceData?.top.map(([term, weight]) => (<TableRow key={term} className="h-8"><TableCell className="py-1 text-[10px] font-medium">{term}</TableCell><TableCell className="py-1 text-[10px] text-right tabular-nums">{weight}</TableCell></TableRow>))}</TableBody></Table>
+            <div className="max-h-[400px] overflow-auto border rounded-md bg-background shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted/50 sticky top-0"><TableRow><TableHead className="h-8 text-[9px]">Neighbour Lemma</TableHead><TableHead className="h-8 text-[9px] text-right">Window Cooc</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {activeSliceData?.topN.map(([term, weight]) => (
+                    <TableRow key={term} className={`h-8 cursor-pointer ${selectedCoLemma === term ? 'bg-amber-100/50' : 'hover:bg-amber-50/50'}`} onClick={() => setSelectedCoLemma(term)}>
+                      <TableCell className="py-1 text-[10px] font-medium">{term}</TableCell>
+                      <TableCell className="py-1 text-[10px] text-right tabular-nums">{weight}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Traceability */}
         <div className="space-y-4">
-          <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest px-1">Example Quads in Slice</h4>
-          <div className="space-y-2.5 max-h-[600px] overflow-auto pr-2 custom-scrollbar">
-            {activeSliceData?.quads.slice(0, 10).map((q: any, i: number) => (
-              <div key={i} className="p-4 rounded-lg border bg-background text-[11px] leading-relaxed shadow-sm border-amber-100">
-                <div className="flex flex-wrap gap-1 mb-2">{q.terms.map((t: string) => <Badge key={t} variant={t === nodeLemma ? "default" : "secondary"} className="text-[8px] h-4 px-1">{t}</Badge>)}</div>
-                <p className="font-serif italic text-foreground/80">"...{q.text.substring(0, 150)}..."</p>
-                <div className="mt-2 text-[9px] text-muted-foreground border-t pt-1.5 uppercase font-bold">{q.title} | {q.speaker}</div>
-              </div>
-            ))}
-          </div>
+          <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest px-1">Window Traceability (±50 tokens)</h4>
+          {selectedCoLemma ? (
+            <div className="space-y-2.5 max-h-[500px] overflow-auto pr-2 custom-scrollbar">
+              {results.edgeExamples.get(`${nodeLemma.trim().toLowerCase()}|${selectedCoLemma}`)?.map((ex: any, i: number) => (
+                <div key={i} className="p-4 rounded-lg border bg-background text-[11px] leading-relaxed shadow-sm border-amber-100">
+                  <p className="font-serif italic text-foreground/90">"...{ex.text.substring(0, 250)}..."</p>
+                  <div className="mt-2 text-[9px] text-muted-foreground border-t pt-2 uppercase font-bold">{ex.title} | {ex.speaker}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center border rounded-xl border-dashed bg-muted/5 text-[10px] text-muted-foreground italic min-h-[300px]">
+              <Search className="w-6 h-6 opacity-10 mb-2" />
+              Select a neighbour lemma to view source windows
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Diachronic Drift Chart */}
-      <Card className="shadow-none border-muted/60 bg-muted/5">
-        <CardHeader className="bg-muted/10 border-b"><CardTitle className="text-sm font-bold">Diachronic Stability (Jaccard Index)</CardTitle></CardHeader>
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="bg-muted/5 border-b"><CardTitle className="text-sm font-bold">Diachronic Stability ({timeMode} Mode)</CardTitle></CardHeader>
         <CardContent className="pt-6">
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={results.driftTable} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <LineChart data={results.driftTable}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
                 <XAxis dataKey="slice" fontSize={9} />
                 <YAxis fontSize={9} domain={[0, 1]} />
                 <Tooltip contentStyle={{ fontSize: '10px' }} />
-                <Line type="monotone" dataKey="jaccard" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
+                <Line type="monotone" dataKey="jaccard" name="Jaccard Stability (vs Prev)" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-6 border rounded-lg overflow-hidden bg-background">
-            <Table><TableHeader className="bg-muted/50"><TableRow><TableHead className="h-8 text-[9px]">Time Slice</TableHead><TableHead className="h-8 text-[9px] text-right">Const. Size</TableHead><TableHead className="h-8 text-[9px] text-right">Jaccard (Prev)</TableHead></TableRow></TableHeader>
-            <TableBody>{results.driftTable.map((d: any) => (<TableRow key={d.slice} className={`h-8 ${results.sortedSlices[currentTimeIndex] === d.slice ? 'bg-primary/5' : ''}`}><TableCell className="py-1 text-[10px] font-medium">{d.slice}</TableCell><TableCell className="py-1 text-[10px] text-right tabular-nums">{d.size}</TableCell><TableCell className="py-1 text-[10px] text-right tabular-nums">{d.jaccard}</TableCell></TableRow>))}</TableBody></Table>
           </div>
         </CardContent>
       </Card>
@@ -405,9 +457,11 @@ export default function Analysis() {
   return (
     <MainLayout title="Linguistic Analysis">
       <div className="space-y-6">
-        <Card className="bg-muted/30 border-dashed shadow-none"><CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0"><CardTitle className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-2"><HelpCircle className="h-3 w-3" /> Parameters Summary</CardTitle><Badge variant="outline" className="text-[9px] h-4 font-normal opacity-60">Step 8 Active</Badge></CardHeader>
-        <CardContent className="py-0 px-4 pb-4"><div className="flex flex-wrap gap-x-6 gap-y-2 text-[11px]"><div className="flex gap-2 items-center"><span className="text-muted-foreground">Scope:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">{corpusScope === "play" ? `Play: ${selectedPlayTitle}` : "Full Corpus"}</Badge></div><div className="flex gap-2 items-center"><span className="text-muted-foreground">Time:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px] capitalize">{timeMode}</Badge></div><div className="flex gap-2 items-center"><span className="text-muted-foreground">Top-N:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">{topN}</Badge></div>{selectedGenre && <div className="flex gap-2 items-center"><span className="text-muted-foreground">Genre:</span><Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px]">{selectedGenre}</Badge></div>}</div></CardContent></Card>
-        <Tabs defaultValue="lexical" className="w-full">
+        <Card className="bg-muted/30 border-dashed shadow-none"><CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0"><CardTitle className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-2"><HelpCircle className="h-3 w-3" /> Parameters Summary</CardTitle><Badge variant="outline" className="text-[9px] h-4 font-normal opacity-60">Step 8.5 Active</Badge></CardHeader>
+        <CardContent className="py-0 px-4 pb-4"><div className="flex flex-wrap gap-x-6 gap-y-2 text-[11px]"><div className="flex gap-2 items-center"><span className="text-muted-foreground">Scope:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">{corpusScope === "play" ? `Play: ${selectedPlayTitle}` : "Full Corpus"}</Badge></div>
+              <div className="flex gap-2 items-center"><span className="text-muted-foreground">Time:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px] capitalize">{timeMode}</Badge></div>
+              <div className="flex gap-2 items-center"><span className="text-muted-foreground">Top-N:</span><Badge variant="secondary" className="h-4 px-1.5 py-0 text-[9px]">{topN}</Badge></div>{selectedGenre && <div className="flex gap-2 items-center"><span className="text-muted-foreground">Genre:</span><Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px]">{selectedGenre}</Badge></div>}</div></CardContent></Card>
+        <Tabs defaultValue="discursive" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1"><TabsTrigger value="lexical">Lexical</TabsTrigger><TabsTrigger value="semantic">Semantic</TabsTrigger><TabsTrigger value="discursive">Discursive Concepts</TabsTrigger></TabsList>
           <TabsContent value="lexical" className="mt-0 animate-in fade-in duration-300"><LexicalTab /></TabsContent>
           <TabsContent value="semantic" className="mt-0 animate-in fade-in duration-300"><SemanticTab /></TabsContent>
