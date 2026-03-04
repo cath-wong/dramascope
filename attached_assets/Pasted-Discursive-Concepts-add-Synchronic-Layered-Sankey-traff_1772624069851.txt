@@ -1,0 +1,196 @@
+Discursive Concepts: add Synchronic Layered Sankey (“traffic” overview) derived from quad instances (O(n)), wired to Quad Inventory drill-down
+
+Implement ONLY Step 9.4A.
+Do NOT change: CSV loading, routing, Dashboard, Corpus Browser, Lexical tab, Semantic tab, or quad extraction logic (Step 9.2A) / inventory logic (Step 9.3).
+This step is visualisation + derived aggregation only.
+
+Goal: Add a synchronic Sankey overview of the constellation configuration:
+
+node → L1 → L2 → L3
+
+where L1–L3 are the ranked neighbour lemmas in each quad window (node-centred ±50).
+This Sankey is not diachronic. It summarises the current scope (full corpus or single play + filters).
+
+1) Ensure quad instances are accessible (no recomputation)
+
+In DiscursiveTab results, you must already have quad instances created in Step 9.2A (per window). If they are not currently exposed, expose:
+
+results.quadInstancesAll: QuadInstance[] (flattened list across slices for current scope)
+
+Each instance must include:
+
+node: string
+
+co: [string, string, string] (ranked neighbours for that window)
+
+slice: string (ok if present but NOT used for Sankey)
+
+minimal source metadata for traceability (already exists)
+
+Do NOT rescan speeches again. Use what is already computed.
+
+2) Build Sankey edges in O(n) from quad instances (synchronic)
+
+Create a helper in src/utils/sankey.ts (or inside DiscursiveTab if you prefer, but utils is cleaner):
+
+Input
+
+quadInstancesAll
+
+minEdgeWeight (default 3)
+
+Output
+
+nodes: Array<{ id: string; label: string; layer: number }>
+
+links: Array<{ source: string; target: string; value: number }>
+
+Layered node IDs (important to prevent node merging across layers)
+
+Use stage suffixes in IDs:
+
+${node}__L0
+
+${c1}__L1
+
+${c2}__L2
+
+${c3}__L3
+
+But store a label (pretty) without suffix for display.
+
+Link generation per quad instance (exact)
+
+For each quad instance:
+
+node__L0 → c1__L1
+
+c1__L1 → c2__L2
+
+c2__L2 → c3__L3
+
+Increment link weight by 1 per instance (traffic count).
+After aggregation, filter links with value < minEdgeWeight.
+
+Sort links descending by value for readability.
+
+3) Add UI controls in Discursive tab (Synchronic Sankey section)
+
+Add a new card (above Heatmap, but below Sanity Checks is fine):
+
+Title: Sankey Traffic (Synchronic Overview)
+
+Controls:
+
+Min edge weight slider/input (default 3, range 1–50)
+
+Max nodes per layer dropdown (default 20; options 10/20/50)
+
+Apply by keeping top links and pruning nodes accordingly (simple heuristic is fine).
+
+Reset button to restore defaults.
+
+Explain (small caption):
+
+“This Sankey summarises quad-window traffic across the current scope (not diachronic).”
+
+4) Render the Sankey
+
+Use a React-friendly Sankey approach:
+
+Preferred:
+
+recharts Sankey component if available in your stack.
+If you already use Recharts, try:
+import { Sankey, Tooltip } from "recharts";
+
+If Recharts Sankey is insufficient, use a lightweight library (d3-sankey) but keep it minimal and client-only.
+
+Requirements:
+
+Must render 4 columns (L0–L3).
+
+Must display link thickness by value.
+
+Must display node labels (strip __Lx for label).
+
+If the library auto-merges labels, you MUST use layered IDs as above.
+
+5) Interaction: clicking drives Quad Inventory filtering
+
+Add state in DiscursiveTab:
+
+selectedSankeyLink: { source: string; target: string } | null
+
+On Sankey link click:
+
+store selected link (strip suffixes for display)
+
+apply a filter to Quad Inventory rows (view-only filter, not recomputation):
+
+Mapping rules:
+
+If clicked link is L0→L1: filter quads where co1 == L1
+
+If clicked link is L1→L2: filter quads where co1 == L1 AND co2 == L2
+
+If clicked link is L2→L3: filter quads where co2 == L2 AND co3 == L3
+
+Implementation note:
+Your quads are stored as quadKey strings. To enable this filter:
+
+store neighbour order alongside quadKey in inventory rows (co1/co2/co3 fields), OR
+
+reconstruct co1/co2/co3 from a representative quad instance for that quadKey (but better to store them).
+
+Add a small “Active Sankey filter” pill above Quad Inventory:
+
+shows e.g. L1→L2: mercy → salvation
+
+includes an “X” to clear.
+
+Clearing returns inventory to normal.
+
+6) Export: Sankey edge table CSV
+
+Add a button:
+
+Download Sankey edges CSV
+
+Export rows:
+
+source_label
+
+target_label
+
+layer_source
+
+layer_target
+
+weight
+
+This matches your Looker-style table and lets you reuse it.
+
+7) Guardrails
+
+If quadInstancesAll is empty:
+
+show “No quad windows available for Sankey under current scope.”
+
+If Sankey becomes too dense:
+
+show a friendly message suggesting increasing min edge weight or reducing max nodes.
+
+8) Acceptance tests
+
+Sankey renders for a common node (e.g. lord).
+
+Links show thicker for higher traffic.
+
+Clicking a link filters Quad Inventory appropriately.
+
+Exported CSV matches source/target/weight structure.
+
+No change to quad extraction logic or drift metrics.
+
+Stop after Step 9.4A.

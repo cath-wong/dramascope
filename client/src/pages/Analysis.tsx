@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -25,10 +25,12 @@ import {
   ResponsiveContainer,
   Legend,
   LineChart,
-  Line
+  Line,
+  Sankey
 } from "recharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ResultsTable } from "@/components/ResultsTable";
+import { buildSankeyData } from "@/utils/sankey";
 
 const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -222,7 +224,7 @@ const SemanticTab = () => {
   );
 };
 
-// --- Discursive Tab (Step 9.3 Quad Inventory & Drill-down) ---
+// --- Discursive Tab (Step 9.4A Sankey Overview) ---
 const DiscursiveTab = () => {
   const { speeches } = useData();
   const ui = useUI();
@@ -241,6 +243,11 @@ const DiscursiveTab = () => {
   const [pinned, setPinned] = useState<any[]>([]);
   const quadCache = useRef<Map<string, any>>(new Map());
 
+  // Sankey specific state
+  const [minSankeyWeight, setMinSankeyWeight] = useState(3);
+  const [maxNodesPerLayer, setMaxNodesPerLayer] = useState(20);
+  const [selectedSankeyLink, setSelectedSankeyLink] = useState<{ source: string, target: string, layerSource: number } | null>(null);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -253,6 +260,7 @@ const DiscursiveTab = () => {
 
     let totalNodeWindows = 0;
     let totalQuadWindows = 0;
+    const quadInstancesAll: any[] = [];
     const lemmaFreqs = new Map<string, { count: number; speeches: Set<number> }>();
     const speechTokens = filtered.map((s, idx) => {
       const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
@@ -261,7 +269,6 @@ const DiscursiveTab = () => {
     });
 
     const activeNode = nodeLemma.trim().toLowerCase();
-    const quadInstancesBySlice = new Map<string, any[]>();
     const quadFreqBySlice = new Map<string, Map<string, number>>();
     const quadExamples = new Map<string, any[]>();
     const allSlices = new Set<string>();
@@ -273,7 +280,6 @@ const DiscursiveTab = () => {
       allSlices.add(s.time);
       totalNodeWindows += nodeIndices.length;
 
-      if (!quadInstancesBySlice.has(s.time)) quadInstancesBySlice.set(s.time, []);
       if (!quadFreqBySlice.has(s.time)) quadFreqBySlice.set(s.time, new Map());
 
       nodeIndices.forEach(idx => {
@@ -300,7 +306,7 @@ const DiscursiveTab = () => {
             source: { title: s.title || s.play_id, speaker: s.speaker, act: s.act, scene: s.scene, excerpt: (s.text_raw || "").substring(0, 200) + "..." }
           };
 
-          quadInstancesBySlice.get(s.time)!.push(instance);
+          quadInstancesAll.push(instance);
           const sliceFreq = quadFreqBySlice.get(s.time)!;
           sliceFreq.set(quadKey, (sliceFreq.get(quadKey) || 0) + 1);
 
@@ -339,6 +345,7 @@ const DiscursiveTab = () => {
       totalNodeWindows, 
       totalQuadWindows,
       quadFreqBySliceObj,
+      quadInstancesAll,
       quadExamplesObj: Object.fromEntries(quadExamples),
       topNodes: Array.from(lemmaFreqs.entries()).map(([lemma, d]) => ({ lemma, count: d.count })).sort((a, b) => b.count - a.count).slice(0, 50) 
     };
@@ -349,6 +356,11 @@ const DiscursiveTab = () => {
   const activeSlice = results?.sortedSlices[currentTimeIndex];
   const activeSliceData = results?.driftTable[currentTimeIndex];
 
+  const sankeyData = useMemo(() => {
+    if (!results?.quadInstancesAll) return null;
+    return buildSankeyData(results.quadInstancesAll, { minWeight: minSankeyWeight, maxNodesPerLayer });
+  }, [results, minSankeyWeight, maxNodesPerLayer]);
+
   const inventoryRows = useMemo(() => {
     if (!results) return [];
     let base: any[] = [];
@@ -356,7 +368,16 @@ const DiscursiveTab = () => {
       base = results.quadFreqBySliceObj[activeSlice] || [];
       base = base.map(q => {
         const ex = results.quadExamplesObj[q.quadKey]?.[0];
-        return { quadKey: q.quadKey, count: q.count, first_seen: activeSlice, last_seen: activeSlice, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt };
+        return { 
+          quadKey: q.quadKey, 
+          count: q.count, 
+          first_seen: activeSlice, 
+          last_seen: activeSlice, 
+          example_title: ex?.source.title, 
+          example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, 
+          excerpt: ex?.source.excerpt,
+          co: ex?.co || [] 
+        };
       });
     } else {
       const agg = new Map<string, { count: number; first: string; last: string }>();
@@ -368,16 +389,32 @@ const DiscursiveTab = () => {
       });
       base = Array.from(agg.entries()).map(([quadKey, d]) => {
         const ex = results.quadExamplesObj[quadKey]?.[0];
-        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt };
+        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt, co: ex?.co || [] };
       });
     }
+
     let filtered = base.filter(r => r.count >= minFreq);
     if (inventorySearch) {
       const s = inventorySearch.toLowerCase();
       filtered = filtered.filter(r => r.quadKey.toLowerCase().includes(s));
     }
+
+    // Sankey Filter
+    if (selectedSankeyLink) {
+      const { source, target, layerSource } = selectedSankeyLink;
+      const s = source.split("__")[0];
+      const t = target.split("__")[0];
+      
+      filtered = filtered.filter(r => {
+        if (layerSource === 0) return r.co[0] === t;
+        if (layerSource === 1) return r.co[0] === s && r.co[1] === t;
+        if (layerSource === 2) return r.co[1] === s && r.co[2] === t;
+        return true;
+      });
+    }
+
     return filtered;
-  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch]);
+  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink]);
 
   const inventoryColumns = [
     { key: "quadKey", label: "Quad (4-lemma set)" },
@@ -412,9 +449,91 @@ const DiscursiveTab = () => {
         </Card>
       </div>
 
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-sm font-bold flex items-center gap-2">Sankey Traffic (Synchronic Overview)</CardTitle>
+            <CardDescription className="text-[10px]">Summarises quad-window traffic across current scope (node → L1 → L2 → L3)</CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 h-7 px-2 border rounded bg-background shadow-sm">
+              <Label className="text-[9px] font-bold opacity-60">MIN EDGE</Label>
+              <Input type="number" value={minSankeyWeight} onChange={e => setMinSankeyWeight(parseInt(e.target.value)||1)} className="h-5 w-10 text-[10px] p-0 text-center border-none shadow-none focus-visible:ring-0" />
+            </div>
+            <Select value={maxNodesPerLayer.toString()} onValueChange={v => setMaxNodesPerLayer(parseInt(v))}>
+              <SelectTrigger className="h-7 text-[9px] w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">Max 10 Nodes</SelectItem>
+                <SelectItem value="20">Max 20 Nodes</SelectItem>
+                <SelectItem value="50">Max 50 Nodes</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => exportToCsv(`sankey_edges_${nodeLemma}.csv`, sankeyData?.links.map(l => ({ source: l.source.split("__")[0], target: l.target.split("__")[0], weight: l.value })) || [])}>
+              <Download className="h-3 w-3 mr-1" /> Edges CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {sankeyData && sankeyData.links.length > 0 ? (
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <Sankey
+                  data={sankeyData}
+                  node={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, fill: 'hsl(var(--primary)/0.2)' }}
+                  link={{ stroke: 'hsl(var(--primary)/0.1)', fill: 'hsl(var(--primary)/0.05)' }}
+                  margin={{ top: 20, left: 10, bottom: 20, right: 10 }}
+                  onClick={(data: any) => {
+                    if (data?.source && data?.target) {
+                      const layerSource = parseInt(data.source.id.split("__L")[1]);
+                      setSelectedSankeyLink({ source: data.source.id, target: data.target.id, layerSource });
+                    }
+                  }}
+                >
+                  <Tooltip 
+                    content={({ active, payload }: any) => {
+                      if (active && payload && payload.length) {
+                        const isNode = payload[0].payload.label;
+                        if (isNode) {
+                          return <div className="bg-background p-2 border rounded shadow-md text-[10px] font-bold">{payload[0].payload.label}</div>;
+                        }
+                        return (
+                          <div className="bg-background p-2 border rounded shadow-md text-[10px]">
+                            <p className="font-bold">{payload[0].payload.source.split("__")[0]} → {payload[0].payload.target.split("__")[0]}</p>
+                            <p className="opacity-70">Traffic: {payload[0].value}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </Sankey>
+              </ResponsiveContainer>
+              <div className="flex justify-between px-10 text-[9px] font-bold opacity-40 uppercase mt-2">
+                <span>Node (L0)</span>
+                <span>Primary (L1)</span>
+                <span>Secondary (L2)</span>
+                <span>Tertiary (L3)</span>
+              </div>
+            </div>
+          ) : (
+            <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
+              No quad windows available for Sankey under current scope or filters.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="shadow-none border-amber-100 bg-amber-50/5">
         <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
+            {selectedSankeyLink && (
+              <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
+                Link: {selectedSankeyLink.source.split("__")[0]} → {selectedSankeyLink.target.split("__")[0]}
+                <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedSankeyLink(null)} />
+              </Badge>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
               <Button variant={inventoryScope === "slice" ? "default" : "ghost"} size="sm" onClick={() => setInventoryScope("slice")} className="h-7 text-[9px] px-3">Current Slice</Button>
@@ -531,7 +650,7 @@ const DiscursiveTab = () => {
         </div>
         <div className="flex items-center gap-3 shrink-0 bg-muted/30 p-1 rounded-lg border shadow-inner">
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
-          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode} Slice</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
+          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode}</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
         </div>
         <div className="shrink-0"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-9 gap-2 px-5 shadow-sm font-bold text-xs">{isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>} {isPlaying ? 'STOP SEQUENCE' : 'PLAY SEQUENCE'}</Button></div>
