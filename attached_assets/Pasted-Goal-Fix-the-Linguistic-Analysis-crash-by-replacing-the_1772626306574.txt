@@ -1,0 +1,141 @@
+Goal: Fix the Linguistic Analysis crash by replacing the Recharts <Sankey> renderer with a stable d3-sankey SVG renderer.
+Scope limit: Change ONLY the Sankey visualisation implementation. Do NOT change quad extraction, inventory, drift metrics, CSV loading, routing, Lexical, Semantic, or Corpus Browser.
+
+1) Remove Recharts Sankey usage
+
+Find where <Sankey ... /> from recharts is rendered in the Discursive tab.
+
+Remove that JSX and any import { Sankey } from "recharts" (keep other Recharts charts like LineChart).
+
+2) Add dependencies
+
+Add:
+
+d3-sankey
+
+d3 (or d3-shape + d3-scale if you prefer smaller, but d3 is fine)
+
+3) Create a reusable component
+
+Create: src/components/D3Sankey.tsx
+
+Props:
+
+type SankeyNode = { id: string; label: string };
+type SankeyLink = { source: string; target: string; value: number };
+
+type D3SankeyProps = {
+  nodes: SankeyNode[];
+  links: SankeyLink[];
+  width?: number;      // default 900
+  height?: number;     // default 360
+  nodeWidth?: number;  // default 14
+  nodePadding?: number;// default 10
+  onLinkClick?: (link: { source: string; target: string; value: number }) => void;
+};
+
+Implementation requirements:
+
+Build a node index map: id -> index
+
+Convert links to d3 format with numeric indices
+
+Run sankey() to compute layout
+
+Render an <svg>:
+
+Links as paths using sankeyLinkHorizontal()
+
+Nodes as rectangles
+
+Labels next to nodes (strip __L0 etc in display label if you pass full label)
+
+Thickness of link = link.width from d3
+
+Add hover tooltip (simple <title> is fine)
+
+Make links clickable: call onLinkClick with original ids stripped of layer suffixes.
+
+Guardrails:
+
+If nodes.length < 2 || links.length < 1, render a friendly empty state:
+“No Sankey links at this threshold. Lower min edge weight or widen scope.”
+
+4) Prepare Sankey data (keep your existing aggregation)
+
+Keep your existing edge aggregation logic that outputs layered IDs:
+
+${lemma}__L0 … ${lemma}__L3
+
+links: { source, target, value }
+
+But ensure the component receives:
+
+nodes: [{ id, label }]
+
+links: [{ source, target, value }]
+
+Also add a defensive filter before rendering:
+
+Remove links whose source/target node id isn’t in nodes.
+
+Ensure value > 0.
+
+5) Replace the old Sankey UI block
+
+In Discursive tab, replace the Recharts Sankey block with:
+
+<D3Sankey
+  nodes={sankeyNodes}
+  links={sankeyLinks}
+  width={900}
+  height={360}
+  onLinkClick={(l) => {
+    // keep your existing “Active Sankey filter” behaviour
+    setSelectedSankeyLink(l);
+  }}
+/>
+
+Keep your existing controls:
+
+min edge weight
+
+max nodes per layer
+
+reset button
+
+download edges CSV
+
+6) Ensure click-to-filter works exactly like before
+
+When clicking a link:
+
+Receive source and target ids like mercy__L1, salvation__L2
+
+Determine link type by layer suffix:
+
+L0→L1 filter: co1 = target lemma
+
+L1→L2 filter: co1 = source lemma AND co2 = target lemma
+
+L2→L3 filter: co2 = source lemma AND co3 = target lemma
+
+Apply view-only filter to Quad Inventory (do not recompute quads)
+
+Add an “X Clear Sankey filter” control.
+
+7) Acceptance tests (must pass)
+
+Linguistic Analysis page loads without “Your app encountered an error”.
+
+Discursive tab renders Sankey without crashing.
+
+Changing min edge weight updates Sankey.
+
+Clicking a link filters Quad Inventory rows.
+
+CSV export still downloads.
+
+8) Stop
+
+Stop after the d3-sankey Sankey renders and the app no longer crashes.

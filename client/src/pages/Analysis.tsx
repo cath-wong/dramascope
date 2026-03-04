@@ -26,11 +26,11 @@ import {
   Legend,
   LineChart,
   Line,
-  Sankey
 } from "recharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ResultsTable } from "@/components/ResultsTable";
 import { buildSankeyData } from "@/utils/sankey";
+import D3Sankey from "@/components/D3Sankey";
 
 const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -476,38 +476,16 @@ const DiscursiveTab = () => {
         <CardContent className="pt-6">
           {sankeyData && sankeyData.links.length > 0 ? (
             <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <Sankey
-                  data={sankeyData}
-                  node={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, fill: 'hsl(var(--primary)/0.2)' }}
-                  link={{ stroke: 'hsl(var(--primary)/0.1)', fill: 'hsl(var(--primary)/0.05)' }}
-                  margin={{ top: 20, left: 10, bottom: 20, right: 10 }}
-                  onClick={(data: any) => {
-                    if (data?.source && data?.target) {
-                      const layerSource = parseInt(data.source.id.split("__L")[1]);
-                      setSelectedSankeyLink({ source: data.source.id, target: data.target.id, layerSource });
-                    }
-                  }}
-                >
-                  <Tooltip 
-                    content={({ active, payload }: any) => {
-                      if (active && payload && payload.length) {
-                        const isNode = payload[0].payload.label;
-                        if (isNode) {
-                          return <div className="bg-background p-2 border rounded shadow-md text-[10px] font-bold">{payload[0].payload.label}</div>;
-                        }
-                        return (
-                          <div className="bg-background p-2 border rounded shadow-md text-[10px]">
-                            <p className="font-bold">{payload[0].payload.source.split("__")[0]} → {payload[0].payload.target.split("__")[0]}</p>
-                            <p className="opacity-70">Traffic: {payload[0].value}</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </Sankey>
-              </ResponsiveContainer>
+              <D3Sankey
+                nodes={sankeyData.nodes}
+                links={sankeyData.links}
+                width={900}
+                height={360}
+                onLinkClick={(l) => {
+                  const layerSource = parseInt(l.source.split("__L")[1]);
+                  setSelectedSankeyLink({ source: l.source, target: l.target, layerSource });
+                }}
+              />
               <div className="flex justify-between px-10 text-[9px] font-bold opacity-40 uppercase mt-2">
                 <span>Node (L0)</span>
                 <span>Primary (L1)</span>
