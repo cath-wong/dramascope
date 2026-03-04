@@ -224,7 +224,7 @@ const SemanticTab = () => {
   );
 };
 
-// --- Discursive Tab (Step 9.4A Sankey Overview) ---
+// --- Discursive Tab ---
 const DiscursiveTab = () => {
   const { speeches } = useData();
   const ui = useUI();
@@ -244,6 +244,8 @@ const DiscursiveTab = () => {
   const quadCache = useRef<Map<string, any>>(new Map());
 
   // Sankey specific state
+  const [sankeyAnalysisMode, setSankeyAnalysisMode] = useState<"all-time" | "time-slice">("all-time");
+  const [selectedSankeySlice, setSelectedSankeySlice] = useState<string>("");
   const [minSankeyWeight, setMinSankeyWeight] = useState(3);
   const [maxNodesPerLayer, setMaxNodesPerLayer] = useState(20);
   const [selectedSankeyLink, setSelectedSankeyLink] = useState<{ source: string, target: string, layerSource: number } | null>(null);
@@ -353,13 +355,23 @@ const DiscursiveTab = () => {
     return output;
   }, [speeches, corpusScope, nodeLemma, useStoplist, useLemmas, timeMode, topN, selectedPlayTitle]);
 
+  useEffect(() => {
+    if (results?.sortedSlices?.length && !selectedSankeySlice) {
+      setSelectedSankeySlice(results.sortedSlices[0]);
+    }
+  }, [results, selectedSankeySlice]);
+
   const activeSlice = results?.sortedSlices[currentTimeIndex];
   const activeSliceData = results?.driftTable[currentTimeIndex];
 
   const sankeyData = useMemo(() => {
     if (!results?.quadInstancesAll) return null;
-    return buildSankeyData(results.quadInstancesAll, { minWeight: minSankeyWeight, maxNodesPerLayer });
-  }, [results, minSankeyWeight, maxNodesPerLayer]);
+    const instances = sankeyAnalysisMode === "all-time" 
+      ? results.quadInstancesAll 
+      : results.quadInstancesAll.filter(q => q.slice === selectedSankeySlice);
+    
+    return buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
+  }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer]);
 
   const inventoryRows = useMemo(() => {
     if (!results) return [];
@@ -426,6 +438,17 @@ const DiscursiveTab = () => {
     { key: "excerpt", label: "Excerpt" }
   ];
 
+  const sankeyTableRows = useMemo(() => {
+    if (!sankeyData?.links) return [];
+    return sankeyData.links.map(l => ({
+      source: l.source.split("__")[0],
+      target: l.target.split("__")[0],
+      weight: l.value,
+      layer_source: l.source.split("__L")[1],
+      layer_target: l.target.split("__L")[1]
+    }));
+  }, [sankeyData]);
+
   return (
     <div className="space-y-6 pb-12">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
@@ -451,11 +474,29 @@ const DiscursiveTab = () => {
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+          <div className="space-y-1">
             <CardTitle className="text-sm font-bold flex items-center gap-2">Sankey Traffic (Synchronic Overview)</CardTitle>
-            <CardDescription className="text-[10px]">Summarises quad-window traffic across current scope (node → L1 → L2 → L3)</CardDescription>
+            <div className="flex items-center gap-3 text-[10px] font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Badge variant="outline" className="h-4 text-[8px] bg-background">Mode: {sankeyAnalysisMode === "all-time" ? "All-Time" : `Time Slice (${selectedSankeySlice})`}</Badge></span>
+              <span className="flex items-center gap-1.5"><Badge variant="outline" className="h-4 text-[8px] bg-background">Node: {nodeLemma}</Badge></span>
+              <span className="flex items-center gap-1.5"><Badge variant="outline" className="h-4 text-[8px] bg-background">Scope: {corpusScope === "play" ? selectedPlayTitle : "Full Corpus"}</Badge></span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={sankeyAnalysisMode === "all-time" ? "default" : "ghost"} size="sm" onClick={() => setSankeyAnalysisMode("all-time")} className="h-7 text-[9px] px-3">All Time</Button>
+              <Button variant={sankeyAnalysisMode === "time-slice" ? "default" : "ghost"} size="sm" onClick={() => setSankeyAnalysisMode("time-slice")} className="h-7 text-[9px] px-3">Time Slice</Button>
+            </div>
+            {sankeyAnalysisMode === "time-slice" && (
+              <Select value={selectedSankeySlice} onValueChange={setSelectedSankeySlice}>
+                <SelectTrigger className="h-7 text-[9px] w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {results?.sortedSlices.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <div className="flex items-center gap-2 h-7 px-2 border rounded bg-background shadow-sm">
               <Label className="text-[9px] font-bold opacity-60">MIN EDGE</Label>
               <Input type="number" value={minSankeyWeight} onChange={e => setMinSankeyWeight(parseInt(e.target.value)||1)} className="h-5 w-10 text-[10px] p-0 text-center border-none shadow-none focus-visible:ring-0" />
@@ -468,13 +509,14 @@ const DiscursiveTab = () => {
                 <SelectItem value="50">Max 50 Nodes</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => exportToCsv(`sankey_edges_${nodeLemma}.csv`, sankeyData?.links.map(l => ({ source: l.source.split("__")[0], target: l.target.split("__")[0], weight: l.value })) || [])}>
-              <Download className="h-3 w-3 mr-1" /> Edges CSV
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          {sankeyData && sankeyData.links.length > 0 ? (
+          {sankeyAnalysisMode === "time-slice" && results?.quadInstancesAll.filter(q => q.slice === selectedSankeySlice).length === 0 ? (
+            <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
+              No quad windows in this slice.
+            </div>
+          ) : sankeyData && sankeyData.links.length > 0 ? (
             <div className="h-[400px] w-full">
               <D3Sankey
                 nodes={sankeyData.nodes}
@@ -495,9 +537,30 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
-              No quad windows available for Sankey under current scope or filters.
+              Not enough data to render Sankey at this threshold.
             </div>
           )}
+          
+          <Collapsible className="mt-6 border rounded-lg bg-muted/5">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider flex items-center justify-between px-4 hover:bg-muted/10">
+                Sankey Edge Table <ChevronDown className="h-3 w-3" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="p-4 pt-0 border-t">
+              <ResultsTable 
+                data={sankeyTableRows} 
+                columns={[
+                  { key: "source", label: "Source" },
+                  { key: "target", label: "Target" },
+                  { key: "weight", label: "Weight", sortable: true, align: "right" },
+                  { key: "layer_source", label: "Layer S", align: "center" },
+                  { key: "layer_target", label: "Layer T", align: "center" }
+                ]} 
+                filename={`sankey_edges_${nodeLemma}_${sankeyAnalysisMode}_${sankeyAnalysisMode === "time-slice" ? selectedSankeySlice : "all"}_${corpusScope}.csv`}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
@@ -507,7 +570,7 @@ const DiscursiveTab = () => {
             <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
             {selectedSankeyLink && (
               <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
-                Link: {selectedSankeyLink.source.split("__")[0]} → {selectedSankeyLink.target.split("__")[0]}
+                Active Sankey filter: {selectedSankeyLink.source.split("__")[0]} → {selectedSankeyLink.target.split("__")[0]}
                 <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedSankeyLink(null)} />
               </Badge>
             )}

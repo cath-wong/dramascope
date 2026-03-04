@@ -1,0 +1,189 @@
+Discursive Concepts: Sankey = All-Time default + Toggle buttons + Time-Slice dropdown
+
+Implement ONLY Step 9.4B in the Discursive Concepts tab.
+
+Do NOT change:
+
+quad extraction (Step 9.2A)
+
+quad inventory (Step 9.3)
+
+CSV loader
+
+Lexical / Semantic tabs
+
+routing or layout
+
+The Sankey renderer already uses d3-sankey and must remain.
+
+1. Sankey analysis modes (UI)
+
+Add two toggle buttons above the Sankey:
+
+[ All Time ]   [ Time Slice ]
+
+Behaviour:
+
+All Time (default)
+
+Sankey uses all quad instances in the current corpus scope
+
+Hide the slice dropdown
+
+Time Slice
+
+Show a dropdown menu with available slices (results.sortedSlices)
+
+Sankey uses only quad instances from the selected slice
+
+Important:
+
+Do NOT use any text input
+
+Switching modes must update Sankey instantly
+
+2. Sankey data source
+
+Sankey edges must be derived from quad instances created in Step 9.2A.
+
+Ensure results exposes:
+
+results.quadInstancesAll
+
+Each instance contains:
+
+node
+co = [c1, c2, c3]
+slice
+
+Do NOT recompute windows.
+
+3. Filtering quad instances by mode
+
+Pseudo logic:
+
+if mode === "all-time":
+    instances = quadInstancesAll
+else:
+    instances = quadInstancesAll.filter(q => q.slice === selectedSlice)
+4. Build Sankey traffic edges
+
+For each quad instance:
+
+node__L0 → c1__L1
+c1__L1 → c2__L2
+c2__L2 → c3__L3
+
+Increase weight by 1 per quad window.
+
+Use layered node IDs:
+
+lemma__L0
+lemma__L1
+lemma__L2
+lemma__L3
+
+Display labels should remove the suffix.
+
+5. Edge pruning controls
+
+Keep the existing controls:
+
+Min edge weight
+
+Default = 3
+
+Remove links where:
+
+weight < minEdgeWeight
+Max nodes per layer
+
+Default = 20
+
+Keep the top nodes by traffic per layer.
+
+Always keep the node lemma.
+
+6. Sankey click behaviour
+
+Clicking a Sankey link must filter Quad Inventory rows.
+
+Rules:
+
+Link	Inventory filter
+L0→L1	co1 = target
+L1→L2	co1 = source AND co2 = target
+L2→L3	co2 = source AND co3 = target
+
+Show a pill above the inventory:
+
+Active Sankey filter: mercy → salvation   [x]
+
+Click x clears the filter.
+
+No recomputation of quads.
+
+7. Sankey edge table (Looker-style)
+
+Below the diagram add a collapsible section:
+
+Sankey Edge Table
+
+Columns:
+
+source
+target
+weight
+layer_source
+layer_target
+
+Use ResultsTable.
+
+Add:
+
+Download edges CSV
+
+File name format:
+
+sankey_edges_{node}_{mode}_{slice}_{scope}.csv
+8. Guardrails (prevent crashes)
+
+Do NOT render Sankey if:
+
+nodes < 2
+or
+links < 1
+
+Instead show:
+
+Not enough data to render Sankey at this threshold.
+
+If Time Slice has no data:
+
+No quad windows in this slice.
+9. Status label
+
+Above the Sankey show:
+
+Example:
+
+Mode: All-Time
+Node: lord
+Scope: Full Corpus
+
+or
+
+Mode: Time Slice
+Slice: 1600s
+Node: lord
+Scope: Hamlet
+10. Acceptance tests
+
+All-Time Sankey renders by default.
+Switching to Time Slice updates Sankey.
+Dropdown appears only in Time Slice mode.
+Edge CSV downloads correctly.
+Clicking links filters Quad Inventory.
+No runtime crashes.
+
+Stop after Step 9.4B.
