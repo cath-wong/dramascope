@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2 } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -52,10 +52,10 @@ const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
 const PinnedPanel = ({ pinned, onRemove, title = "Pinned Items" }: any) => {
   if (pinned.length === 0) return null;
   return (
-    <Card className="mb-6 border-primary/20 bg-primary/5">
+    <Card className="mb-6 border-primary/20 bg-primary/5 shadow-sm">
       <CardHeader className="py-2 px-4 border-b border-primary/10 flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-[10px] uppercase font-bold text-primary flex items-center gap-2"><Pin className="h-3 w-3" /> {title}</CardTitle>
-        <Button variant="ghost" size="sm" className="h-5 text-[9px]" onClick={() => exportToCsv("pinned.csv", pinned)}>Export TSV</Button>
+        <Button variant="ghost" size="sm" className="h-5 text-[9px]" onClick={() => exportToCsv("pinned_curation.csv", pinned)}>Export Pinned</Button>
       </CardHeader>
       <CardContent className="p-2 flex flex-wrap gap-2">
         {pinned.map((item: any, i: number) => (
@@ -121,15 +121,12 @@ const LexicalTab = () => {
     return output;
   }, [lines, corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, lexSettings]);
 
-  const pinFreq = (item: any) => setPinned(p => [...p, { label: item.token, metric: item.count, type: "lex-freq" }]);
-  const pinNgram = (item: any) => setPinned(p => [...p, { label: item.ngram, metric: item.count, type: "lex-ngram" }]);
-
   return (
     <div className="space-y-6">
       <DetailsPanel dataset="LINES ONLY" tokenCol="text_norm" settings={{ stoplist: lexSettings.stoplist, lemmas: lexSettings.lemmatization }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
-      <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4" /> Lexical Parameters</CardTitle></CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Card className="shadow-none border-muted/60"><CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4" /> Lexical Parameters</CardTitle></CardHeader>
+      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="flex flex-col gap-2"><div className="flex items-center space-x-2"><Checkbox id="l-stop" checked={lexSettings.stoplist} onCheckedChange={v => setLexSettings(s => ({...s, stoplist:!!v}))}/><Label htmlFor="l-stop" className="text-xs">Stoplist</Label></div><div className="flex items-center space-x-2"><Checkbox id="l-lemma" checked={lexSettings.lemmatization} onCheckedChange={v => setLexSettings(s => ({...s, lemmatization:!!v}))}/><Label htmlFor="l-lemma" className="text-xs">Lemmas</Label></div></div>
         <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">N-grams</Label><Select value={lexSettings.ngramSize} onValueChange={v => setLexSettings(s => ({...s, ngramSize:v}))}><SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2">Bigrams</SelectItem><SelectItem value="3">Trigrams</SelectItem></SelectContent></Select></div>
         <div className="flex items-center space-x-2 pt-5"><Checkbox id="l-focus" checked={lexSettings.contentFocus} onCheckedChange={v => setLexSettings(s => ({...s, contentFocus:!!v}))}/><Label htmlFor="l-focus" className="text-xs flex items-center gap-1.5">Content Focus <Info className="h-3 w-3 opacity-50" title="Hides n-grams with 2+ stoplist tokens" /></Label></div>
@@ -139,14 +136,14 @@ const LexicalTab = () => {
           <CardHeader><CardTitle className="text-sm">Word Frequencies</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="h-[200px]"><ResponsiveContainer><BarChart data={results?.freqList?.slice(0, 10)}><XAxis dataKey="token" fontSize={9}/><Tooltip/><Bar dataKey="count" fill="hsl(var(--primary))"/></BarChart></ResponsiveContainer></div>
-            <ResultsTable data={results?.freqList || []} columns={[{ key: "token", label: "Token" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "per_10k", label: "Per 10k", sortable: true, align: "right" }]} onPin={pinFreq} filename="lex_freq.csv" />
+            <ResultsTable data={results?.freqList || []} columns={[{ key: "token", label: "Token" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "per_10k", label: "Per 10k", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.token, metric: item.count }])} filename="lex_freq.csv" />
           </CardContent>
         </Card>
         <Card className="shadow-none">
           <CardHeader><CardTitle className="text-sm">N-Grams {lexSettings.contentFocus && <Badge variant="outline" className="text-[9px] font-normal border-primary/30 text-primary">Filtered</Badge>}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="h-[200px]"><ResponsiveContainer><BarChart data={results?.ngramList?.slice(0, 10)}><XAxis dataKey="ngram" fontSize={9}/><Tooltip/><Bar dataKey="count" fill="hsl(var(--primary))"/></BarChart></ResponsiveContainer></div>
-            <ResultsTable data={results?.ngramList || []} columns={[{ key: "ngram", label: "Sequence" }, { key: "count", label: "Count", sortable: true, align: "right" }]} onPin={pinNgram} filename="lex_ngrams.csv" />
+            <ResultsTable data={results?.ngramList || []} columns={[{ key: "ngram", label: "Sequence" }, { key: "count", label: "Count", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.ngram, metric: item.count }])} filename="lex_ngrams.csv" />
           </CardContent>
         </Card>
       </div>
@@ -213,25 +210,28 @@ const SemanticTab = () => {
     <div className="space-y-6">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw (norm)" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
-      <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle></CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Input placeholder="Target Term..." value={targetTerm} onChange={e => setTargetTerm(e.target.value)} className="h-8 text-xs"/>
+      <Card className="shadow-none border-muted/60"><CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle></CardHeader>
+      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Target Term</Label><Input placeholder="Term..." value={targetTerm} onChange={e => setTargetTerm(e.target.value)} className="h-8 text-xs"/></div>
         <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Min Co-occurrence: {minCooc}</Label><Input type="range" min="1" max="10" value={minCooc} onChange={e => setMinCooc(parseInt(e.target.value))} className="h-4"/></div>
       </CardContent></Card>
       {results?.associationList && (
-        <ResultsTable data={results.associationList} columns={[{ key: "term", label: "Term" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "score", label: "PMI Score", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.term, metric: item.score }])} />
+        <ResultsTable data={results.associationList} columns={[{ key: "term", label: "Term" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "score", label: "PMI Score", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.term, metric: item.score }])} filename="semantic_associations.csv" />
       )}
     </div>
   );
 };
 
-// --- Discursive Tab (Step 9.2A TRUE Quad Implementation) ---
+// --- Discursive Tab (Step 9.3 Quad Inventory & Drill-down) ---
 const DiscursiveTab = () => {
   const { speeches } = useData();
   const ui = useUI();
   const { corpusScope, selectedPlayTitle, topN, timeMode } = ui;
   const [nodeLemma, setNodeLemma] = useState("lord");
   const [viewMode, setViewMode] = useState<"table" | "constellation">("constellation");
+  const [inventoryScope, setInventoryScope] = useState<"slice" | "all">("slice");
+  const [minFreq, setMinFreq] = useState(2);
+  const [inventorySearch, setInventorySearch] = useState("");
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
@@ -282,10 +282,7 @@ const DiscursiveTab = () => {
         const winTokens = s.tokens.slice(start, end);
 
         const winCounts = new Map<string, number>();
-        winTokens.forEach(t => {
-          if (t === activeNode) return;
-          winCounts.set(t, (winCounts.get(t) || 0) + 1);
-        });
+        winTokens.forEach(t => { if (t === activeNode) return; winCounts.set(t, (winCounts.get(t) || 0) + 1); });
 
         const sortedWin = Array.from(winCounts.entries()).sort((a, b) => b[1] - a[1]);
         if (sortedWin.length >= 3) {
@@ -300,11 +297,7 @@ const DiscursiveTab = () => {
             node: activeNode,
             co: co.map(p => p[0]),
             weights: co.map(p => p[1]),
-            source: {
-              title: s.title || s.play_id,
-              speaker: s.speaker,
-              excerpt: (s.text_raw || "").substring(0, 200) + "..."
-            }
+            source: { title: s.title || s.play_id, speaker: s.speaker, act: s.act, scene: s.scene, excerpt: (s.text_raw || "").substring(0, 200) + "..." }
           };
 
           quadInstancesBySlice.get(s.time)!.push(instance);
@@ -312,7 +305,7 @@ const DiscursiveTab = () => {
           sliceFreq.set(quadKey, (sliceFreq.get(quadKey) || 0) + 1);
 
           if (!quadExamples.has(quadKey)) quadExamples.set(quadKey, []);
-          if (quadExamples.get(quadKey)!.length < 5) quadExamples.get(quadKey)!.push(instance);
+          if (quadExamples.get(quadKey)!.length < 10) quadExamples.get(quadKey)!.push(instance);
         }
       });
     });
@@ -334,20 +327,11 @@ const DiscursiveTab = () => {
         jaccard = union > 0 ? intersection / union : 0;
       }
 
-      return { 
-        slice, 
-        size: freqMap.size, 
-        topN: topNQuads, 
-        top3, 
-        jaccard: parseFloat(jaccard.toFixed(3)),
-        totalQuadWindows: Array.from(freqMap.values()).reduce((a, b) => a + b, 0)
-      };
+      return { slice, size: freqMap.size, topN: topNQuads, top3, jaccard: parseFloat(jaccard.toFixed(3)), totalQuadWindows: Array.from(freqMap.values()).reduce((a, b) => a + b, 0) };
     });
 
     const quadFreqBySliceObj: Record<string, any[]> = {};
-    quadFreqBySlice.forEach((val, key) => {
-      quadFreqBySliceObj[key] = Array.from(val.entries()).map(([quadKey, count]) => ({ quadKey, count })).sort((a, b) => b.count - a.count);
-    });
+    quadFreqBySlice.forEach((val, key) => { quadFreqBySliceObj[key] = Array.from(val.entries()).map(([quadKey, count]) => ({ quadKey, count })).sort((a, b) => b.count - a.count); });
 
     const output = { 
       sortedSlices, 
@@ -362,94 +346,164 @@ const DiscursiveTab = () => {
     return output;
   }, [speeches, corpusScope, nodeLemma, useStoplist, useLemmas, timeMode, topN, selectedPlayTitle]);
 
+  const activeSlice = results?.sortedSlices[currentTimeIndex];
   const activeSliceData = results?.driftTable[currentTimeIndex];
 
+  const inventoryRows = useMemo(() => {
+    if (!results) return [];
+    let base: any[] = [];
+    if (inventoryScope === "slice") {
+      base = results.quadFreqBySliceObj[activeSlice] || [];
+      base = base.map(q => {
+        const ex = results.quadExamplesObj[q.quadKey]?.[0];
+        return { quadKey: q.quadKey, count: q.count, first_seen: activeSlice, last_seen: activeSlice, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt };
+      });
+    } else {
+      const agg = new Map<string, { count: number; first: string; last: string }>();
+      results.sortedSlices.forEach(slice => {
+        (results.quadFreqBySliceObj[slice] || []).forEach(q => {
+          if (!agg.has(q.quadKey)) agg.set(q.quadKey, { count: 0, first: slice, last: slice });
+          const e = agg.get(q.quadKey)!; e.count += q.count; e.last = slice;
+        });
+      });
+      base = Array.from(agg.entries()).map(([quadKey, d]) => {
+        const ex = results.quadExamplesObj[quadKey]?.[0];
+        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt };
+      });
+    }
+    let filtered = base.filter(r => r.count >= minFreq);
+    if (inventorySearch) {
+      const s = inventorySearch.toLowerCase();
+      filtered = filtered.filter(r => r.quadKey.toLowerCase().includes(s));
+    }
+    return filtered;
+  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch]);
+
+  const inventoryColumns = [
+    { key: "quadKey", label: "Quad (4-lemma set)" },
+    { key: "count", label: "Freq", sortable: true, align: "right" },
+    { key: "first_seen", label: "First Seen", sortable: true },
+    { key: "last_seen", label: "Last Seen", sortable: true },
+    { key: "example_title", label: "Source" },
+    { key: "example_meta", label: "Metadata" },
+    { key: "excerpt", label: "Excerpt" }
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
       
-      {results?.totalNodeWindows > 0 && results?.totalQuadWindows === 0 && (
-        <Alert variant="destructive">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Insufficient Neighbours</AlertTitle>
-          <AlertDescription>Node occurs, but not enough neighbours found to form quads (need ≥3 per window). Try disabling stoplist.</AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-3 shadow-none border-muted/60">
           <CardHeader className="pb-3 bg-muted/5 border-b flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2"><Network className="h-4 w-4 text-amber-500" /> Sanity Checks</CardTitle>
-            <div className="flex bg-muted p-0.5 rounded-md">
-              <Button variant={viewMode === "constellation" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("constellation")} className="h-6 text-[9px] px-2">Constellation</Button>
+            <div className="flex bg-muted p-0.5 rounded-md shadow-inner">
+              <Button variant={viewMode === "constellation" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("constellation")} className="h-6 text-[9px] px-2">Bars</Button>
               <Button variant={viewMode === "table" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("table")} className="h-6 text-[9px] px-2">Table</Button>
             </div>
           </CardHeader>
           <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">NODE WINDOWS</span><p className="text-sm font-bold text-amber-600">{results?.totalNodeWindows || 0}</p></div>
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">QUAD WINDOWS (FORMED)</span><p className="text-sm font-bold">{results?.totalQuadWindows || 0}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">QUAD WINDOWS</span><p className="text-sm font-bold">{results?.totalQuadWindows || 0}</p></div>
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">SLICE</span><p className="text-sm font-bold">{currentTimeIndex + 1} of {results?.sortedSlices.length || 0}</p></div>
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">TOP QUAD</span><p className="text-[10px] font-bold text-primary truncate" title={activeSliceData?.top3[0]}>{activeSliceData?.top3[0]?.replace(/\|/g, ', ') || '-'}</p></div>
           </CardContent>
         </Card>
       </div>
 
+      <Card className="shadow-none border-amber-100 bg-amber-50/5">
+        <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={inventoryScope === "slice" ? "default" : "ghost"} size="sm" onClick={() => setInventoryScope("slice")} className="h-7 text-[9px] px-3">Current Slice</Button>
+              <Button variant={inventoryScope === "all" ? "default" : "ghost"} size="sm" onClick={() => setInventoryScope("all")} className="h-7 text-[9px] px-3">All Slices</Button>
+            </div>
+            <div className="flex items-center gap-2 h-7 px-2 border rounded bg-background shadow-sm">
+              <Label className="text-[9px] font-bold opacity-60">MIN FREQ</Label>
+              <Input type="number" value={minFreq} onChange={e => setMinFreq(parseInt(e.target.value)||1)} className="h-5 w-12 text-[10px] p-0 text-center border-none shadow-none focus-visible:ring-0" />
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+              <Input placeholder="Search quads..." value={inventorySearch} onChange={e => setInventorySearch(e.target.value)} className="h-7 text-[9px] pl-7 w-40" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <ResultsTable 
+            data={inventoryRows} 
+            columns={inventoryColumns} 
+            onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} 
+            filename={`quad_inventory_${nodeLemma}_${inventoryScope}.csv`}
+            metadata={{ node: nodeLemma, scope: inventoryScope, timeMode, minFreq }}
+          />
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-none border-amber-100 bg-amber-50/5">
           <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold">Top Quads in Slice ({results?.sortedSlices[currentTimeIndex]})</CardTitle>
-            <Button variant="outline" size="icon" onClick={() => exportToCsv(`quads_${results?.sortedSlices[currentTimeIndex]}.csv`, activeSliceData?.topN || [])} className="h-7 w-7"><Download className="h-3 w-3"/></Button>
+            <CardTitle className="text-sm font-bold">Top Quads: {activeSlice}</CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {viewMode === "constellation" ? (
               <div className="space-y-2">
                 {activeSliceData?.topN.map((item: any) => (
-                  <div key={item.quadKey} className="group cursor-pointer" onClick={() => setSelectedQuadKey(item.quadKey)}>
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="font-medium group-hover:text-primary transition-colors">{item.quadKey.replace(/\|/g, ' · ')}</span>
-                      <span className="opacity-60">{item.count}</span>
+                  <div key={item.quadKey} className={`group cursor-pointer p-1.5 rounded transition-all hover:bg-amber-100/30 ${selectedQuadKey === item.quadKey ? 'bg-amber-100/50 border border-amber-200' : 'border border-transparent'}`} onClick={() => setSelectedQuadKey(item.quadKey)}>
+                    <div className="flex justify-between text-[10px] mb-1.5">
+                      <span className="font-medium group-hover:text-primary transition-colors flex flex-wrap gap-1 items-center">
+                        {item.quadKey.split("|").map((l: string, i: number) => (
+                          <Badge key={i} variant={l === nodeLemma ? "default" : "outline"} className="h-4 px-1.5 text-[8px] font-bold tracking-tight">{l}</Badge>
+                        ))}
+                      </span>
+                      <span className="opacity-60 font-mono text-[9px]">{item.count}</span>
                     </div>
-                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
                       <div className="h-full bg-amber-500/60 rounded-full transition-all group-hover:bg-amber-500" style={{ width: `${(item.count / activeSliceData.topN[0].count) * 100}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <ResultsTable data={activeSliceData?.topN || []} columns={[{ key: "quadKey", label: "Quad (4-lemma set)" }, { key: "count", label: "Frequency", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} />
+              <ResultsTable data={activeSliceData?.topN || []} columns={[{ key: "quadKey", label: "Quad" }, { key: "count", label: "Freq", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} filename="slice_quads.csv" />
             )}
           </CardContent>
         </Card>
 
         <div className="space-y-4">
-          <h4 className="text-[10px] font-bold uppercase text-muted-foreground px-1">Quad Traceability (±50 tokens)</h4>
+          <h4 className="text-[10px] font-bold uppercase text-muted-foreground px-1 flex items-center justify-between">
+            Quad Drill-Down 
+            {selectedQuadKey && <Button variant="ghost" size="sm" className="h-5 text-[9px] hover:bg-primary/10" onClick={() => exportToCsv(`quad_drilldown_${selectedQuadKey}.csv`, results?.quadExamplesObj[selectedQuadKey])}><Download className="h-3 w-3 mr-1" /> Export Contexts</Button>}
+          </h4>
           {selectedQuadKey ? (
-            <div className="space-y-2 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
-              <div className="p-2 mb-2 bg-primary/5 rounded border border-primary/10 text-[9px] font-bold text-primary flex items-center gap-2"><Network className="h-3 w-3"/> ACTIVE QUAD: {selectedQuadKey.replace(/\|/g, ', ')}</div>
+            <div className="space-y-2 max-h-[500px] overflow-auto pr-2 custom-scrollbar">
+              <div className="p-3 mb-3 bg-primary/5 rounded border border-primary/10 text-[10px] font-bold text-primary flex items-center gap-2 shadow-sm"><LayoutGrid className="h-3.5 w-3.5"/> ACTIVE QUAD: {selectedQuadKey.replace(/\|/g, ' · ')}</div>
               {results?.quadExamplesObj[selectedQuadKey]?.map((ex: any, i: number) => (
-                <div key={i} className="p-3 rounded-lg border bg-background text-[10px] italic shadow-sm border-amber-100">
-                  <p className="mb-2">"...{ex.source.excerpt}"</p>
-                  <div className="flex justify-between items-center text-[8px] font-bold opacity-60 uppercase border-t pt-2">
-                    <span>{ex.source.title} | {ex.source.speaker}</span>
-                    <span className="text-amber-600">Context: {ex.co.join(', ')}</span>
+                <div key={i} className="p-4 rounded-lg border bg-background text-[11px] leading-relaxed shadow-sm border-amber-100/60 hover:shadow-md transition-shadow">
+                  <p className="mb-3 italic font-serif text-foreground/90">"...{ex.source.excerpt}"</p>
+                  <div className="flex justify-between items-center text-[9px] font-bold opacity-70 uppercase border-t pt-2.5">
+                    <span className="flex items-center gap-1.5"><FileText className="h-3 w-3" /> {ex.source.title} | A: {ex.source.act} S: {ex.source.scene} | {ex.source.speaker}</span>
+                    <Badge variant="outline" className="text-[8px] h-4 bg-muted/30">{ex.slice}</Badge>
                   </div>
                 </div>
               ))}
             </div>
-          ) : <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">Select a quad to view source windows</div>}
+          ) : <div className="h-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-[10px] text-muted-foreground italic gap-2 bg-muted/5">
+              <ListFilter className="h-5 w-5 opacity-20" />
+              Select a quad from the list to explore source instances
+            </div>}
         </div>
       </div>
 
       <Card className="shadow-none border-muted/60">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Diachronic Stability (Quad Distribution)</CardTitle>
+          <CardTitle className="text-sm font-bold">Diachronic Stability</CardTitle>
           <div className="flex items-center gap-2">
             <Select value={driftMetric} onValueChange={(v: any) => setDriftMetric(v)}>
-              <SelectTrigger className="h-7 text-[10px] w-40"><SelectValue/></SelectTrigger>
-              <SelectContent><SelectItem value="jaccard">Jaccard Stability (vs Prev)</SelectItem><SelectItem value="size">Unique Quad Count</SelectItem></SelectContent>
+              <SelectTrigger className="h-7 text-[10px] w-44 shadow-sm"><SelectValue/></SelectTrigger>
+              <SelectContent><SelectItem value="jaccard">Jaccard Index (Stability)</SelectItem><SelectItem value="size">Vocabulary Variety (Unique Quads)</SelectItem></SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => exportToCsv("drift_metrics.csv", results?.driftTable || [])}><Download className="h-3 w-3 mr-1"/> Export Drift</Button>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
@@ -459,25 +513,28 @@ const DiscursiveTab = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
                 <XAxis dataKey="slice" fontSize={9} />
                 <YAxis fontSize={9} />
-                <Tooltip contentStyle={{ fontSize: '10px' }} />
-                <Line type="monotone" dataKey={driftMetric} name={driftMetric === 'jaccard' ? 'Jaccard Index' : 'Quad Variety'} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                <Line type="monotone" dataKey={driftMetric} name={driftMetric === 'jaccard' ? 'Stability' : 'Variety'} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(var(--primary))" }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-2 p-4 border rounded-xl bg-card">
-        <div className="space-y-1 flex-1">
-          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Node Lemma</Label>
-          <Input value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-8 text-xs w-48" placeholder="Node..."/>
+      <div className="flex flex-col md:flex-row items-center gap-4 p-4 border rounded-xl bg-card shadow-lg sticky bottom-0 z-10 backdrop-blur-md bg-background/95">
+        <div className="space-y-1 flex-1 w-full">
+          <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest px-1">Active Node Lemma</Label>
+          <div className="relative">
+            <Network className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50" />
+            <Input value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-9 text-xs w-full md:w-56 pl-8 font-medium shadow-inner" placeholder="Enter node lemma..."/>
+          </div>
         </div>
-        <div className="flex items-center gap-2 pt-5">
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
-          <div className="text-center min-w-[100px]"><p className="text-[10px] font-bold text-muted-foreground">{timeMode} Slice</p><p className="text-xs font-bold">{results?.sortedSlices[currentTimeIndex]}</p></div>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
+        <div className="flex items-center gap-3 shrink-0 bg-muted/30 p-1 rounded-lg border shadow-inner">
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
+          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode} Slice</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
         </div>
-        <div className="pt-5"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-8 gap-2">{isPlaying ? <Pause className="h-3 w-3"/> : <Play className="h-3 w-3"/>} {isPlaying ? 'Stop' : 'Play Sequence'}</Button></div>
+        <div className="shrink-0"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-9 gap-2 px-5 shadow-sm font-bold text-xs">{isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>} {isPlaying ? 'STOP SEQUENCE' : 'PLAY SEQUENCE'}</Button></div>
       </div>
     </div>
   );
@@ -487,11 +544,11 @@ export default function Analysis() {
   const ui = useUI();
   return (
     <MainLayout title="Linguistic Analysis">
-      <Tabs defaultValue="lexical" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1"><TabsTrigger value="lexical">Lexical</TabsTrigger><TabsTrigger value="semantic">Semantic</TabsTrigger><TabsTrigger value="discursive">Discursive</TabsTrigger></TabsList>
-        <TabsContent value="lexical"><LexicalTab /></TabsContent>
-        <TabsContent value="semantic"><SemanticTab /></TabsContent>
-        <TabsContent value="discursive"><DiscursiveTab /></TabsContent>
+      <Tabs defaultValue="discursive" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 border rounded-xl"><TabsTrigger value="lexical">Lexical</TabsTrigger><TabsTrigger value="semantic">Semantic</TabsTrigger><TabsTrigger value="discursive">Discursive</TabsTrigger></TabsList>
+        <TabsContent value="lexical" className="animate-in fade-in duration-500"><LexicalTab /></TabsContent>
+        <TabsContent value="semantic" className="animate-in fade-in duration-500"><SemanticTab /></TabsContent>
+        <TabsContent value="discursive" className="animate-in fade-in duration-500"><DiscursiveTab /></TabsContent>
       </Tabs>
     </MainLayout>
   );

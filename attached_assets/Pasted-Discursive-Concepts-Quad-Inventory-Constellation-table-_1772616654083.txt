@@ -1,0 +1,207 @@
+Discursive Concepts: “Quad Inventory / Constellation” table like LDNA + slice/all-time views + exports + drill-down
+
+Implement ONLY Step 9.3 inside the Discursive Concepts tab UI.
+Do NOT change quad extraction logic from Step 9.2A.
+Do NOT change Lexical/Semantic/Loader/Routing.
+
+Goal: add a proper Quad Inventory view (constellation) that lets you browse all quads for the selected node lemma (and optionally per slice), sort/filter, export, and drill down to sources.
+
+1) Add a new section: “Quad Inventory”
+
+On the Discursive tab, below (or next to) the constellation bars, add a new card:
+
+Title: Quad Inventory (Node: {nodeLemma})
+
+This is the main research table.
+
+2) Inventory mode controls (UI only)
+
+Add controls at the top of the Quad Inventory card:
+
+A) Scope of inventory
+
+Radio buttons or segmented control:
+
+Current slice (default)
+
+All slices (scope)
+
+B) Minimum frequency filter
+
+Slider or input:
+
+Min count default = 2 (or 1 if your data is sparse)
+
+C) Search
+
+Text input that filters quads by substring:
+
+matches any lemma in quadKey (split on |)
+
+D) Sort
+
+Dropdown:
+
+Count (desc) default
+
+Count (asc)
+
+First seen (asc)
+
+Last seen (desc)
+
+Jaccard contribution (optional; skip if not already computed)
+
+3) Build the inventory data (derived from existing results)
+
+You already have (from Step 9.2A):
+
+per-slice quad lists quadFreqBySliceObj[slice] = [{ quadKey, count }, ...]
+
+sortedSlices
+
+quadExamplesObj
+
+Create a derived array inventoryRows using useMemo:
+
+If mode = Current slice
+
+Start from quadFreqBySliceObj[activeSlice]
+
+For each quadKey, compute:
+
+count
+
+first_seen = activeSlice (or look backward to find earliest slice where quadKey appears if you want; optional)
+
+last_seen = activeSlice
+
+example_source = from quadExamplesObj[quadKey][0] if exists
+
+excerpt = example_source.excerpt (or text substring)
+
+play/title, act, scene, speaker (if available in stored instance)
+
+If mode = All slices
+
+Aggregate counts across slices:
+
+totalCount = sum over slices
+
+Compute:
+
+first_seen = earliest slice where quadKey appears
+
+last_seen = latest slice where quadKey appears
+
+Example source:
+
+pick first available example from quadExamplesObj[quadKey]
+
+Output row shape:
+
+quadKey
+
+count
+
+first_seen
+
+last_seen
+
+example_title
+
+example_act
+
+example_scene
+
+example_speaker
+
+excerpt (first 200 chars)
+
+4) Display as a proper table (use your ResultsTable)
+
+Use ResultsTable with sortable columns and a click handler.
+
+Columns:
+
+Quad (quadKey) ← render nicely (split into 4 chips if easy, else keep as text)
+
+Count
+
+First seen
+
+Last seen
+
+Example (title | act.scene | speaker)
+
+Excerpt
+
+Row click:
+
+sets selectedQuadKey and opens the existing traceability panel (or scrolls to it).
+
+Pin support:
+
+allow pinning a quad (label = quadKey, metric = count)
+
+CSV export:
+
+Export visible inventory rows.
+
+Filename include: nodeLemma + inventoryMode + timeMode + scope.
+
+5) Add a “Quad details” drawer/panel (drill-down)
+
+When selectedQuadKey is set:
+
+Show a side panel or modal:
+
+QuadKey split into lemmas
+
+Total count (in current mode)
+
+First/last seen
+
+List up to 10 example instances from quadExamplesObj[selectedQuadKey]:
+
+title, act, scene, speaker
+
+excerpt
+
+Also add:
+
+“Download examples CSV”
+
+This is your LDNA-like drill-down behaviour.
+
+6) Keep existing bar constellation view
+
+Do not remove:
+
+the bar list
+
+drift chart
+
+sanity checks
+
+Quad Inventory is an additional deeper layer.
+
+7) Guardrails
+
+If quadFreqBySliceObj missing for current slice → show “No quads in this slice.”
+
+If inventoryRows empty due to min-count filter → show “No quads meet min count.”
+
+8) Acceptance tests
+
+Current slice inventory shows multiple quad rows.
+
+Switching to All slices recomputes counts and first/last seen.
+
+Clicking a quad shows its example sources.
+
+CSV export downloads correctly.
+
+No changes to quad extraction logic or drift logic.
+
+Stop after Step 9.3.
