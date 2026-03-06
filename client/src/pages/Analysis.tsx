@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Grid3X3 } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -100,7 +100,7 @@ const LexicalTab = () => {
     });
     if (totalTokens === 0) return { error: "No tokens found." };
     const freqList = Array.from(unigramCounts.entries()).map(([token, count]) => ({ token, count, per_10k: parseFloat(((count / totalTokens) * 10000).toFixed(2)) })).sort((a, b) => b.count - a.count).slice(0, topN);
-    
+
     const ngramCounts = new Map<string, number>();
     const nSize = parseInt(lexSettings.ngramSize);
     scopedLines.forEach(l => {
@@ -108,7 +108,7 @@ const LexicalTab = () => {
       for (let i = 0; i <= tokens.length - nSize; i++) { const gram = tokens.slice(i, i + nSize).join(" "); ngramCounts.set(gram, (ngramCounts.get(gram) || 0) + 1); }
     });
     let ngramList = Array.from(ngramCounts.entries()).map(([ngram, count]) => ({ ngram, count, per_10k: parseFloat(((count / totalTokens) * 10000).toFixed(2)) })).sort((a, b) => b.count - a.count);
-    
+
     if (lexSettings.contentFocus) {
       const stoplist = getStoplist();
       ngramList = ngramList.filter(item => {
@@ -233,6 +233,7 @@ const DiscursiveTab = () => {
   const [viewMode, setViewMode] = useState<"table" | "constellation">("constellation");
   const [inventoryScope, setInventoryScope] = useState<"slice" | "all">("slice");
   const [minFreq, setMinFreq] = useState(2);
+  const [topNodeLimit, setTopNodeLimit] = useState<10 | 20 | 50>(20);
   const [inventorySearch, setInventorySearch] = useState("");
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
@@ -250,9 +251,6 @@ const DiscursiveTab = () => {
   const [maxNodesPerLayer, setMaxNodesPerLayer] = useState(20);
   const [selectedSankeyLink, setSelectedSankeyLink] = useState<{ source: string, target: string, layerSource: number } | null>(null);
 
-  // Heatmap specific state
-  const [selectedHeatmapLemma, setSelectedHeatmapLemma] = useState<string | null>(null);
-
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -260,7 +258,26 @@ const DiscursiveTab = () => {
       if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
       return true;
     });
-    const cacheKey = JSON.stringify({ scope: corpusScope, play: selectedPlayTitle, node: nodeLemma, stop: useStoplist, lem: useLemmas, time: timeMode, topN });
+    console.log("[Discursive] speeches loaded:", speeches.length);
+    console.log("[Discursive] filtered speeches:", filtered.length);
+    console.log("[Discursive] first speech keys:", filtered[0] ? Object.keys(filtered[0]) : null);
+    console.log("[Discursive] sample text_raw:", filtered[0]?.text_raw);
+    console.log("[Discursive] sample text_norm:", filtered[0]?.text_norm);
+    // IMPORTANT: do not cache when data has not loaded yet (prevents stale empty cache)
+    if (!speeches || speeches.length === 0) return null;
+
+    // include a data signature so cache invalidates when CSV loads / scope changes
+    const cacheKey = JSON.stringify({
+      scope: corpusScope,
+      play: selectedPlayTitle,
+      node: nodeLemma,
+      stop: useStoplist,
+      lem: useLemmas,
+      time: timeMode,
+      topN,
+      speechesLen: speeches.length,   // <-- key fix
+    });
+
     if (quadCache.current.has(cacheKey)) return quadCache.current.get(cacheKey);
 
     let totalNodeWindows = 0;
@@ -358,6 +375,11 @@ const DiscursiveTab = () => {
     return output;
   }, [speeches, corpusScope, nodeLemma, useStoplist, useLemmas, timeMode, topN, selectedPlayTitle]);
 
+  const topNodeRows = useMemo(() => {
+    if (!results?.topNodes) return [];
+    return results.topNodes.slice(0, topNodeLimit);
+  }, [results, topNodeLimit]);
+
   useEffect(() => {
     if (results?.sortedSlices?.length && !selectedSankeySlice) {
       setSelectedSankeySlice(results.sortedSlices[0]);
@@ -369,50 +391,22 @@ const DiscursiveTab = () => {
 
   const sankeyData = useMemo(() => {
     if (!results?.quadInstancesAll) return null;
-    const instances = sankeyAnalysisMode === "all-time" 
-      ? results.quadInstancesAll 
-      : results.quadInstancesAll.filter(q => q.slice === selectedSankeySlice);
-    
-    return buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
+
+    const instances =
+      sankeyAnalysisMode === "all-time"
+        ? results.quadInstancesAll
+        : results.quadInstancesAll.filter(q => q.slice === selectedSankeySlice);
+
+    console.log("[Sankey] instances:", instances.length, "mode:", sankeyAnalysisMode, "slice:", selectedSankeySlice);
+    console.log("[Sankey] sample instance:", instances[0]);
+
+    const out = buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
+
+    console.log("[Sankey] out nodes:", out.nodes.length, "out links:", out.links.length);
+    console.log("[Sankey] out link sample:", out.links.slice(0, 5));
+
+    return out;
   }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer]);
-
-  const heatmapData = useMemo(() => {
-    if (!results?.quadFreqBySliceObj || !results?.sortedSlices) return null;
-    
-    const coLemmaTotals = new Map<string, number>();
-    const coLemmaBySlice = new Map<string, Map<string, number>>();
-    const activeNode = nodeLemma.trim().toLowerCase();
-
-    for (const [slice, quads] of Object.entries(results.quadFreqBySliceObj)) {
-      if (!coLemmaBySlice.has(slice)) coLemmaBySlice.set(slice, new Map());
-      const sliceMap = coLemmaBySlice.get(slice)!;
-
-      for (const { quadKey, count } of quads) {
-        const parts = quadKey.split("|");
-        const coLemmas = parts.filter(p => p !== activeNode);
-        for (const co of coLemmas) {
-          coLemmaTotals.set(co, (coLemmaTotals.get(co) || 0) + count);
-          sliceMap.set(co, (sliceMap.get(co) || 0) + count);
-        }
-      }
-    }
-
-    const topCoLemmas = Array.from(coLemmaTotals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20)
-      .map(([lemma]) => lemma);
-
-    const maxCount = Math.max(...Array.from(coLemmaTotals.values()), 1);
-
-    const matrix = topCoLemmas.map(lemma => {
-      const values = results.sortedSlices.map(slice => {
-        return coLemmaBySlice.get(slice)?.get(lemma) || 0;
-      });
-      return { lemma, values, total: coLemmaTotals.get(lemma) || 0 };
-    });
-
-    return { matrix, topCoLemmas, maxCount, slices: results.sortedSlices };
-  }, [results, nodeLemma]);
 
   const inventoryRows = useMemo(() => {
     if (!results) return [];
@@ -422,30 +416,44 @@ const DiscursiveTab = () => {
       base = base.map(q => {
         const ex = results.quadExamplesObj[q.quadKey]?.[0];
         return { 
-          quadKey: q.quadKey, 
+          quadKey: q.quadKey,
+          node: nodeLemma,
+          co1: ex?.co?.[0] || "",
+          co2: ex?.co?.[1] || "",
+          co3: ex?.co?.[2] || "",
           count: q.count, 
           first_seen: activeSlice, 
           last_seen: activeSlice, 
           example_title: ex?.source.title, 
           example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, 
           excerpt: ex?.source.excerpt,
-          co: ex?.co || [] 
+          co: ex?.co || []
         };
       });
     } else {
-      const agg = new Map<string, { count: number; first: string; last: string; co: string[] }>();
+      const agg = new Map<string, { count: number; first: string; last: string }>();
       results.sortedSlices.forEach(slice => {
         (results.quadFreqBySliceObj[slice] || []).forEach(q => {
-          if (!agg.has(q.quadKey)) {
-            const ex = results.quadExamplesObj[q.quadKey]?.[0];
-            agg.set(q.quadKey, { count: 0, first: slice, last: slice, co: ex?.co || [] });
-          }
+          if (!agg.has(q.quadKey)) agg.set(q.quadKey, { count: 0, first: slice, last: slice });
           const e = agg.get(q.quadKey)!; e.count += q.count; e.last = slice;
         });
       });
       base = Array.from(agg.entries()).map(([quadKey, d]) => {
         const ex = results.quadExamplesObj[quadKey]?.[0];
-        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt, co: d.co };
+        return {
+          quadKey,
+          node: nodeLemma,
+          co1: ex?.co?.[0] || "",
+          co2: ex?.co?.[1] || "",
+          co3: ex?.co?.[2] || "",
+          count: d.count,
+          first_seen: d.first,
+          last_seen: d.last,
+          example_title: ex?.source.title,
+          example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`,
+          excerpt: ex?.source.excerpt,
+          co: ex?.co || []
+        };
       });
     }
 
@@ -460,7 +468,7 @@ const DiscursiveTab = () => {
       const { source, target, layerSource } = selectedSankeyLink;
       const s = source.split("__")[0];
       const t = target.split("__")[0];
-      
+
       filtered = filtered.filter(r => {
         if (layerSource === 0) return r.co[0] === t;
         if (layerSource === 1) return r.co[0] === s && r.co[1] === t;
@@ -469,17 +477,23 @@ const DiscursiveTab = () => {
       });
     }
 
-    // Heatmap Filter
-    if (selectedHeatmapLemma) {
-      filtered = filtered.filter(r => r.quadKey.includes(selectedHeatmapLemma));
-    }
+    const denom = results.totalQuadWindows || 0;
+
+    filtered = filtered.map(r => ({
+      ...r,
+      share: denom > 0 ? `${((r.count / denom) * 100).toFixed(1)}%` : "—",
+    }));
 
     return filtered;
-  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink, selectedHeatmapLemma]);
+  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink]);
 
   const inventoryColumns = [
-    { key: "quadKey", label: "Quad (4-lemma set)" },
+    { key: "node", label: "Node (L0)" },
+    { key: "co1", label: "Co-1 (L1)" },
+    { key: "co2", label: "Co-2 (L2)" },
+    { key: "co3", label: "Co-3 (L3)" },
     { key: "count", label: "Freq", sortable: true, align: "right" },
+    { key: "share", label: "Share", sortable: true, align: "right" },
     { key: "first_seen", label: "First Seen", sortable: true },
     { key: "last_seen", label: "Last Seen", sortable: true },
     { key: "example_title", label: "Source" },
@@ -489,35 +503,38 @@ const DiscursiveTab = () => {
 
   const sankeyTableRows = useMemo(() => {
     if (!sankeyData?.links) return [];
-    return sankeyData.links.map(l => ({
-      source: l.source.split("__")[0],
-      target: l.target.split("__")[0],
-      weight: l.value,
-      layer_source: l.source.split("__L")[1],
-      layer_target: l.target.split("__L")[1]
-    }));
-  }, [sankeyData]);
 
-  const exportHeatmap = () => {
-    if (!heatmapData) return;
-    const csvData = heatmapData.matrix.map(row => {
-      const entry: any = { lemma: row.lemma };
-      heatmapData.slices.forEach((slice, i) => {
-        entry[slice] = row.values[i];
-      });
-      entry.total = row.total;
-      return entry;
+    const parse = (id: string) => {
+      const m = id.match(/__L(\d+)$/);
+      return {
+        id,
+        label: id.split("__")[0],
+        layer: m ? Number(m[1]) : null,
+      };
+    };
+
+    return sankeyData.links.map((l) => {
+      const s = parse(l.source);
+      const t = parse(l.target);
+      return {
+        source: s.label,
+        target: t.label,
+        weight: l.value,
+        layer_source: s.layer,
+        layer_target: t.layer,
+        source_id: s.id,
+        target_id: t.id,
+      };
     });
-    exportToCsv(`heatmap_${nodeLemma}_${corpusScope}.csv`, csvData);
-  };
+  }, [sankeyData]);
 
   return (
     <div className="space-y-6 pb-12">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-3 shadow-none border-muted/60">
+          <Card className="lg:col-span-4 shadow-none border-muted/60">
           <CardHeader className="pb-3 bg-muted/5 border-b flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2"><Network className="h-4 w-4 text-amber-500" /> Sanity Checks</CardTitle>
             <div className="flex bg-muted p-0.5 rounded-md shadow-inner">
@@ -602,7 +619,7 @@ const DiscursiveTab = () => {
               Not enough data to render Sankey at this threshold.
             </div>
           )}
-          
+
           <Collapsible className="mt-6 border rounded-lg bg-muted/5">
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider flex items-center justify-between px-4 hover:bg-muted/10">
@@ -626,81 +643,14 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
-      <Card className="shadow-none border-muted/60">
-        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between py-3">
-          <div>
-            <CardTitle className="text-sm font-bold flex items-center gap-2"><Grid3X3 className="h-4 w-4 text-primary" /> Diachronic Concept Heatmap</CardTitle>
-            <CardDescription className="text-[10px]">Top 20 co-lemmas across all time slices</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={exportHeatmap}>
-            <Download className="h-3 w-3 mr-1" /> Export Heatmap
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
-          {heatmapData ? (
-            <div className="min-w-full inline-block align-middle">
-              <table className="w-full border-collapse text-[10px]">
-                <thead>
-                  <tr className="bg-muted/20">
-                    <th className="sticky left-0 bg-background z-10 p-2 text-left border-b border-r font-bold uppercase tracking-wider">Co-Lemma</th>
-                    {heatmapData.slices.map(slice => (
-                      <th key={slice} className="p-2 border-b text-center font-bold">{slice}</th>
-                    ))}
-                    <th className="p-2 border-b text-right font-bold bg-muted/10">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmapData.matrix.map(row => (
-                    <tr key={row.lemma} className="hover:bg-muted/10">
-                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium border-b">{row.lemma}</td>
-                      {row.values.map((val, i) => {
-                        const intensity = val > 0 ? Math.max(0.1, Math.min(1, val / (heatmapData.maxCount * 0.5))) : 0;
-                        return (
-                          <td 
-                            key={`${row.lemma}-${i}`} 
-                            className="p-0 border-b relative group cursor-pointer"
-                            onClick={() => {
-                              setCurrentTimeIndex(i);
-                              setInventoryScope("slice");
-                              setSelectedHeatmapLemma(row.lemma);
-                            }}
-                          >
-                            <div 
-                              className="absolute inset-0 transition-colors"
-                              style={{ backgroundColor: `hsl(var(--primary) / ${intensity})` }}
-                            />
-                            <div className="relative p-2 text-center group-hover:font-bold">
-                              {val > 0 ? val : ""}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="p-2 text-right border-b font-mono bg-muted/5">{row.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-8 text-center text-muted-foreground italic text-xs">No heatmap data available.</div>
-          )}
-        </CardContent>
-      </Card>
-
       <Card className="shadow-none border-amber-100 bg-amber-50/5">
         <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
             {selectedSankeyLink && (
               <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
                 Active Sankey filter: {selectedSankeyLink.source.split("__")[0]} → {selectedSankeyLink.target.split("__")[0]}
                 <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedSankeyLink(null)} />
-              </Badge>
-            )}
-            {selectedHeatmapLemma && (
-              <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
-                Heatmap Lemma: {selectedHeatmapLemma}
-                <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedHeatmapLemma(null)} />
               </Badge>
             )}
           </div>
@@ -810,6 +760,42 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="bg-muted/5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Network className="h-4 w-4 text-amber-500" /> Top Node Lemmas
+          </CardTitle>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-[9px] font-bold opacity-60">SHOW</Label>
+            <Select value={topNodeLimit.toString()} onValueChange={(v) => setTopNodeLimit(Number(v) as 10 | 20 | 50)}>
+              <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">Top 10</SelectItem>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="50">Top 50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-4 flex flex-wrap gap-2">
+          {topNodeRows.map((n: any) => (
+            <Button
+              key={n.lemma}
+              variant={n.lemma === nodeLemma ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-[10px] px-2 gap-2"
+              onClick={() => setNodeLemma(n.lemma)}
+              title={`Count: ${n.count}`}
+            >
+              <span className="font-semibold">{n.lemma}</span>
+              <span className="opacity-60 font-mono">{n.count}</span>
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col md:flex-row items-center gap-4 p-4 border rounded-xl bg-card shadow-lg sticky bottom-0 z-10 backdrop-blur-md bg-background/95">
         <div className="space-y-1 flex-1 w-full">
           <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest px-1">Active Node Lemma</Label>
@@ -820,7 +806,7 @@ const DiscursiveTab = () => {
         </div>
         <div className="flex items-center gap-3 shrink-0 bg-muted/30 p-1 rounded-lg border shadow-inner">
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
-          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode} Slice</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
+          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode}</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
         </div>
         <div className="shrink-0"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-9 gap-2 px-5 shadow-sm font-bold text-xs">{isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>} {isPlaying ? 'STOP SEQUENCE' : 'PLAY SEQUENCE'}</Button></div>
