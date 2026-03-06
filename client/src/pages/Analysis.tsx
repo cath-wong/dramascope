@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Grid3X3 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -250,6 +250,9 @@ const DiscursiveTab = () => {
   const [maxNodesPerLayer, setMaxNodesPerLayer] = useState(20);
   const [selectedSankeyLink, setSelectedSankeyLink] = useState<{ source: string, target: string, layerSource: number } | null>(null);
 
+  // Heatmap specific state
+  const [selectedHeatmapLemma, setSelectedHeatmapLemma] = useState<string | null>(null);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -373,6 +376,44 @@ const DiscursiveTab = () => {
     return buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
   }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer]);
 
+  const heatmapData = useMemo(() => {
+    if (!results?.quadFreqBySliceObj || !results?.sortedSlices) return null;
+    
+    const coLemmaTotals = new Map<string, number>();
+    const coLemmaBySlice = new Map<string, Map<string, number>>();
+    const activeNode = nodeLemma.trim().toLowerCase();
+
+    for (const [slice, quads] of Object.entries(results.quadFreqBySliceObj)) {
+      if (!coLemmaBySlice.has(slice)) coLemmaBySlice.set(slice, new Map());
+      const sliceMap = coLemmaBySlice.get(slice)!;
+
+      for (const { quadKey, count } of quads) {
+        const parts = quadKey.split("|");
+        const coLemmas = parts.filter(p => p !== activeNode);
+        for (const co of coLemmas) {
+          coLemmaTotals.set(co, (coLemmaTotals.get(co) || 0) + count);
+          sliceMap.set(co, (sliceMap.get(co) || 0) + count);
+        }
+      }
+    }
+
+    const topCoLemmas = Array.from(coLemmaTotals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([lemma]) => lemma);
+
+    const maxCount = Math.max(...Array.from(coLemmaTotals.values()), 1);
+
+    const matrix = topCoLemmas.map(lemma => {
+      const values = results.sortedSlices.map(slice => {
+        return coLemmaBySlice.get(slice)?.get(lemma) || 0;
+      });
+      return { lemma, values, total: coLemmaTotals.get(lemma) || 0 };
+    });
+
+    return { matrix, topCoLemmas, maxCount, slices: results.sortedSlices };
+  }, [results, nodeLemma]);
+
   const inventoryRows = useMemo(() => {
     if (!results) return [];
     let base: any[] = [];
@@ -392,16 +433,19 @@ const DiscursiveTab = () => {
         };
       });
     } else {
-      const agg = new Map<string, { count: number; first: string; last: string }>();
+      const agg = new Map<string, { count: number; first: string; last: string; co: string[] }>();
       results.sortedSlices.forEach(slice => {
         (results.quadFreqBySliceObj[slice] || []).forEach(q => {
-          if (!agg.has(q.quadKey)) agg.set(q.quadKey, { count: 0, first: slice, last: slice });
+          if (!agg.has(q.quadKey)) {
+            const ex = results.quadExamplesObj[q.quadKey]?.[0];
+            agg.set(q.quadKey, { count: 0, first: slice, last: slice, co: ex?.co || [] });
+          }
           const e = agg.get(q.quadKey)!; e.count += q.count; e.last = slice;
         });
       });
       base = Array.from(agg.entries()).map(([quadKey, d]) => {
         const ex = results.quadExamplesObj[quadKey]?.[0];
-        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt, co: ex?.co || [] };
+        return { quadKey, count: d.count, first_seen: d.first, last_seen: d.last, example_title: ex?.source.title, example_meta: `A: ${ex?.source.act} S: ${ex?.source.scene} | ${ex?.source.speaker}`, excerpt: ex?.source.excerpt, co: d.co };
       });
     }
 
@@ -425,8 +469,13 @@ const DiscursiveTab = () => {
       });
     }
 
+    // Heatmap Filter
+    if (selectedHeatmapLemma) {
+      filtered = filtered.filter(r => r.quadKey.includes(selectedHeatmapLemma));
+    }
+
     return filtered;
-  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink]);
+  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink, selectedHeatmapLemma]);
 
   const inventoryColumns = [
     { key: "quadKey", label: "Quad (4-lemma set)" },
@@ -448,6 +497,19 @@ const DiscursiveTab = () => {
       layer_target: l.target.split("__L")[1]
     }));
   }, [sankeyData]);
+
+  const exportHeatmap = () => {
+    if (!heatmapData) return;
+    const csvData = heatmapData.matrix.map(row => {
+      const entry: any = { lemma: row.lemma };
+      heatmapData.slices.forEach((slice, i) => {
+        entry[slice] = row.values[i];
+      });
+      entry.total = row.total;
+      return entry;
+    });
+    exportToCsv(`heatmap_${nodeLemma}_${corpusScope}.csv`, csvData);
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -564,14 +626,81 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between py-3">
+          <div>
+            <CardTitle className="text-sm font-bold flex items-center gap-2"><Grid3X3 className="h-4 w-4 text-primary" /> Diachronic Concept Heatmap</CardTitle>
+            <CardDescription className="text-[10px]">Top 20 co-lemmas across all time slices</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={exportHeatmap}>
+            <Download className="h-3 w-3 mr-1" /> Export Heatmap
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
+          {heatmapData ? (
+            <div className="min-w-full inline-block align-middle">
+              <table className="w-full border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-muted/20">
+                    <th className="sticky left-0 bg-background z-10 p-2 text-left border-b border-r font-bold uppercase tracking-wider">Co-Lemma</th>
+                    {heatmapData.slices.map(slice => (
+                      <th key={slice} className="p-2 border-b text-center font-bold">{slice}</th>
+                    ))}
+                    <th className="p-2 border-b text-right font-bold bg-muted/10">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatmapData.matrix.map(row => (
+                    <tr key={row.lemma} className="hover:bg-muted/10">
+                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium border-b">{row.lemma}</td>
+                      {row.values.map((val, i) => {
+                        const intensity = val > 0 ? Math.max(0.1, Math.min(1, val / (heatmapData.maxCount * 0.5))) : 0;
+                        return (
+                          <td 
+                            key={`${row.lemma}-${i}`} 
+                            className="p-0 border-b relative group cursor-pointer"
+                            onClick={() => {
+                              setCurrentTimeIndex(i);
+                              setInventoryScope("slice");
+                              setSelectedHeatmapLemma(row.lemma);
+                            }}
+                          >
+                            <div 
+                              className="absolute inset-0 transition-colors"
+                              style={{ backgroundColor: `hsl(var(--primary) / ${intensity})` }}
+                            />
+                            <div className="relative p-2 text-center group-hover:font-bold">
+                              {val > 0 ? val : ""}
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td className="p-2 text-right border-b font-mono bg-muted/5">{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-muted-foreground italic text-xs">No heatmap data available.</div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="shadow-none border-amber-100 bg-amber-50/5">
         <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">Quad Inventory (Node: {nodeLemma})</CardTitle>
             {selectedSankeyLink && (
               <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
                 Active Sankey filter: {selectedSankeyLink.source.split("__")[0]} → {selectedSankeyLink.target.split("__")[0]}
                 <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedSankeyLink(null)} />
+              </Badge>
+            )}
+            {selectedHeatmapLemma && (
+              <Badge variant="secondary" className="h-6 gap-1 px-2 text-[9px] bg-primary/10 border-primary/20 text-primary animate-in fade-in zoom-in">
+                Heatmap Lemma: {selectedHeatmapLemma}
+                <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSelectedHeatmapLemma(null)} />
               </Badge>
             )}
           </div>
@@ -691,7 +820,7 @@ const DiscursiveTab = () => {
         </div>
         <div className="flex items-center gap-3 shrink-0 bg-muted/30 p-1 rounded-lg border shadow-inner">
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.max(0, p - 1))} disabled={currentTimeIndex === 0}><ChevronLeft className="h-4 w-4"/></Button>
-          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode}</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
+          <div className="text-center min-w-[110px] px-2"><p className="text-[9px] font-bold text-muted-foreground uppercase leading-none mb-1 opacity-60">{timeMode} Slice</p><p className="text-sm font-bold text-primary">{activeSlice}</p></div>
           <Button variant="outline" size="sm" className="h-8 w-8 p-0 bg-background" onClick={() => setCurrentTimeIndex(p => Math.min((results?.sortedSlices.length || 1) - 1, p + 1))} disabled={currentTimeIndex === (results?.sortedSlices.length || 1) - 1}><ChevronRight className="h-4 w-4"/></Button>
         </div>
         <div className="shrink-0"><Button variant={isPlaying ? "destructive" : "default"} size="sm" onClick={() => setIsPlaying(!isPlaying)} className="h-9 gap-2 px-5 shadow-sm font-bold text-xs">{isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>} {isPlaying ? 'STOP SEQUENCE' : 'PLAY SEQUENCE'}</Button></div>

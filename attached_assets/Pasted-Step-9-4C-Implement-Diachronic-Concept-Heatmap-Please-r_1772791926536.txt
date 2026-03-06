@@ -1,0 +1,105 @@
+Step 9.4C — Implement Diachronic Concept Heatmap
+
+Please read carefully and implement only this step.
+
+You are continuing an existing Shakespeare Corpus Linguistics App built with React + TypeScript + Vite + Tailwind/shadcn. The architecture, routing, tabs, data loading, quad extraction, quad inventory, and D3 Sankey are already implemented and must not be redesigned.
+
+Authoritative constraints:
+- Do NOT redesign the app structure
+- Do NOT change routing / sidebar / tabs
+- Do NOT merge lines and speeches datasets
+- Do NOT change quad extraction logic
+- Do NOT change Sankey logic
+- Do NOT recompute tokens or quads from raw text
+- Use existing derived results only
+
+Current authoritative data sources for this step:
+- results.quadFreqBySliceObj
+- results.sortedSlices
+
+Current Discursive tab already has:
+- node-centred ±50 token window model
+- quad extraction (node + co1 + co2 + co3)
+- quad inventory with traceability/examples
+- D3 Sankey panel
+- diachronic drift metrics
+
+Your task:
+Implement Step 9.4C — Diachronic Concept Heatmap
+
+Functional requirements
+
+1. Placement
+- Add the heatmap as a new panel below the Sankey panel inside the Discursive Concepts tab.
+- Do not disturb existing panels.
+
+2. Data source
+- Use only:
+  - results.quadFreqBySliceObj
+  - results.sortedSlices
+- Do not reprocess speeches, tokens, or windows.
+
+3. Heatmap structure
+- Columns = time slices from results.sortedSlices
+- Rows = most frequent co-lemmas across all slices
+- Recommended row count: top 20
+
+4. Row extraction rule
+- For each quadKey in quadFreqBySliceObj:
+  - split quadKey into [node, co1, co2, co3]
+  - exclude the node
+  - collect only co1, co2, co3
+- Aggregate counts across all slices to rank co-lemmas
+- Build top co-lemma rows from those totals
+
+5. Cell values
+- Each cell = frequency/count of that co-lemma in that time slice
+- Derive this from quadFreqBySliceObj by summing counts for quads in that slice that contain the co-lemma in co1/co2/co3
+
+6. Rendering
+- First version must be a stable HTML/CSS heatmap grid or table
+- Do NOT use D3 for this step
+- Cell colour intensity should scale by count
+- Include a small legend or label for intensity if easy, but keep it simple and robust
+
+7. Interaction
+- Clicking a heatmap cell must:
+  - set the active slice
+  - filter/highlight the Quad Inventory to quads from that slice containing the selected co-lemma
+  - preserve existing traceability/examples behaviour
+- Do not redesign the inventory; layer this interaction onto existing filtering state if possible
+
+8. Export
+- Add CSV export for the heatmap data
+- At minimum provide one export format:
+  - wide format: row = lemma, columns = slices
+- Long format is optional if easy
+
+9. State / implementation quality
+- Use memoised derived data where appropriate
+- Guard against empty results
+- Do not crash if a slice has no data
+- Keep the implementation incremental and local
+
+Suggested implementation plan
+- Create memoised heatmap row totals from quadFreqBySliceObj
+- Derive top co-lemmas
+- Build matrix data by slice
+- Render HTML heatmap panel
+- Add click handler state for selected slice + selected co-lemma
+- Feed that state into existing inventory filtering/highlighting
+- Add CSV export
+
+Important:
+- Stop after Step 9.4C is implemented
+- Do not start lexical refinements or content-word filtering
+- Do not refactor unrelated code
+
+Definition of done
+- Heatmap panel appears below Sankey
+- Columns = sortedSlices
+- Rows = top co-lemmas
+- Cells show intensity by count
+- Clicking a cell filters/highlights relevant quads in Quad Inventory for that slice
+- CSV export works
+- Existing Sankey and inventory continue to work

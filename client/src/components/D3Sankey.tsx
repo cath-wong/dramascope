@@ -27,7 +27,7 @@ const D3Sankey: React.FC<D3SankeyProps> = ({
   const layout = useMemo(() => {
     if (nodes.length < 2 || links.length < 1) return null;
 
-    const nodeMap = new Map();
+    const nodeMap = new Map<string, number>();
     nodes.forEach((d, i) => nodeMap.set(d.id, i));
 
     const sankeyData = {
@@ -46,9 +46,12 @@ const D3Sankey: React.FC<D3SankeyProps> = ({
     if (sankeyData.links.length === 0) return null;
 
     const generator = d3Sankey<any, any>()
-      .nodeWidth(nodeWidth)
-      .nodePadding(nodePadding)
-      .extent([[1, 1], [width - 1, height - 5]]);
+    .nodeWidth(nodeWidth)
+    .nodePadding(nodePadding)
+    // Stabilise layout so nodes/links don’t “jump” and create weird long straight slashes
+    .nodeSort((a: any, b: any) => (b.value ?? 0) - (a.value ?? 0))
+    .linkSort((a: any, b: any) => (b.value ?? 0) - (a.value ?? 0))
+    .extent([[1, 1], [width - 1, height - 5]]);
 
     try {
       return generator(sankeyData);
@@ -83,7 +86,7 @@ const D3Sankey: React.FC<D3SankeyProps> = ({
               value: link.value
             })}
           >
-            <title>{`${link.source.label} → ${link.target.label}\nTraffic: ${link.value}`}</title>
+            <title>{`${link.source.id} → ${link.target.id}\nTraffic: ${link.value}`}</title>
           </path>
         ))}
       </g>
