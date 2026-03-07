@@ -1,0 +1,89 @@
+Discursive Concepts: Fix Sankey Content-Word Route Filtering
+
+Implement ONLY Step 10.3 inside the Discursive Concepts tab.
+
+Do NOT change:
+
+quad extraction logic from Step 9.2A
+
+Quad Inventory filtering logic from Step 10.2
+
+Top Node Lemma filtering logic from Step 10.2
+
+Top Quads panel filtering logic from Step 10.2
+
+Loader / CSV pipeline
+
+Lexical tab
+
+Semantic tab
+
+Routing / layout
+
+Goal:
+Fix the disconnected Sankey behaviour under Content Only mode by applying content-word filtering at the quad-instance / route level before Sankey construction, rather than pruning nodes/links after the Sankey graph has already been built.
+
+This is a display-level refinement only.
+Do NOT change underlying quad extraction or stored result objects.
+
+1) Fix Sankey filtering order
+
+Current issue:
+The Sankey is built from all quad instances and then function-word nodes/links are removed afterwards.
+This breaks route integrity and produces disconnected flows.
+
+Required change:
+When contentWordOnly = true:
+
+Filter the Sankey input instances first.
+
+Only keep quad instances whose full quad contains content words only.
+
+Then call buildSankeyData(...) on the filtered instances.
+
+Do NOT build Sankey from all instances and prune nodes/links afterwards.
+
+2) Keep existing Sankey controls
+
+Preserve:
+- All Time / Time Slice mode
+- selectedSankeySlice
+- minSankeyWeight
+- maxNodesPerLayer
+- click behaviour
+- Sankey edge table
+
+3) Preserve existing result objects
+
+Do NOT modify:
+- results.quadInstancesAll
+- results.quadFreqBySliceObj
+- results.quadExamplesObj
+- driftTable
+
+Only change the local Sankey display pipeline.
+
+4) Optional small consistency fix
+
+If easy:
+When contentWordOnly = true, make the Sanity Checks “TOP QUAD” display use the first item from the already filtered top-quads list, not the unfiltered activeSliceData.top3.
+
+If not easy, skip this.
+
+5) Remove obsolete post-build Sankey pruning
+
+If the current code filters out.nodes / out.links after buildSankeyData(...), remove that logic.
+
+6) Acceptance tests
+
+All Words mode:
+- Sankey behaves exactly as before
+
+Content Only mode:
+- Sankey remains structurally coherent
+- no disconnected partial routes caused by post-build pruning
+- function-word quads do not appear
+- edge table remains consistent with visible Sankey
+- no change to underlying quad extraction counts
+
+Stop after Step 10.3.

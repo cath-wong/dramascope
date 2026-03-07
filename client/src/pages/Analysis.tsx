@@ -409,29 +409,25 @@ const DiscursiveTab = () => {
   const sankeyData = useMemo(() => {
     if (!results?.quadInstancesAll) return null;
 
-    const instances =
+    let instances =
       sankeyAnalysisMode === "all-time"
         ? results.quadInstancesAll
         : results.quadInstancesAll.filter(q => q.slice === selectedSankeySlice);
 
-    console.log("[Sankey] instances:", instances.length, "mode:", sankeyAnalysisMode, "slice:", selectedSankeySlice);
+    console.log("[Sankey] instances before filtering:", instances.length, "mode:", sankeyAnalysisMode, "slice:", selectedSankeySlice);
+
+    // Filter quad instances BEFORE Sankey construction when contentWordOnly is enabled
+    if (contentWordOnly) {
+      instances = instances.filter(q => {
+        const quadParts = [q.node, ...q.co];
+        return quadParts.every(lemma => isContentWord(lemma));
+      });
+    }
+
+    console.log("[Sankey] instances after filtering:", instances.length);
     console.log("[Sankey] sample instance:", instances[0]);
 
-    let out = buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
-
-    // Apply content-word filtering to Sankey visualization
-    if (contentWordOnly) {
-      const filteredNodeIds = new Set(
-        out.nodes
-          .filter(n => isContentWord(n.label))
-          .map(n => n.id)
-      );
-      out = {
-        ...out,
-        nodes: out.nodes.filter(n => filteredNodeIds.has(n.id)),
-        links: out.links.filter(l => filteredNodeIds.has(l.source) && filteredNodeIds.has(l.target))
-      };
-    }
+    const out = buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
 
     console.log("[Sankey] out nodes:", out.nodes.length, "out links:", out.links.length);
     console.log("[Sankey] out link sample:", out.links.slice(0, 5));
@@ -585,7 +581,7 @@ const DiscursiveTab = () => {
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">NODE WINDOWS</span><p className="text-sm font-bold text-amber-600">{results?.totalNodeWindows || 0}</p></div>
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">QUAD WINDOWS</span><p className="text-sm font-bold">{results?.totalQuadWindows || 0}</p></div>
             <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">SLICE</span><p className="text-sm font-bold">{currentTimeIndex + 1} of {results?.sortedSlices.length || 0}</p></div>
-            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">TOP QUAD</span><p className="text-[10px] font-bold text-primary truncate" title={activeSliceData?.top3[0]}>{activeSliceData?.top3[0]?.replace(/\|/g, ', ') || '-'}</p></div>
+            <div className="space-y-1"><span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">TOP QUAD</span><p className="text-[10px] font-bold text-primary truncate" title={topQuadsFiltered[0]?.quadKey || activeSliceData?.top3[0]}>{(topQuadsFiltered[0]?.quadKey || activeSliceData?.top3[0])?.replace(/\|/g, ', ') || '-'}</p></div>
           </CardContent>
         </Card>
       </div>
