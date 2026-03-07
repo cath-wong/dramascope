@@ -1,0 +1,143 @@
+✅ VIBE PROMPT — STEP 10.1 ONLY
+Discursive Concepts: Add Content-Word Filtering Toggle for Node / Quad Exploration
+
+Implement ONLY Step 10.1 inside the Discursive Concepts tab.
+
+Do NOT change:
+
+quad extraction logic from Step 9.2A
+
+Quad Inventory implementation from Step 9.3
+
+Sankey visualisation logic
+
+Loader / CSV pipeline
+
+Lexical tab
+
+Semantic tab
+
+Routing / layout
+
+Goal:
+Reduce domination of function words (my, he, your, this, his, etc.) in node lemma lists and discursive exploration outputs by introducing a Content-Word filtering toggle.
+
+This must be a filtering option only.
+The underlying quad extraction model must remain unchanged.
+
+1) Add Discursive Filter Toggle
+
+In the Discursive Concepts tab controls (near the node lemma input or exploration controls), add a toggle:
+
+Show lemmas:
+[ All Words ]  [ Content Words Only ]
+
+Default = All Words (preserves current behaviour).
+
+Store toggle state in DiscursiveTab:
+
+contentWordOnly: boolean
+
+2) Create a new utility file
+
+Create:
+
+client/src/utils/discursiveFilter.ts
+
+This file defines a small function-word stoplist and helper utilities.
+
+Add:
+
+export const FUNCTION_WORDS = new Set([
+"the","a","an","and","or","but","if","then","else",
+"i","you","he","she","it","we","they",
+"me","him","her","us","them",
+"my","your","his","their","our","its",
+"this","that","these","those",
+"is","was","are","were","be","been","being",
+"do","does","did","have","has","had",
+"shall","will","would","should","may","might","must",
+"to","of","in","on","at","by","for","from","with","about"
+]);
+
+export function isContentWord(token: string) {
+  return !FUNCTION_WORDS.has(token);
+}
+
+Keep this list compact; we can expand later.
+
+3) Apply filtering to candidate lemma lists only
+
+When contentWordOnly = true:
+
+Filter lemmas before ranking in:
+
+Node lemma frequency list
+
+Neighbour ranking used to display constellations
+
+Quad inventory browsing (only affects visibility, not stored quad counts)
+
+Do NOT modify the quad extraction algorithm itself.
+
+The quad instances created in Step 9.2A must remain unchanged.
+
+Filtering only affects:
+
+what lemmas are offered as node candidates
+
+what neighbour lemmas are displayed
+
+what quads are shown in browsing lists
+
+4) Sankey integration
+
+When contentWordOnly = true:
+
+Edges involving filtered function words should not be displayed.
+
+However:
+
+Do NOT recompute Sankey edges.
+
+Simply filter nodes/links before rendering.
+
+5) Quad Inventory filtering
+
+When contentWordOnly = true:
+
+Hide quads where:
+
+node OR any co-lemma is in FUNCTION_WORDS.
+
+Do not alter quadFreqBySliceObj or quadExamplesObj.
+
+Only filter rows before display.
+
+6) Guardrails
+
+If filtering removes all nodes or quads:
+
+Show message:
+
+“No content-word quads under current filter. Try switching to All Words.”
+
+Do not break existing behaviour.
+
+7) Acceptance tests
+
+Discursive tab loads normally.
+
+Default mode (All Words) behaves exactly as before.
+
+Switching to Content Words Only:
+
+node lemma list contains mostly nouns/verbs/adjectives
+
+Sankey diagram reduces function-word noise
+
+Quad Inventory hides quads dominated by function words
+
+No change to quad extraction counts.
+
+Stop after Step 10.1.

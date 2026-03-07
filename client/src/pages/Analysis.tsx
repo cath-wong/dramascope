@@ -31,6 +31,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ResultsTable } from "@/components/ResultsTable";
 import { buildSankeyData } from "@/utils/sankey";
 import D3Sankey from "@/components/D3Sankey";
+import { FUNCTION_WORDS, isContentWord } from "@/utils/discursiveFilter";
 
 const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -251,6 +252,9 @@ const DiscursiveTab = () => {
   const [maxNodesPerLayer, setMaxNodesPerLayer] = useState(20);
   const [selectedSankeyLink, setSelectedSankeyLink] = useState<{ source: string, target: string, layerSource: number } | null>(null);
 
+  // Content word filtering
+  const [contentWordOnly, setContentWordOnly] = useState(false);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -377,8 +381,12 @@ const DiscursiveTab = () => {
 
   const topNodeRows = useMemo(() => {
     if (!results?.topNodes) return [];
-    return results.topNodes.slice(0, topNodeLimit);
-  }, [results, topNodeLimit]);
+    let nodes = results.topNodes.slice(0, topNodeLimit);
+    if (contentWordOnly) {
+      nodes = nodes.filter(n => isContentWord(n.lemma));
+    }
+    return nodes;
+  }, [results, topNodeLimit, contentWordOnly]);
 
   useEffect(() => {
     if (results?.sortedSlices?.length && !selectedSankeySlice) {
@@ -400,13 +408,27 @@ const DiscursiveTab = () => {
     console.log("[Sankey] instances:", instances.length, "mode:", sankeyAnalysisMode, "slice:", selectedSankeySlice);
     console.log("[Sankey] sample instance:", instances[0]);
 
-    const out = buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
+    let out = buildSankeyData(instances, { minWeight: minSankeyWeight, maxNodesPerLayer });
+
+    // Apply content-word filtering to Sankey visualization
+    if (contentWordOnly) {
+      const filteredNodeIds = new Set(
+        out.nodes
+          .filter(n => isContentWord(n.label))
+          .map(n => n.id)
+      );
+      out = {
+        ...out,
+        nodes: out.nodes.filter(n => filteredNodeIds.has(n.id)),
+        links: out.links.filter(l => filteredNodeIds.has(l.source) && filteredNodeIds.has(l.target))
+      };
+    }
 
     console.log("[Sankey] out nodes:", out.nodes.length, "out links:", out.links.length);
     console.log("[Sankey] out link sample:", out.links.slice(0, 5));
 
     return out;
-  }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer]);
+  }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer, contentWordOnly]);
 
   const inventoryRows = useMemo(() => {
     if (!results) return [];
@@ -477,6 +499,14 @@ const DiscursiveTab = () => {
       });
     }
 
+    // Content-word filtering: hide quads where node or any co-lemma is a function word
+    if (contentWordOnly) {
+      filtered = filtered.filter(r => {
+        const quadParts = r.quadKey.split("|");
+        return quadParts.every(lemma => isContentWord(lemma));
+      });
+    }
+
     const denom = results.totalQuadWindows || 0;
 
     filtered = filtered.map(r => ({
@@ -485,7 +515,7 @@ const DiscursiveTab = () => {
     }));
 
     return filtered;
-  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink]);
+  }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink, contentWordOnly]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
@@ -766,7 +796,11 @@ const DiscursiveTab = () => {
             <Network className="h-4 w-4 text-amber-500" /> Top Node Lemmas
           </CardTitle>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={!contentWordOnly ? "default" : "ghost"} size="sm" onClick={() => setContentWordOnly(false)} className="h-7 text-[9px] px-3">All Words</Button>
+              <Button variant={contentWordOnly ? "default" : "ghost"} size="sm" onClick={() => setContentWordOnly(true)} className="h-7 text-[9px] px-3">Content Only</Button>
+            </div>
             <Label className="text-[9px] font-bold opacity-60">SHOW</Label>
             <Select value={topNodeLimit.toString()} onValueChange={(v) => setTopNodeLimit(Number(v) as 10 | 20 | 50)}>
               <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
@@ -780,19 +814,23 @@ const DiscursiveTab = () => {
         </CardHeader>
 
         <CardContent className="pt-4 flex flex-wrap gap-2">
-          {topNodeRows.map((n: any) => (
-            <Button
-              key={n.lemma}
-              variant={n.lemma === nodeLemma ? "default" : "outline"}
-              size="sm"
-              className="h-7 text-[10px] px-2 gap-2"
-              onClick={() => setNodeLemma(n.lemma)}
-              title={`Count: ${n.count}`}
-            >
-              <span className="font-semibold">{n.lemma}</span>
-              <span className="opacity-60 font-mono">{n.count}</span>
-            </Button>
-          ))}
+          {topNodeRows.length > 0 ? (
+            topNodeRows.map((n: any) => (
+              <Button
+                key={n.lemma}
+                variant={n.lemma === nodeLemma ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[10px] px-2 gap-2"
+                onClick={() => setNodeLemma(n.lemma)}
+                title={`Count: ${n.count}`}
+              >
+                <span className="font-semibold">{n.lemma}</span>
+                <span className="opacity-60 font-mono">{n.count}</span>
+              </Button>
+            ))
+          ) : (
+            <div className="text-[10px] text-muted-foreground italic">No content-word lemmas. Try switching to All Words.</div>
+          )}
         </CardContent>
       </Card>
 
