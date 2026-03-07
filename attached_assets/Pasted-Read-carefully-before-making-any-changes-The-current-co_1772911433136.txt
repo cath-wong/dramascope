@@ -1,0 +1,147 @@
+Read carefully before making any changes.
+
+The current codebase state is authoritative, including all manual refinements made by the user after Step 9.4B and after Step 10.1.
+
+CRITICAL PROTECTION RULES:
+- Do NOT rewrite, refactor, simplify, reorganise, or restyle any existing working component unless explicitly required by this step.
+- Do NOT undo or replace any manual user edits.
+- Treat the current user-edited version as the single source of truth.
+- Make the smallest local change possible.
+- Before changing code, first list exactly which files you plan to edit and why, then wait for approval.
+
+Do not modify these core files unless absolutely necessary for this step:
+- client/src/pages/Analysis.tsx
+- client/src/components/D3Sankey.tsx
+- client/src/utils/sankey.ts
+
+Discursive Concepts: Refine Content-Word Filtering Behaviour
+
+Implement ONLY Step 10.2 inside the Discursive Concepts tab.
+
+Do NOT change:
+
+quad extraction logic from Step 9.2A
+
+Quad Inventory implementation from Step 9.3 except for display-level filtering refinement
+
+Sankey construction logic
+
+Loader / CSV pipeline
+
+Lexical tab
+
+Semantic tab
+
+Routing / layout
+
+Step 9.4C heatmap (still deferred)
+
+Goal:
+Refine the existing Content-Word filtering so that it behaves more consistently and usefully across Discursive exploration outputs, while preserving the existing extraction architecture and all current user-refined behaviour.
+
+This step is a display/filter refinement only.
+Do NOT modify how quads are extracted or counted.
+
+1) Keep the existing toggle
+
+Preserve the existing Discursive toggle:
+
+All Words
+Content Only
+
+Do not move or redesign it unless absolutely necessary.
+
+2) Improve Top Node Lemma filtering order
+
+Current issue:
+The node list is sliced first, then filtered.
+This can leave too few visible content words.
+
+Fix:
+When contentWordOnly = true:
+
+Filter results.topNodes first using isContentWord(...)
+
+Then apply topNodeLimit slicing
+
+Required behaviour:
+Top 10 / 20 / 50 should mean:
+top 10 / 20 / 50 visible content-word nodes,
+not top 10 / 20 / 50 overall then filtered.
+
+3) Refine stoplist / function-word list
+
+In:
+
+client/src/utils/discursiveFilter.ts
+
+Refine the function-word list so it better removes obvious grammatical noise from Shakespeare exploration.
+
+Add common pronouns / determiners / auxiliaries / modals / prepositions / conjunctions as needed, but keep it compact and interpretable.
+
+Do NOT turn this into POS tagging.
+Do NOT add opaque logic.
+This must remain a transparent rule-based filter.
+
+4) Apply content-word filtering to Top Quads display panel
+
+Current issue:
+The “Top Quads: {activeSlice}” panel still uses activeSliceData.topN directly.
+
+When contentWordOnly = true:
+
+Hide quads containing any function word in that Top Quads panel.
+
+This applies to:
+- bar/constellation view
+- table view
+
+Do NOT alter activeSliceData itself.
+Filter only at display time.
+
+5) Keep Quad Inventory filtering display-only
+
+Retain the existing rule:
+When contentWordOnly = true, Quad Inventory hides quads containing any function word.
+
+Do NOT change stored counts or quad examples.
+Do NOT modify quadFreqBySliceObj.
+
+6) Keep Sankey filtering display-only
+
+Retain the existing rule:
+When contentWordOnly = true, Sankey hides nodes/links involving function words.
+
+Do NOT change buildSankeyData.
+Do NOT change quadInstancesAll.
+
+7) Add clear empty-state messaging where needed
+
+If contentWordOnly removes all rows/items from:
+- Top Node Lemmas
+- Top Quads panel
+- Quad Inventory
+- Sankey visualisation
+
+show a short helpful message such as:
+“No content-word results under current filter. Try switching to All Words.”
+
+Do this only where needed.
+Do not redesign panel layouts.
+
+8) Small cleanup
+
+If Analysis.tsx imports symbols from discursiveFilter.ts that are no longer used, clean them up.
+
+9) Acceptance tests
+
+Default mode (All Words) behaves exactly as before.
+
+Content Only mode:
+- Top Node Lemmas shows top visible content words after filtering, not a truncated leftover subset
+- Top Quads panel hides function-word quads
+- Quad Inventory still hides function-word quads
+- Sankey still hides function-word nodes/edges
+- No changes to quad extraction counts or underlying result objects
+
+Stop after Step 10.2.

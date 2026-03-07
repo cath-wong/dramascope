@@ -381,11 +381,11 @@ const DiscursiveTab = () => {
 
   const topNodeRows = useMemo(() => {
     if (!results?.topNodes) return [];
-    let nodes = results.topNodes.slice(0, topNodeLimit);
+    let nodes = results.topNodes;
     if (contentWordOnly) {
       nodes = nodes.filter(n => isContentWord(n.lemma));
     }
-    return nodes;
+    return nodes.slice(0, topNodeLimit);
   }, [results, topNodeLimit, contentWordOnly]);
 
   useEffect(() => {
@@ -396,6 +396,15 @@ const DiscursiveTab = () => {
 
   const activeSlice = results?.sortedSlices[currentTimeIndex];
   const activeSliceData = results?.driftTable[currentTimeIndex];
+
+  const topQuadsFiltered = useMemo(() => {
+    if (!activeSliceData?.topN) return [];
+    if (!contentWordOnly) return activeSliceData.topN;
+    return activeSliceData.topN.filter(q => {
+      const quadParts = q.quadKey.split("|");
+      return quadParts.every(lemma => isContentWord(lemma));
+    });
+  }, [activeSliceData, contentWordOnly]);
 
   const sankeyData = useMemo(() => {
     if (!results?.quadInstancesAll) return null;
@@ -646,7 +655,7 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
-              Not enough data to render Sankey at this threshold.
+              {contentWordOnly ? "No content-word Sankey data. Try switching to All Words." : "Not enough data to render Sankey at this threshold."}
             </div>
           )}
 
@@ -716,26 +725,30 @@ const DiscursiveTab = () => {
             <CardTitle className="text-sm font-bold">Top Quads: {activeSlice}</CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
-            {viewMode === "constellation" ? (
-              <div className="space-y-2">
-                {activeSliceData?.topN.map((item: any) => (
-                  <div key={item.quadKey} className={`group cursor-pointer p-1.5 rounded transition-all hover:bg-amber-100/30 ${selectedQuadKey === item.quadKey ? 'bg-amber-100/50 border border-amber-200' : 'border border-transparent'}`} onClick={() => setSelectedQuadKey(item.quadKey)}>
-                    <div className="flex justify-between text-[10px] mb-1.5">
-                      <span className="font-medium group-hover:text-primary transition-colors flex flex-wrap gap-1 items-center">
-                        {item.quadKey.split("|").map((l: string, i: number) => (
-                          <Badge key={i} variant={l === nodeLemma ? "default" : "outline"} className="h-4 px-1.5 text-[8px] font-bold tracking-tight">{l}</Badge>
-                        ))}
-                      </span>
-                      <span className="opacity-60 font-mono text-[9px]">{item.count}</span>
+            {topQuadsFiltered.length > 0 ? (
+              viewMode === "constellation" ? (
+                <div className="space-y-2">
+                  {topQuadsFiltered.map((item: any) => (
+                    <div key={item.quadKey} className={`group cursor-pointer p-1.5 rounded transition-all hover:bg-amber-100/30 ${selectedQuadKey === item.quadKey ? 'bg-amber-100/50 border border-amber-200' : 'border border-transparent'}`} onClick={() => setSelectedQuadKey(item.quadKey)}>
+                      <div className="flex justify-between text-[10px] mb-1.5">
+                        <span className="font-medium group-hover:text-primary transition-colors flex flex-wrap gap-1 items-center">
+                          {item.quadKey.split("|").map((l: string, i: number) => (
+                            <Badge key={i} variant={l === nodeLemma ? "default" : "outline"} className="h-4 px-1.5 text-[8px] font-bold tracking-tight">{l}</Badge>
+                          ))}
+                        </span>
+                        <span className="opacity-60 font-mono text-[9px]">{item.count}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+                        <div className="h-full bg-amber-500/60 rounded-full transition-all group-hover:bg-amber-500" style={{ width: `${(item.count / topQuadsFiltered[0].count) * 100}%` }} />
+                      </div>
                     </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
-                      <div className="h-full bg-amber-500/60 rounded-full transition-all group-hover:bg-amber-500" style={{ width: `${(item.count / activeSliceData.topN[0].count) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <ResultsTable data={topQuadsFiltered} columns={[{ key: "quadKey", label: "Quad" }, { key: "count", label: "Freq", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} filename="slice_quads.csv" />
+              )
             ) : (
-              <ResultsTable data={activeSliceData?.topN || []} columns={[{ key: "quadKey", label: "Quad" }, { key: "count", label: "Freq", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} filename="slice_quads.csv" />
+              <div className="text-[10px] text-muted-foreground italic">No content-word quads in this slice. Try switching to All Words.</div>
             )}
           </CardContent>
         </Card>

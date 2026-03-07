@@ -1,13 +1,16 @@
 export const FUNCTION_WORDS = new Set([
-  "the","a","an","and","or","but","if","then","else",
-  "i","you","he","she","it","we","they",
+  "the","a","an","and","or","but","if","then","else","nor","yet",
+  "i","you","he","she","it","we","they","who","whom","what","which","that",
   "me","him","her","us","them",
-  "my","your","his","their","our","its",
+  "my","your","his","hers","its","our","ours","theirs",
   "this","that","these","those",
-  "is","was","are","were","be","been","being",
-  "do","does","did","have","has","had",
-  "shall","will","would","should","may","might","must",
-  "to","of","in","on","at","by","for","from","with","about"
+  "is","was","are","were","be","been","being","am",
+  "do","does","did","doing",
+  "have","has","had","having",
+  "shall","will","would","should","may","might","must","can","could",
+  "to","of","in","on","at","by","for","from","with","about","into","onto","out","over","under","between","among","through","during",
+  "so","as","such","not","no","nor","neither","both","very","too","more","less","most","least",
+  "all","each","every","any","some","few","many","much","one","two","three"
 ]);
 
 export function isContentWord(token: string): boolean {
