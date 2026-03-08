@@ -435,6 +435,42 @@ const DiscursiveTab = () => {
     return out;
   }, [results, sankeyAnalysisMode, selectedSankeySlice, minSankeyWeight, maxNodesPerLayer, contentWordOnly]);
 
+  const temporalFlowData = useMemo(() => {
+    if (!results?.quadFreqBySliceObj || !results?.sortedSlices) return null;
+    
+    const quadTotals = new Map<string, { total: number; first: string; last: string }>();
+    const quadBySlice = new Map<string, Map<string, number>>();
+    
+    results.sortedSlices.forEach(slice => {
+      quadBySlice.set(slice, new Map());
+      (results.quadFreqBySliceObj[slice] || []).forEach(q => {
+        const total = quadTotals.get(q.quadKey)?.total || 0;
+        const first = quadTotals.get(q.quadKey)?.first || slice;
+        const last = slice;
+        quadTotals.set(q.quadKey, { total: total + q.count, first, last });
+        quadBySlice.get(slice)!.set(q.quadKey, q.count);
+      });
+    });
+    
+    const topQuads = Array.from(quadTotals.entries())
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 20)
+      .map(([quadKey, data]) => {
+        const row: any = {
+          quadKey,
+          total: data.total,
+          first_seen: data.first,
+          last_seen: data.last
+        };
+        results.sortedSlices.forEach(slice => {
+          row[slice] = quadBySlice.get(slice)?.get(quadKey) || 0;
+        });
+        return row;
+      });
+    
+    return topQuads;
+  }, [results]);
+
   const inventoryRows = useMemo(() => {
     if (!results) return [];
     let base: any[] = [];
@@ -796,6 +832,53 @@ const DiscursiveTab = () => {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Temporal Concept Flow</CardTitle>
+          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+            if (temporalFlowData) exportToCsv(`temporal_flow_${nodeLemma}_${corpusScope}.csv`, temporalFlowData);
+          }}>
+            <Download className="h-3 w-3 mr-1" /> Export Flow
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
+          {temporalFlowData && temporalFlowData.length > 0 ? (
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-muted/20 border-b">
+                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
+                  {results?.sortedSlices.map(s => (
+                    <th key={s} className="p-2 text-center font-bold border-r">{s}</th>
+                  ))}
+                  <th className="p-2 text-right font-bold border-r">Total</th>
+                  <th className="p-2 text-center font-bold border-r">First Seen</th>
+                  <th className="p-2 text-center font-bold">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {temporalFlowData.map(row => (
+                  <tr 
+                    key={row.quadKey}
+                    className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
+                    onClick={() => setSelectedQuadKey(row.quadKey)}
+                  >
+                    <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
+                    {results?.sortedSlices.map(s => (
+                      <td key={s} className="p-2 text-center border-r">{row[s] || 0}</td>
+                    ))}
+                    <td className="p-2 text-right border-r font-mono">{row.total}</td>
+                    <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
+                    <td className="p-2 text-center">{row.last_seen}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
+          )}
         </CardContent>
       </Card>
 
