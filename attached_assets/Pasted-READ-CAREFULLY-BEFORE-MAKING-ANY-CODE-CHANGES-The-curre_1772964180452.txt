@@ -1,0 +1,132 @@
+READ CAREFULLY BEFORE MAKING ANY CODE CHANGES.
+
+The current codebase state is authoritative, including:
+- completed Step 9.4A and 9.4B
+- manual refinements made by the user after Step 9.4B
+- Step 10.1, 10.2, and 10.3 implementations
+- the current Discursive Concepts tab layout and behaviour
+
+CRITICAL PROTECTION RULES:
+
+1. Do NOT rewrite, refactor, simplify, reorganise, or restyle existing working components unless required by this step.
+
+2. Do NOT undo or overwrite manual edits made by the user after Step 9.4B.
+
+3. Treat the current user-edited code as the single source of truth.
+
+4. Before making changes, list exactly which files will be edited and why.
+
+5. Prefer creating new utility or component files rather than modifying core files.
+
+6. Avoid modifying these core files unless absolutely necessary:
+   - client/src/pages/Analysis.tsx
+   - client/src/components/D3Sankey.tsx
+   - client/src/utils/sankey.ts
+
+7. If a core file must be edited, keep the change minimal and local.
+
+8. Do NOT alter routing, tabs, or panel order except where required to add the new panel.
+
+9. Do NOT revisit Step 9.4C heatmap (still deferred).
+
+First respond with:
+A. proposed file list
+B. reason for each edit
+C. confirmation that existing behaviour will not change.
+
+
+
+Discursive Concepts — Step 10.4  
+Implement Temporal Concept Flow for the active node constellation.
+
+Goal:
+Visualise how quad patterns within the current node constellation evolve across time slices.
+
+Do NOT modify:
+- quad extraction logic
+- Sankey logic
+- Quad Inventory logic
+- Top Node Lemma logic
+- Top Quads panel logic
+- corpus loading pipeline
+- Lexical or Semantic tabs
+
+Use only existing outputs already produced in the Discursive pipeline.
+
+Available data structures:
+
+results.quadFreqBySliceObj
+results.sortedSlices
+results.quadExamplesObj
+
+Implementation requirements:
+
+1. Build a temporal quad table
+
+Construct a table where:
+
+Rows = quadKey  
+Columns = time slices from results.sortedSlices  
+Cell value = frequency of that quad in that slice
+
+2. Row selection
+
+Include the top quads across slices based on total frequency.
+
+Limit rows to a manageable number (e.g. top 20–30 quads).
+
+3. Additional columns
+
+Add:
+
+- total frequency
+- first_seen slice
+- last_seen slice
+
+These values can be derived from quadFreqBySliceObj.
+
+4. Panel UI
+
+Create a new panel titled:
+
+Temporal Concept Flow
+
+Place it within the Discursive tab near the Top Quads / Quad Inventory panels.
+
+Use a stable table-based implementation first.
+
+Do NOT use D3 for this step.
+
+5. Interaction
+
+Clicking a row should help exploration.
+
+Acceptable behaviours include:
+
+- highlighting the quad
+- linking to the existing Quad Drill-Down
+- filtering Quad Inventory to that quad
+
+Do not break existing Sankey filtering behaviour.
+
+6. Export
+
+Allow CSV export of the flow table.
+
+7. Guardrails
+
+If there are insufficient quads to build a flow table:
+
+Display a short message such as:
+
+“No temporal flow data available under current settings.”
+
+8. Acceptance tests
+
+- existing Discursive panels remain unchanged
+- Sankey behaviour is unaffected
+- Quad Inventory behaviour is unaffected
+- the flow table renders correctly
+- row counts and slice values match quadFreqBySliceObj
+
+Stop after Step 10.4 is implemented.
