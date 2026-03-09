@@ -1,0 +1,127 @@
+READ CAREFULLY BEFORE MAKING ANY CODE CHANGES.
+
+The current codebase state is authoritative, including:
+- completed Step 9.4A and 9.4B
+- all manual refinements made by the user after Step 9.4B
+- completed Step 10.1, 10.2, 10.3, and 10.4
+- the current Discursive Concepts tab layout and behaviour
+
+CRITICAL PROTECTION RULES:
+
+1. Do NOT rewrite, refactor, simplify, reorganise, or restyle any existing working component unless required by this step.
+2. Do NOT undo or overwrite manual edits made by the user after Step 9.4B.
+3. Treat the current user-edited code as the single source of truth.
+4. Before making changes, list exactly which files will be edited and why.
+5. Prefer creating new utility or component files rather than modifying core files.
+6. Avoid modifying these core files unless absolutely necessary:
+   - client/src/pages/Analysis.tsx
+   - client/src/components/D3Sankey.tsx
+   - client/src/utils/sankey.ts
+7. If a core file must be edited, keep the change minimal and local.
+8. Do NOT alter routing, tabs, or existing panel behaviour except where required to add the new panel.
+9. Do NOT revisit Step 9.4C heatmap (still deferred).
+
+First respond with:
+A. proposed file list
+B. reason for each edit
+C. confirmation that existing behaviour will not change
+
+
+
+Discursive Concepts — Step 10.5
+Implement Core vs Peripheral Quads for the active node constellation.
+
+Goal:
+Add a stable first-pass panel that classifies quads within the current node constellation as more central/core or more peripheral, using only existing quad outputs.
+
+Do NOT modify:
+- quad extraction logic
+- Sankey logic
+- Temporal Concept Flow logic
+- Quad Inventory logic
+- Top Node Lemma logic
+- Top Quads logic
+- corpus loading pipeline
+- Lexical or Semantic tabs
+
+Use only existing Discursive outputs already produced in the current pipeline.
+
+Available data structures:
+- results.quadFreqBySliceObj
+- results.sortedSlices
+- results.quadExamplesObj
+- existing derived quad/inventory data already in the tab
+
+Implementation requirements:
+
+1. Build a derived quad summary table
+
+For each quadKey in current scope, derive:
+- quadKey
+- total_frequency
+- slices_present
+- first_seen
+- last_seen
+
+Respect current Discursive scope:
+- if inventory scope is Current Slice, classify within that current slice context
+- if inventory scope is All Slices, classify using all slices
+
+2. First-pass classification rule
+
+Implement a transparent, simple rule-based classification.
+
+Recommended:
+- Core = above-median total frequency AND appears in more than one slice
+- Peripheral = otherwise
+
+If a slightly better but still transparent threshold is easier using current data, that is acceptable.
+Do NOT use ML, embeddings, or opaque scoring.
+
+3. Panel UI
+
+Add a new Discursive panel titled:
+Core vs Peripheral Quads
+
+Use a stable table-based implementation.
+
+Recommended columns:
+- quadKey
+- total_frequency
+- slices_present
+- first_seen
+- last_seen
+- status
+
+Optional:
+- small filter toggle: All / Core Only / Peripheral Only
+
+4. Interaction
+
+Clicking a row may:
+- set selectedQuadKey and reuse the existing Quad Drill-Down
+or
+- filter/highlight the corresponding quad locally
+
+Do NOT break existing Sankey filtering or Inventory filtering behaviour.
+
+5. Export
+
+Allow CSV export of the table.
+
+6. Guardrails
+
+If there is insufficient data, show a short empty-state message such as:
+“No core/peripheral quad data available under current settings.”
+
+7. Acceptance tests
+
+- existing Discursive panels remain unchanged
+- Sankey behaviour is unaffected
+- Temporal Concept Flow remains unaffected
+- Quad Inventory remains unaffected
+- the classification table renders stably
+- clicking a row supports existing drill-down behaviour
+- no changes to stored result objects or extraction counts
+
+Stop after Step 10.5 is implemented.
