@@ -558,6 +558,41 @@ const DiscursiveTab = () => {
     return filtered;
   }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink, contentWordOnly]);
 
+  const corePeripheralData = useMemo(() => {
+    if (!results?.quadFreqBySliceObj || !results?.sortedSlices) return null;
+    
+    const quadStats = new Map<string, { total: number; slices: Set<string>; first: string; last: string }>();
+    
+    results.sortedSlices.forEach(slice => {
+      (results.quadFreqBySliceObj[slice] || []).forEach(q => {
+        if (!quadStats.has(q.quadKey)) {
+          quadStats.set(q.quadKey, { total: 0, slices: new Set(), first: slice, last: slice });
+        }
+        const stat = quadStats.get(q.quadKey)!;
+        stat.total += q.count;
+        stat.slices.add(slice);
+        stat.last = slice;
+      });
+    });
+    
+    const sortedQuads = Array.from(quadStats.entries()).sort((a, b) => b[1].total - a[1].total);
+    const medianTotal = sortedQuads.length > 0 ? sortedQuads[Math.floor(sortedQuads.length / 2)][1].total : 0;
+    
+    const corePeripheralRows = sortedQuads.map(([quadKey, stat]) => {
+      const isCore = stat.total > medianTotal && stat.slices.size > 1;
+      return {
+        quadKey,
+        total_frequency: stat.total,
+        slices_present: stat.slices.size,
+        first_seen: stat.first,
+        last_seen: stat.last,
+        status: isCore ? "Core" : "Peripheral"
+      };
+    });
+    
+    return corePeripheralRows;
+  }, [results]);
+
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
     { key: "co1", label: "Co-1 (L1)" },
@@ -878,6 +913,55 @@ const DiscursiveTab = () => {
             </table>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Core vs Peripheral Quads</CardTitle>
+          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+            if (corePeripheralData) exportToCsv(`core_peripheral_${nodeLemma}_${corpusScope}.csv`, corePeripheralData);
+          }}>
+            <Download className="h-3 w-3 mr-1" /> Export
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
+          {corePeripheralData && corePeripheralData.length > 0 ? (
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-muted/20 border-b">
+                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
+                  <th className="p-2 text-right font-bold border-r">Total Freq</th>
+                  <th className="p-2 text-center font-bold border-r">Slices Present</th>
+                  <th className="p-2 text-center font-bold border-r">First Seen</th>
+                  <th className="p-2 text-center font-bold border-r">Last Seen</th>
+                  <th className="p-2 text-center font-bold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {corePeripheralData.map(row => (
+                  <tr 
+                    key={row.quadKey}
+                    className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
+                    onClick={() => setSelectedQuadKey(row.quadKey)}
+                  >
+                    <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
+                    <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
+                    <td className="p-2 text-center border-r">{row.slices_present}</td>
+                    <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
+                    <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
+                    <td className="p-2 text-center">
+                      <Badge variant={row.status === "Core" ? "default" : "outline"} className="text-[9px]">
+                        {row.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
           )}
         </CardContent>
       </Card>
