@@ -1,0 +1,145 @@
+READ CAREFULLY BEFORE MAKING ANY CODE CHANGES.
+
+The current codebase state is authoritative, including:
+- completed Step 9.4A and 9.4B
+- all manual refinements made by the user after Step 9.4B
+- completed Step 10.1, 10.2, 10.3, 10.4, and 10.5
+- the current Discursive Concepts tab layout and behaviour
+
+CRITICAL PROTECTION RULES:
+
+1. Do NOT rewrite, refactor, simplify, reorganise, or restyle any existing working component unless required by this step.
+2. Do NOT undo or overwrite manual edits made by the user after Step 9.4B.
+3. Treat the current user-edited code as the single source of truth.
+4. Before making changes, list exactly which files will be edited and why.
+5. Prefer creating new utility or component files rather than modifying core files.
+6. Avoid modifying these core files unless absolutely necessary:
+   - client/src/pages/Analysis.tsx
+   - client/src/components/D3Sankey.tsx
+   - client/src/utils/sankey.ts
+7. If a core file must be edited, keep the change minimal and local.
+8. Do NOT alter routing, tabs, or existing panel behaviour except where required to add the new panel.
+9. Do NOT revisit Step 9.4C heatmap (still deferred).
+
+First respond with:
+A. proposed file list
+B. reason for each edit
+C. confirmation that existing behaviour will not change
+
+
+
+Discursive Concepts — Step 10.6
+Implement Constellation Similarity / Distance for node constellations.
+
+Conceptual definition to follow:
+- A constellation = all quads for a given node lemma
+- This step compares constellations between two node lemmas
+- Do NOT redefine constellation as a cluster of quads
+
+Goal:
+Add a stable comparison panel that lets the user compare the active node constellation with a second node lemma, using transparent overlap/distance measures derived from existing quad outputs.
+
+Do NOT modify:
+- quad extraction logic
+- Sankey logic
+- Temporal Concept Flow logic
+- Core vs Peripheral logic
+- Quad Inventory logic
+- Top Node Lemma logic
+- Top Quads logic
+- corpus loading pipeline
+- Lexical or Semantic tabs
+
+Use only existing Discursive pipeline logic and transparent derived computations.
+
+Implementation requirements:
+
+1. Comparison input
+
+Add a second node-lemma input/control for comparison, local to the new comparison panel.
+
+- Primary node = existing active nodeLemma
+- Comparison node = second user-selected lemma
+
+Do not change the main active node workflow.
+Do not replace the existing node control.
+
+2. Scope rules
+
+Respect current Discursive scope:
+- corpus scope (full corpus vs play)
+- time mode
+- content-word mode where relevant for display-level comparison
+- current dataset rules remain unchanged: speeches only
+
+If comparison requires derived results for the second node, compute them using the same existing discursive logic pattern, but do NOT redesign the current main pipeline.
+
+3. Measures to implement
+
+Implement a stable first-pass comparison using transparent measures only.
+
+Required:
+- shared co-lemma count
+- shared quad count
+- co-lemma Jaccard similarity
+- quad Jaccard similarity
+
+Definitions:
+- co-lemma set = all co-lemmas appearing in the constellation’s quads
+- quad set = all quadKeys in the constellation
+
+Jaccard = intersection / union
+
+4. Output panel
+
+Add a new Discursive panel titled:
+Constellation Similarity / Distance
+
+Display at minimum:
+- primary node
+- comparison node
+- shared co-lemmas
+- shared quads
+- co-lemma Jaccard
+- quad Jaccard
+
+Also include a small table of:
+- top shared co-lemmas
+- top shared quads
+
+Keep this stable and table/card based.
+Do NOT introduce D3 or network graphs for this step.
+
+5. Interaction
+
+Keep interaction minimal and local.
+
+Acceptable:
+- clicking a shared quad sets selectedQuadKey for existing drill-down
+- clicking a shared co-lemma may populate the comparison input or be non-interactive
+
+Do NOT break existing Sankey filtering or Inventory filtering behaviour.
+
+6. Guardrails
+
+If the comparison node has no valid constellation under current settings, show a short message such as:
+“No comparison constellation available under current settings.”
+
+If primary and comparison node are the same, handle gracefully:
+- either show perfect similarity values
+- or prompt user to select a different comparison node
+
+7. Export
+
+Allow CSV export for the comparison table(s).
+
+8. Acceptance tests
+
+- existing Discursive panels remain unchanged
+- current active node workflow remains unchanged
+- comparison panel renders stably
+- similarity values are transparent and interpretable
+- clicking shared quads can reuse existing drill-down
+- no changes to stored result objects or extraction counts for the main node
+
+Stop after Step 10.6 is implemented.
