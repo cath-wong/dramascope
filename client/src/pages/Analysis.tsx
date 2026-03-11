@@ -255,6 +255,9 @@ const DiscursiveTab = () => {
   // Content word filtering
   const [contentWordOnly, setContentWordOnly] = useState(false);
 
+  // Comparison node state
+  const [comparisonNodeLemma, setComparisonNodeLemma] = useState("love");
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -557,6 +560,85 @@ const DiscursiveTab = () => {
 
     return filtered;
   }, [results, inventoryScope, activeSlice, minFreq, inventorySearch, selectedSankeyLink, contentWordOnly]);
+
+  const comparisonResults = useMemo(() => {
+    if (!comparisonNodeLemma || !speeches || speeches.length === 0) return null;
+    const compareNode = comparisonNodeLemma.trim().toLowerCase();
+    const filtered = speeches.filter(s => {
+      if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
+      return true;
+    });
+    const quadFreqBySlice = new Map<string, Map<string, number>>();
+    const allSlices = new Set<string>();
+    const lemmaFreqs = new Map<string, number>();
+    filtered.forEach(s => {
+      const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
+      const nodeIndices = tokens.reduce((acc: number[], t, i) => { if (t === compareNode) acc.push(i); return acc; }, []);
+      if (nodeIndices.length === 0) return;
+      const slice = formatTimeValue(getTimeSlice(s));
+      if (slice === "Unknown") return;
+      allSlices.add(slice);
+      if (!quadFreqBySlice.has(slice)) quadFreqBySlice.set(slice, new Map());
+      nodeIndices.forEach(idx => {
+        const start = Math.max(0, idx - 50);
+        const end = Math.min(tokens.length, idx + 51);
+        const winTokens = tokens.slice(start, end);
+        const winCounts = new Map<string, number>();
+        winTokens.forEach(t => { if (t === compareNode) return; winCounts.set(t, (winCounts.get(t) || 0) + 1); lemmaFreqs.set(t, (lemmaFreqs.get(t) || 0) + 1); });
+        const sortedWin = Array.from(winCounts.entries()).sort((a, b) => b[1] - a[1]);
+        if (sortedWin.length >= 3) {
+          const co = sortedWin.slice(0, 3);
+          const quadArray = [compareNode, ...co.map(p => p[0])].sort();
+          const quadKey = quadArray.join("|");
+          const sliceFreq = quadFreqBySlice.get(slice)!;
+          sliceFreq.set(quadKey, (sliceFreq.get(quadKey) || 0) + 1);
+        }
+      });
+    });
+    const sortedSlices = Array.from(allSlices).sort();
+    const quadFreqBySliceObj = Object.fromEntries(sortedSlices.map(s => [s, Array.from(quadFreqBySlice.get(s) || new Map()).map(([k, c]) => ({ quadKey: k, count: c }))]));
+    return { quadFreqBySliceObj, sortedSlices, lemmaFreqs };
+  }, [comparisonNodeLemma, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice]);
+
+  const similarityData = useMemo(() => {
+    if (!results || !comparisonResults || nodeLemma === comparisonNodeLemma) return null;
+    const primaryQuads = new Set<string>();
+    const compQuads = new Set<string>();
+    const primaryColemmas = new Set<string>();
+    const compColemmas = new Set<string>();
+    Object.values(results.quadFreqBySliceObj).forEach((quads: any) => {
+      quads.forEach((q: any) => {
+        primaryQuads.add(q.quadKey);
+        q.quadKey.split("|").forEach((l: string) => { if (l !== nodeLemma) primaryColemmas.add(l); });
+      });
+    });
+    Object.values(comparisonResults.quadFreqBySliceObj).forEach((quads: any) => {
+      quads.forEach((q: any) => {
+        compQuads.add(q.quadKey);
+        q.quadKey.split("|").forEach((l: string) => { if (l !== comparisonNodeLemma) compColemmas.add(l); });
+      });
+    });
+    const sharedQuads = new Set([...primaryQuads].filter(x => compQuads.has(x)));
+    const sharedColemmas = new Set([...primaryColemmas].filter(x => compColemmas.has(x)));
+    const jaccard_quad = (sharedQuads.size / (primaryQuads.size + compQuads.size - sharedQuads.size)) || 0;
+    const jaccard_colemma = (sharedColemmas.size / (primaryColemmas.size + compColemmas.size - sharedColemmas.size)) || 0;
+    const sharedQuadData = [...sharedQuads].slice(0, 10).map(q => ({ quadKey: q, primary: results.quadFreqBySliceObj[results.sortedSlices[0]]?.find((x: any) => x.quadKey === q)?.count || 0 }));
+    const sharedColemmaData = [...sharedColemmas].slice(0, 10).map(c => ({ colemma: c, primary: comparisonResults.lemmaFreqs.get(c) || 0 }));
+    return {
+      primaryNode: nodeLemma,
+      comparisonNode: comparisonNodeLemma,
+      primaryQuads: primaryQuads.size,
+      comparisonQuads: compQuads.size,
+      sharedQuads: sharedQuads.size,
+      primaryColemmas: primaryColemmas.size,
+      comparisonColemmas: compColemmas.size,
+      sharedColemmas: sharedColemmas.size,
+      jaccard_quad: (jaccard_quad * 100).toFixed(1),
+      jaccard_colemma: (jaccard_colemma * 100).toFixed(1),
+      sharedQuadData,
+      sharedColemmaData
+    };
+  }, [results, comparisonResults, nodeLemma, comparisonNodeLemma]);
 
   const corePeripheralData = useMemo(() => {
     if (!results?.quadFreqBySliceObj || !results?.sortedSlices) return null;
@@ -962,6 +1044,83 @@ const DiscursiveTab = () => {
             </table>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Constellation Similarity / Distance</CardTitle>
+          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+            if (similarityData) {
+              const exportData = [
+                { metric: "Primary Node", value: similarityData.primaryNode },
+                { metric: "Comparison Node", value: similarityData.comparisonNode },
+                { metric: "Shared Quads", value: similarityData.sharedQuads },
+                { metric: "Shared Co-lemmas", value: similarityData.sharedColemmas },
+                { metric: "Quad Jaccard %", value: similarityData.jaccard_quad },
+                { metric: "Co-lemma Jaccard %", value: similarityData.jaccard_colemma }
+              ];
+              exportToCsv(`constellation_similarity_${nodeLemma}_vs_${comparisonNodeLemma}.csv`, exportData);
+            }
+          }}>
+            <Download className="h-3 w-3 mr-1" /> Export
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {similarityData ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 text-[10px]">
+                <div className="p-3 border rounded-lg bg-muted/5">
+                  <span className="font-bold opacity-60">PRIMARY NODE</span>
+                  <p className="font-mono mt-1">{similarityData.primaryNode}</p>
+                </div>
+                <div className="p-3 border rounded-lg bg-muted/5">
+                  <span className="font-bold opacity-60">COMPARISON NODE</span>
+                  <Input type="text" value={comparisonNodeLemma} onChange={(e) => setComparisonNodeLemma(e.target.value)} className="h-6 text-[9px] mt-1" />
+                </div>
+                <div className="p-3 border rounded-lg bg-muted/5">
+                  <span className="font-bold opacity-60">SHARED QUADS</span>
+                  <p className="font-mono mt-1">{similarityData.sharedQuads} / {Math.min(similarityData.primaryQuads, similarityData.comparisonQuads)}</p>
+                </div>
+                <div className="p-3 border rounded-lg bg-muted/5">
+                  <span className="font-bold opacity-60">SHARED CO-LEMMAS</span>
+                  <p className="font-mono mt-1">{similarityData.sharedColemmas} / {Math.min(similarityData.primaryColemmas, similarityData.comparisonColemmas)}</p>
+                </div>
+                <div className="p-3 border rounded-lg bg-primary/10">
+                  <span className="font-bold opacity-60">QUAD JACCARD</span>
+                  <p className="font-mono mt-1 text-sm font-bold">{similarityData.jaccard_quad}%</p>
+                </div>
+                <div className="p-3 border rounded-lg bg-primary/10">
+                  <span className="font-bold opacity-60">CO-LEMMA JACCARD</span>
+                  <p className="font-mono mt-1 text-sm font-bold">{similarityData.jaccard_colemma}%</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[9px] font-bold mb-2">Top Shared Quads</p>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {similarityData.sharedQuadData.map((q: any) => (
+                      <div key={q.quadKey} className="p-2 border rounded text-[9px] cursor-pointer hover:bg-muted/10" onClick={() => setSelectedQuadKey(q.quadKey)}>
+                        {q.quadKey}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold mb-2">Top Shared Co-lemmas</p>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {similarityData.sharedColemmaData.map((c: any) => (
+                      <div key={c.colemma} className="p-2 border rounded text-[9px]">
+                        {c.colemma}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No comparison constellation available under current settings.</div>
           )}
         </CardContent>
       </Card>
