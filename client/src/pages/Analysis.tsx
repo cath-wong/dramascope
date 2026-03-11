@@ -681,11 +681,10 @@ const DiscursiveTab = () => {
     });
     
     const sortedQuads = Array.from(quadStats.entries()).sort((a, b) => b[1].total - a[1].total);
-    const medianTotal = sortedQuads.length > 0 ? sortedQuads[Math.floor(sortedQuads.length / 2)][1].total : 0;
     
     const corePeripheralRows = sortedQuads.map(([quadKey, stat]) => {
-      const isCore = stat.total > medianTotal && stat.slices.size >= 2;
-      const isPeripheral = stat.total === 1 || stat.slices.size === 1;
+      const isCore = stat.total > 1 && stat.slices.size >= 2;
+      const isPeripheral = stat.total === 1 && stat.slices.size === 1;
       const status = isCore ? "Core" : isPeripheral ? "Peripheral" : "Mid-zone";
       return {
         quadKey,

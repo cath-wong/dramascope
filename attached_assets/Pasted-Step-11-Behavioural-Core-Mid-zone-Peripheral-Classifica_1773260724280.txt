@@ -1,0 +1,211 @@
+Step 11 — Behavioural Core / Mid-zone / Peripheral Classification
+
+Scope Statement
+
+Implement ONLY Step 11 inside the Discursive Concepts tab.
+
+This step updates the quad classification rule used in the
+Core vs Peripheral Quads panel so that the three classes reflect
+discursive behaviour rather than a median-based threshold.
+
+The goal is to ensure that a genuine Mid-zone category appears
+for quads that are repeated but not yet discursively stable.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction logic
+- quad frequency calculations
+- temporal slicing logic
+- Sankey concept flow logic
+- constellation similarity logic
+- similarity matrix logic
+- constellation clustering logic
+- corpus loading pipeline
+- speeches-only modelling rule
+- node lemma selection
+- content word filtering
+- Lexical tab
+- Semantic tab
+- routing or layout
+- sorting behaviour
+- Top 20 / Top 50 / Top 100 / All display controls
+- CSV export behaviour
+
+Goal
+
+Replace the current median-based classification rule with a
+behavioural LDNA-style rule that produces three meaningful classes.
+
+New behavioural rule:
+
+Core
+frequency > 1
+AND
+slices ≥ 2
+
+Peripheral
+frequency = 1
+AND
+slices = 1
+
+Mid-zone
+all remaining quads
+
+Interpretation:
+
+Core = repeated and distributed across discourse slices
+
+Mid-zone = repeated but confined to a narrow discursive context
+
+Peripheral = single occurrence within a single slice
+
+This rule removes the dependency on the median frequency and
+produces a stable middle category.
+
+Implementation Instructions
+
+1. Locate the quad classification logic currently used by the
+Core vs Peripheral Quads panel inside:
+
+client/src/pages/Analysis.tsx
+
+2. Find the existing logic introduced in Step 10.9 which currently
+uses:
+
+frequency > median AND slices ≥ 2
+frequency === 1 OR slices === 1
+
+3. Replace only the status assignment logic with the new rule:
+
+isCore =
+frequency > 1
+AND
+slices >= 2
+
+isPeripheral =
+frequency === 1
+AND
+slices === 1
+
+status =
+isCore
+? "Core"
+: isPeripheral
+? "Peripheral"
+: "Mid-zone"
+
+4. Remove the dependency on the median frequency variable for this
+classification rule.
+
+The median calculation may remain in the code if it is used
+elsewhere, but it must no longer influence quad classification.
+
+5. Preserve all existing computed inputs exactly as they already exist:
+
+- total frequency
+- slice counts
+- quad key structure
+- row sorting
+- row limiting
+- CSV export dataset
+
+6. Ensure the Status column can display:
+
+Core
+Mid-zone
+Peripheral
+
+7. Do not alter the table layout, dropdown controls,
+export button logic, or surrounding UI text.
+
+Make the smallest possible code change.
+
+File Scope
+
+You may modify only:
+
+client/src/pages/Analysis.tsx
+
+Do NOT create new architecture.
+Do NOT move large blocks of code.
+Do NOT refactor hooks or memo blocks.
+
+Edit only the local classification logic.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- Discursive modelling still uses the speeches dataset only
+- Quad extraction still uses node ±50 token windows
+- Quad keys remain node|co1|co2|co3
+- Panel still sorts by Total Frequency
+- Default visible rows remain Top 20
+- Dropdown still offers Top 20 / Top 50 / Top 100 / All
+- CSV export still exports the full dataset
+- Sankey Concept Flow remains unchanged
+- Temporal Concept Flow remains unchanged
+- Pairwise constellation similarity remains unchanged
+- Similarity matrix remains unchanged
+- Constellation clusters remain unchanged
+- Lexical and Semantic tabs remain unchanged
+- Routing and page layout remain unchanged
+
+Replit Agent Safety Rules
+
+Important:
+
+- Make a minimal patch
+- Do not rewrite or regenerate client/src/pages/Analysis.tsx
+- Do not reorder logic blocks
+- Do not rewrite hooks
+- Do not refactor working components
+
+If editing Analysis.tsx:
+
+insert the smallest possible modification to the classification rule
+while leaving surrounding code untouched.
+
+Acceptance Criteria
+
+The step is complete only if:
+
+1. The Status column displays three values:
+
+Core
+Mid-zone
+Peripheral
+
+2. Classification follows the behavioural rule:
+
+frequency > 1 AND slices ≥ 2 → Core
+
+frequency = 1 AND slices = 1 → Peripheral
+
+all other cases → Mid-zone
+
+3. Rows with frequency > 1 but slices = 1 appear as Mid-zone.
+
+4. Rows with frequency = 1 and slices = 1 appear as Peripheral.
+
+5. Rows with repeated frequency across multiple slices appear as Core.
+
+6. Sorting by Total Frequency still works.
+
+7. Default display remains Top 20.
+
+8. Dropdown row limits still work.
+
+9. CSV export still exports the full dataset.
+
+10. No visual regressions occur in:
+
+- Sankey Concept Flow
+- Temporal Concept Flow
+- Constellation similarity
+- Similarity matrix
+- Constellation clusters
+
+Stop after implementing this step.
