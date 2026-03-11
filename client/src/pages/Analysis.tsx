@@ -32,6 +32,7 @@ import { ResultsTable } from "@/components/ResultsTable";
 import { buildSankeyData } from "@/utils/sankey";
 import D3Sankey from "@/components/D3Sankey";
 import { FUNCTION_WORDS, isContentWord } from "@/utils/discursiveFilter";
+import { computeSimilarityMatrix } from "@/utils/constellationMatrix";
 
 const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -257,6 +258,9 @@ const DiscursiveTab = () => {
 
   // Comparison node state
   const [comparisonNodeLemma, setComparisonNodeLemma] = useState("love");
+
+  // Similarity matrix state
+  const [matrixNodeLimit, setMatrixNodeLimit] = useState<5 | 10 | 20>(10);
 
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
@@ -599,6 +603,13 @@ const DiscursiveTab = () => {
     const quadFreqBySliceObj = Object.fromEntries(sortedSlices.map(s => [s, Array.from(quadFreqBySlice.get(s) || new Map()).map(([k, c]) => ({ quadKey: k, count: c }))]));
     return { quadFreqBySliceObj, sortedSlices, lemmaFreqs };
   }, [comparisonNodeLemma, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice]);
+
+  const matrixData = useMemo(() => {
+    if (!results || topNodeRows.length < 2) return null;
+    const topNodes = topNodeRows.slice(0, matrixNodeLimit).map((n: any) => n.lemma);
+    const matrixResult = computeSimilarityMatrix(topNodes, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice);
+    return matrixResult;
+  }, [results, topNodeRows, matrixNodeLimit, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice]);
 
   const similarityData = useMemo(() => {
     if (!results || !comparisonResults || nodeLemma === comparisonNodeLemma) return null;
@@ -1121,6 +1132,79 @@ const DiscursiveTab = () => {
             </>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No comparison constellation available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-x-auto">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-bold">Constellation Similarity Matrix</CardTitle>
+            <p className="text-[9px] text-muted-foreground">Quad Jaccard similarity between node lemmas</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-[9px] font-bold opacity-60">Top N</Label>
+            <Select value={matrixNodeLimit.toString()} onValueChange={(v) => setMatrixNodeLimit(Number(v) as 5 | 10 | 20)}>
+              <SelectTrigger className="h-7 text-[9px] w-20"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">Top 5</SelectItem>
+                <SelectItem value="10">Top 10</SelectItem>
+                <SelectItem value="20">Top 20</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+              if (matrixData) {
+                const csvData = [
+                  ["", ...matrixData.nodes],
+                  ...matrixData.nodes.map((n, i) => [n, ...matrixData.matrix[i].map(v => v.toFixed(1))])
+                ];
+                const csv = csvData.map(r => r.join(",")).join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `constellation_matrix_${nodeLemma}.csv`;
+                a.click();
+              }
+            }}>
+              <Download className="h-3 w-3 mr-1" /> Export
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {matrixData && matrixData.valid.length >= 2 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[9px]">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r border-b">&nbsp;</th>
+                    {matrixData.nodes.map(n => (
+                      <th key={n} className="p-2 text-center font-bold border-r border-b h-16">
+                        <div className="transform -rotate-45 origin-center whitespace-nowrap text-[8px]">{n}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixData.nodes.map((rowNode, i) => (
+                    <tr key={rowNode}>
+                      <td className="sticky left-0 bg-background z-10 p-2 font-bold border-r border-b">{rowNode}</td>
+                      {matrixData.matrix[i].map((val, j) => (
+                        <td 
+                          key={j} 
+                          className={`p-2 text-center border-r border-b cursor-pointer transition-colors ${val === 100 ? 'bg-primary/20' : 'hover:bg-muted/30'}`}
+                          onClick={() => { setComparisonNodeLemma(matrixData.nodes[j]); setNodeLemma(rowNode); }}
+                        >
+                          {val.toFixed(1)}%
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No constellation matrix available under current settings.</div>
           )}
         </CardContent>
       </Card>
