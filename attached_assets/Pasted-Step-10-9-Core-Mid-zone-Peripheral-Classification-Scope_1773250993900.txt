@@ -1,0 +1,178 @@
+Step 10.9 — Core / Mid-zone / Peripheral Classification
+
+Scope Statement
+
+Implement ONLY Step 10.9 inside the Discursive Concepts tab.
+
+This step updates the classification logic used by the Core vs Peripheral Quads panel so that it becomes a three-way classification:
+
+- Core
+- Mid-zone
+- Peripheral
+
+Do not redesign the panel.
+Do not refactor the surrounding system.
+Do not revisit earlier steps.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction logic
+- quad frequency calculations
+- temporal slicing logic
+- Sankey logic
+- constellation similarity logic
+- similarity matrix logic
+- constellation clustering logic
+- corpus loading pipeline
+- speeches-only discursive modelling rule
+- Lexical tab
+- Semantic tab
+- routing
+- layout
+- CSV export behaviour
+- Top 20 / Top 50 / Top 100 / All display controls
+- sorting by Total Frequency
+
+Goal
+
+Update the existing binary classification rule so the panel uses a three-way LDNA-style interpretive classification.
+
+New rule:
+
+- Core:
+  frequency > median
+  AND
+  slices ≥ 2
+
+- Peripheral:
+  frequency = 1
+  OR
+  slices = 1
+
+- Mid-zone:
+  all remaining quads
+
+This step modifies classification logic only.
+All other behaviour must remain unchanged.
+
+Implementation Instructions
+
+1. Locate the existing classification logic used by the Core vs Peripheral Quads panel inside:
+   - client/src/pages/Analysis.tsx
+
+2. Identify the current logic that assigns a status/category based on:
+   - frequency > median
+   - slices ≥ 2
+   and currently outputs only:
+   - Core
+   - Peripheral
+
+3. Replace only that status assignment logic with the new three-way rule:
+
+   - if frequency > median AND slices >= 2 → "Core"
+   - else if frequency === 1 OR slices === 1 → "Peripheral"
+   - else → "Mid-zone"
+
+4. Preserve all existing computed inputs exactly as they already exist:
+   - total frequency
+   - slice count
+   - median calculation
+   - row sorting
+   - row limiting
+   - CSV export dataset
+
+5. Update the displayed status column so it can show:
+   - Core
+   - Mid-zone
+   - Peripheral
+
+6. Do not rename the panel unless absolutely necessary.
+   If the panel title currently says “Core vs Peripheral Quads”, leave it unchanged for this step unless the title text is directly tied to the logic in a way that causes confusion in the rendered UI.
+   If you must update the visible label, make the smallest possible wording change only.
+
+7. Do not alter table layout, dropdown controls, export button logic, or surrounding explanatory text unless a tiny wording adjustment is required to reflect the new status values.
+
+8. Make the smallest possible code change.
+   Do not refactor nearby hooks, memo blocks, helper functions, or render structure unless strictly necessary for the status update.
+
+File Scope
+
+You may modify only:
+
+- client/src/pages/Analysis.tsx
+
+If and only if there is already a small local helper for this exact classification in a utility file, you may edit that helper instead of duplicating logic.
+Do not create new architecture.
+Do not move large blocks of code.
+Do not rewrite the file.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- Discursive modelling still uses the speeches dataset only
+- Quad extraction still uses node ±50 token windows
+- Quad keys remain node|co1|co2|co3
+- Core vs Peripheral panel remains sorted by Total Frequency
+- Default display remains Top 20
+- Dropdown still offers Top 20 / Top 50 / Top 100 / All
+- CSV export still exports the full dataset
+- Sankey panel remains unchanged
+- Temporal Concept Flow remains unchanged
+- Pairwise similarity remains unchanged
+- Similarity matrix remains unchanged
+- Constellation clusters remain unchanged
+- No changes to Lexical or Semantic tabs
+- No changes to routing or overall page layout
+
+Replit Agent Safety Rules
+
+Important:
+
+- Prefer minimal local insertion/edit only
+- Do not rewrite or regenerate client/src/pages/Analysis.tsx
+- Do not reorder logic blocks
+- Do not rewrite hooks
+- Do not refactor working components
+- Do not touch manually edited code outside the exact classification area
+
+If you edit Analysis.tsx, make a minimal patch and clearly preserve surrounding code.
+
+Acceptance Criteria
+
+The step is complete only if all of the following are true:
+
+1. The classification panel now shows three possible status values:
+   - Core
+   - Mid-zone
+   - Peripheral
+
+2. A quad is labelled:
+   - Core when frequency > median and slices >= 2
+   - Peripheral when frequency = 1 or slices = 1
+   - Mid-zone otherwise
+
+3. Existing row order still sorts by Total Frequency
+
+4. Default visible rows are still Top 20
+
+5. Dropdown still works for:
+   - Top 20
+   - Top 50
+   - Top 100
+   - All
+
+6. CSV export still exports the full underlying dataset, not just visible rows
+
+7. No visible regressions occur in:
+   - Sankey Concept Flow
+   - Temporal Concept Flow
+   - Pairwise constellation similarity
+   - Similarity matrix
+   - Constellation clusters
+
+8. No other tabs or shared systems are altered
+
+Stop after implementing this step.

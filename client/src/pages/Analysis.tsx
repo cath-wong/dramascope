@@ -684,14 +684,16 @@ const DiscursiveTab = () => {
     const medianTotal = sortedQuads.length > 0 ? sortedQuads[Math.floor(sortedQuads.length / 2)][1].total : 0;
     
     const corePeripheralRows = sortedQuads.map(([quadKey, stat]) => {
-      const isCore = stat.total > medianTotal && stat.slices.size > 1;
+      const isCore = stat.total > medianTotal && stat.slices.size >= 2;
+      const isPeripheral = stat.total === 1 || stat.slices.size === 1;
+      const status = isCore ? "Core" : isPeripheral ? "Peripheral" : "Mid-zone";
       return {
         quadKey,
         total_frequency: stat.total,
         slices_present: stat.slices.size,
         first_seen: stat.first,
         last_seen: stat.last,
-        status: isCore ? "Core" : "Peripheral"
+        status
       };
     });
     
