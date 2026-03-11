@@ -266,6 +266,9 @@ const DiscursiveTab = () => {
   // Clustering state
   const [clusteringThreshold, setClusteringThreshold] = useState<0.01 | 0.02 | 0.05>(0.02);
 
+  // Core vs Peripheral table limit
+  const [coreTableLimit, setCoreTableLimit] = useState<20 | 50 | 100 | null>(20);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -1022,11 +1025,23 @@ const DiscursiveTab = () => {
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Core vs Peripheral Quads</CardTitle>
-          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
-            if (corePeripheralData) exportToCsv(`core_peripheral_${nodeLemma}_${corpusScope}.csv`, corePeripheralData);
-          }}>
-            <Download className="h-3 w-3 mr-1" /> Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <Label className="text-[9px] font-bold opacity-60">SHOW</Label>
+            <Select value={coreTableLimit === null ? "all" : coreTableLimit.toString()} onValueChange={(v) => setCoreTableLimit(v === "all" ? null : Number(v) as 20 | 50 | 100)}>
+              <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="50">Top 50</SelectItem>
+                <SelectItem value="100">Top 100</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+              if (corePeripheralData) exportToCsv(`core_peripheral_${nodeLemma}_${corpusScope}.csv`, corePeripheralData);
+            }}>
+              <Download className="h-3 w-3 mr-1" /> Export
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
           {corePeripheralData && corePeripheralData.length > 0 ? (
@@ -1042,24 +1057,28 @@ const DiscursiveTab = () => {
                 </tr>
               </thead>
               <tbody>
-                {corePeripheralData.map(row => (
-                  <tr 
-                    key={row.quadKey}
-                    className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
-                    onClick={() => setSelectedQuadKey(row.quadKey)}
-                  >
-                    <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
-                    <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
-                    <td className="p-2 text-center border-r">{row.slices_present}</td>
-                    <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
-                    <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
-                    <td className="p-2 text-center">
-                      <Badge variant={row.status === "Core" ? "default" : "outline"} className="text-[9px]">
-                        {row.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const sorted = [...corePeripheralData].sort((a, b) => b.total_frequency - a.total_frequency);
+                  const displayed = coreTableLimit ? sorted.slice(0, coreTableLimit) : sorted;
+                  return displayed.map(row => (
+                    <tr 
+                      key={row.quadKey}
+                      className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
+                      onClick={() => setSelectedQuadKey(row.quadKey)}
+                    >
+                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
+                      <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
+                      <td className="p-2 text-center border-r">{row.slices_present}</td>
+                      <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
+                      <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
+                      <td className="p-2 text-center">
+                        <Badge variant={row.status === "Core" ? "default" : "outline"} className="text-[9px]">
+                          {row.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           ) : (
