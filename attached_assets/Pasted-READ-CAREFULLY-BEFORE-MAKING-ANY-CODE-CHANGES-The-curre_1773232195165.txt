@@ -1,0 +1,179 @@
+READ CAREFULLY BEFORE MAKING ANY CODE CHANGES.
+
+The current codebase state is authoritative, including:
+- completed Step 9.4A and 9.4B
+- all manual refinements made by the user after Step 9.4B
+- completed Step 10.1, 10.2, 10.3, 10.4, 10.5, and 10.6
+- the current Discursive Concepts tab layout and behaviour
+
+CRITICAL PROTECTION RULES:
+
+1. Do NOT rewrite, refactor, simplify, reorganise, or restyle any existing working component unless required by this step.
+
+2. Do NOT undo, overwrite, or replace any manual user edits made after the original agent implementation, especially manual refinements made after Step 9.4B.
+
+3. Treat the current user-edited version as the single source of truth.
+
+4. Before making changes, list exactly which files you plan to edit and why.
+
+5. Default rule: create a NEW component or utility file instead of modifying existing core files.
+
+6. Do NOT modify these core files unless absolutely necessary for this step:
+   - client/src/pages/Analysis.tsx
+   - client/src/components/D3Sankey.tsx
+   - client/src/utils/sankey.ts
+
+7. If this step requires touching a core file, keep the edit minimal and local, and explain why it is necessary before changing it.
+
+8. Do NOT change routing, tabs, panel order, shared state logic, or existing filtering behaviour unless explicitly required by this step.
+
+9. Do NOT remove or alter any existing panel, including:
+   - Node Lemma panel
+   - Sankey panel
+   - Quad Inventory
+   - Top Quads panel
+   - Temporal Concept Flow panel
+   - Core vs Peripheral Quads panel
+   - Constellation Similarity / Distance panel
+   - drift/stability panels
+
+10. Do NOT revisit or implement Step 9.4C heatmap. It remains deferred.
+
+11. If there is any risk of affecting existing behaviour, stop and ask first.
+
+Required working method:
+First respond with:
+A. proposed file list
+B. reason each file must be edited
+C. whether a new component or utility file can be created instead
+Then wait for approval before changing code.
+
+
+
+Discursive Concepts: Implement Step 10.7 — Constellation Similarity Matrix
+
+Conceptual definition to follow:
+- A constellation = all quads for a given node lemma
+- This step compares multiple node constellations
+- Do NOT redefine constellation as a cluster of quads
+
+Goal:
+Add a stable first-pass similarity matrix panel that compares multiple node constellations using transparent overlap measures derived from the existing discursive logic.
+
+Do NOT change:
+- quad extraction logic
+- Sankey logic
+- Temporal Concept Flow logic
+- Core vs Peripheral logic
+- pairwise Constellation Similarity / Distance logic from Step 10.6
+- Quad Inventory logic
+- Top Node Lemma logic
+- Top Quads logic
+- corpus loading pipeline
+- Lexical or Semantic tabs
+
+Use only existing Discursive pipeline logic and transparent derived computations.
+
+Implementation requirements:
+
+1. Panel scope
+
+Add a new Discursive panel titled:
+Constellation Similarity Matrix
+
+This panel must be additive only.
+Do NOT replace the existing pairwise comparison panel.
+
+2. Node set selection
+
+Use a stable, limited set of node lemmas for the matrix.
+
+Recommended first-pass rule:
+- derive from the existing Top Node Lemmas list already available in Discursive
+- use a manageable subset such as top 5, top 10, or top N selectable by dropdown
+
+Do NOT introduce a large free-form multi-select in this first version unless it is already trivial and stable.
+
+3. Comparison basis
+
+For each selected node lemma:
+- build its constellation using the same existing discursive logic pattern
+- derive its quad set
+- derive its co-lemma set if needed
+
+Matrix measure for first version:
+- choose ONE measure only for the matrix, to keep it stable
+
+Recommended:
+- Quad Jaccard similarity
+
+Optional if easy:
+- allow a toggle between Quad Jaccard and Co-lemma Jaccard
+
+Do NOT add more complex distance metrics yet.
+
+4. Matrix output
+
+Render a stable table-style matrix:
+
+Rows = selected node lemmas
+Columns = selected node lemmas
+Cell value = similarity score
+
+Expected behaviour:
+- diagonal = 1.0 or 100%
+- matrix is symmetric
+- values are transparent and interpretable
+
+Do NOT use D3 for this step.
+Do NOT build a clustered heatmap yet.
+A plain table with numeric values is sufficient for first pass.
+
+5. Interaction
+
+Keep interaction minimal and local.
+
+Acceptable:
+- clicking a cell populates the existing pairwise comparison panel inputs
+OR
+- clicking a cell sets the comparison node for the existing comparison panel while preserving the active node workflow
+
+Preferred behaviour:
+- clicking a matrix cell for row=A, col=B should help the user inspect that pair in the existing Constellation Similarity / Distance panel
+
+Do NOT break existing Sankey filtering or Inventory filtering behaviour.
+
+6. Computation boundaries
+
+Do NOT alter the main results object for the active node.
+Keep matrix computation local to the new panel logic or a tiny new utility.
+
+If a helper file is useful, prefer creating a small utility rather than expanding Analysis.tsx too heavily.
+
+7. Export
+
+Allow CSV export of the similarity matrix.
+
+Wide matrix CSV is acceptable for first version.
+
+8. Guardrails
+
+If there are too few valid node lemmas to build the matrix:
+show a short message such as:
+“No constellation matrix available under current settings.”
+
+If any selected node has no valid constellation under current settings:
+exclude it gracefully rather than breaking the panel.
+
+9. Acceptance tests
+
+- existing Discursive panels remain unchanged
+- current active node workflow remains unchanged
+- pairwise comparison panel remains unchanged
+- matrix renders stably
+- diagonal values are correct
+- matrix symmetry is preserved
+- clicking a cell supports pairwise inspection
+- no changes to stored result objects or extraction counts for the main node
+
+Stop after Step 10.7 is implemented.
