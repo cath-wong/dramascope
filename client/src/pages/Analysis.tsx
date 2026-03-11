@@ -33,6 +33,7 @@ import { buildSankeyData } from "@/utils/sankey";
 import D3Sankey from "@/components/D3Sankey";
 import { FUNCTION_WORDS, isContentWord } from "@/utils/discursiveFilter";
 import { computeSimilarityMatrix } from "@/utils/constellationMatrix";
+import { computeClusters } from "@/utils/constellationClustering";
 
 const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -261,6 +262,9 @@ const DiscursiveTab = () => {
 
   // Similarity matrix state
   const [matrixNodeLimit, setMatrixNodeLimit] = useState<5 | 10 | 20>(10);
+
+  // Clustering state
+  const [clusteringThreshold, setClusteringThreshold] = useState<0.01 | 0.02 | 0.05>(0.02);
 
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
@@ -610,6 +614,11 @@ const DiscursiveTab = () => {
     const matrixResult = computeSimilarityMatrix(topNodes, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice);
     return matrixResult;
   }, [results, topNodeRows, matrixNodeLimit, speeches, corpusScope, selectedPlayTitle, useStoplist, useLemmas, timeMode, getTimeSlice]);
+
+  const clusteringData = useMemo(() => {
+    if (!matrixData || !matrixData.matrix || matrixData.matrix.length < 2) return null;
+    return computeClusters(matrixData.matrix, matrixData.nodes, clusteringThreshold);
+  }, [matrixData, clusteringThreshold]);
 
   const similarityData = useMemo(() => {
     if (!results || !comparisonResults || nodeLemma === comparisonNodeLemma) return null;
@@ -1205,6 +1214,70 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No constellation matrix available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-bold">Constellation Clusters</CardTitle>
+            <p className="text-[9px] text-muted-foreground">Groups of similar constellations</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-[9px] font-bold opacity-60">Threshold</Label>
+            <Select value={clusteringThreshold.toString()} onValueChange={(v) => setClusteringThreshold(Number(v) as 0.01 | 0.02 | 0.05)}>
+              <SelectTrigger className="h-7 text-[9px] w-20"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0.01">1%</SelectItem>
+                <SelectItem value="0.02">2%</SelectItem>
+                <SelectItem value="0.05">5%</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+              if (clusteringData?.clusterStats) {
+                const csvData = clusteringData.clusterStats.map(c => ({
+                  cluster: c.id,
+                  members: c.members.join("; "),
+                  size: c.size,
+                  avg_similarity: c.avgSimilarity.toFixed(1)
+                }));
+                exportToCsv(`constellation_clusters_${nodeLemma}.csv`, csvData);
+              }
+            }}>
+              <Download className="h-3 w-3 mr-1" /> Export
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {clusteringData && clusteringData.clusterStats.length > 0 ? (
+            <div className="space-y-4">
+              {clusteringData.clusterStats.map((cluster, idx) => (
+                <div key={idx} className="p-3 border rounded-lg bg-muted/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-[10px]">{cluster.id}</p>
+                    <div className="flex gap-4 text-[9px]">
+                      <span className="opacity-70">Size: {cluster.size}</span>
+                      <span className="opacity-70">Avg Similarity: {cluster.avgSimilarity.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cluster.members.map(member => (
+                      <Badge 
+                        key={member} 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary/20 transition-colors text-[9px]"
+                        onClick={() => setNodeLemma(member)}
+                      >
+                        {member}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No clusters available under current settings.</div>
           )}
         </CardContent>
       </Card>
