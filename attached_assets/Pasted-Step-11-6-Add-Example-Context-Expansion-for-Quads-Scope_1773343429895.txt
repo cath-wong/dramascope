@@ -1,0 +1,103 @@
+Step 11.6 — Add Example Context Expansion for Quads
+
+Scope Statement
+
+Add a small UI feature to the Core vs Peripheral Quads panel allowing
+users to view an example textual context for each quad.
+
+This step must affect presentation only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- dispersion calculation
+- summary counts
+- status filtering
+- sorting
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Allow users to inspect a textual example of a quad in its corpus
+context without cluttering the table.
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads table in:
+
+client/src/pages/Analysis.tsx
+
+2. Add a small control in each row, such as:
+
+"Show example"
+
+or a small expand icon.
+
+3. When clicked, expand a small row section beneath the quad row
+displaying:
+
+- example_title (play or source)
+- example_meta (metadata such as year)
+- excerpt (short context snippet)
+
+4. Use the example fields already available in the quad inventory data
+if present. Do not modify data extraction logic.
+
+5. Only one example needs to be shown.
+
+6. Ensure the table layout remains compact when examples are collapsed.
+
+7. Expanding one row should not affect classification, filtering,
+or sorting.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification
+- dispersion column
+- summary counts
+- status filter
+- sorting
+- row limit controls
+- CSV export
+- all other discursive panels
+- Lexical and Semantic tabs
+- routing and overall layout
+
+Acceptance Criteria
+
+1. Each quad row includes a small control to reveal an example.
+
+2. Clicking the control expands a small contextual display.
+
+3. The example includes source metadata and a short excerpt.
+
+4. Table behaviour (sorting, filtering, row limits) remains unchanged.
+
+5. CSV export remains unchanged.
+
+6. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.

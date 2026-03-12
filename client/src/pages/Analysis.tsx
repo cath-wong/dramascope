@@ -272,6 +272,9 @@ const DiscursiveTab = () => {
   // Core vs Peripheral status filter
   const [coreStatusFilter, setCoreStatusFilter] = useState<"All" | "Core" | "Mid-zone" | "Peripheral">("All");
 
+  // Core vs Peripheral expanded quad for example
+  const [expandedQuad, setExpandedQuad] = useState<string | null>(null);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -1095,18 +1098,20 @@ const DiscursiveTab = () => {
                   const sorted = [...corePeripheralData].sort((a, b) => b.total_frequency - a.total_frequency);
                   const filtered = coreStatusFilter === "All" ? sorted : sorted.filter(q => q.status === coreStatusFilter);
                   const displayed = coreTableLimit ? filtered.slice(0, coreTableLimit) : filtered;
-                  return displayed.map(row => (
+                  return displayed.flatMap(row => [
                     <tr 
                       key={row.quadKey}
-                      className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
-                      onClick={() => setSelectedQuadKey(row.quadKey)}
+                      className={`border-b hover:bg-muted/10 transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
                     >
-                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
+                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium cursor-pointer" onClick={() => setSelectedQuadKey(row.quadKey)}>{row.quadKey}</td>
                       <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
                       <td className="p-2 text-center border-r font-mono text-[9px]">{row.slices_present === 1 ? "1 slice" : `${row.slices_present} slices`}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
-                      <td className="p-2 text-center">
+                      <td className="p-2 text-center space-x-1">
+                        <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[8px]" onClick={() => setExpandedQuad(expandedQuad === row.quadKey ? null : row.quadKey)}>
+                          {expandedQuad === row.quadKey ? "−" : "+"}
+                        </Button>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-medium inline-block ${
                           row.status === "Core" ? "bg-green-100 text-green-800" :
                           row.status === "Mid-zone" ? "bg-amber-100 text-amber-800" :
@@ -1115,8 +1120,18 @@ const DiscursiveTab = () => {
                           {row.status}
                         </span>
                       </td>
-                    </tr>
-                  ));
+                    </tr>,
+                    expandedQuad === row.quadKey && results?.quadExamplesObj?.[row.quadKey]?.[0] ? (
+                      <tr key={`${row.quadKey}-example`} className="bg-muted/5 border-b">
+                        <td colSpan={6} className="p-3 text-[9px]">
+                          <div className="space-y-1">
+                            <div className="font-bold text-[9px] text-foreground/80">{results.quadExamplesObj[row.quadKey][0].source.title} | {results.quadExamplesObj[row.quadKey][0].source.act}:{results.quadExamplesObj[row.quadKey][0].source.scene} | {results.quadExamplesObj[row.quadKey][0].source.speaker}</div>
+                            <div className="italic text-foreground/70 max-w-2xl">"{results.quadExamplesObj[row.quadKey][0].source.excerpt}"</div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null
+                  ]);
                 })()}
               </tbody>
             </table>
