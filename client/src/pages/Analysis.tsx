@@ -1120,7 +1120,19 @@ const DiscursiveTab = () => {
                       key={row.quadKey}
                       className={`border-b hover:bg-muted/10 transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
                     >
-                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium cursor-pointer" onClick={() => setSelectedQuadKey(row.quadKey)}>{row.quadKey}</td>
+                      <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium cursor-pointer" onClick={() => setSelectedQuadKey(row.quadKey)}>
+                        {(() => {
+                          const parts = row.quadKey.split("|");
+                          return (
+                            <span className="font-mono text-[9px]">
+                              <span className="font-semibold text-indigo-700 dark:text-indigo-400">{parts[0]}</span>
+                              {parts.slice(1).map((part, idx) => (
+                                <span key={idx}> | {part}</span>
+                              ))}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
                       <td className="p-2 text-center border-r font-mono text-[9px]">{row.slices_present === 1 ? "1 slice" : `${row.slices_present} slices`}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>

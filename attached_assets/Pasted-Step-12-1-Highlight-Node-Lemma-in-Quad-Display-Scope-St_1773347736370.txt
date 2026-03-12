@@ -1,0 +1,125 @@
+Step 12.1 — Highlight Node Lemma in Quad Display
+
+Scope Statement
+
+Improve readability of the quad column in the Core vs Peripheral Quads table
+by visually highlighting the node lemma (L0) inside each quad.
+
+This step affects presentation only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction logic
+- frequency calculations
+- slice counting
+- classification logic
+- dispersion calculation
+- filtering logic
+- sorting logic
+- summary counts
+- example expansion logic
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Make the node lemma visually distinct so users can easily track the conceptual anchor
+across rows in the quad table.
+
+Implementation Instructions
+
+1. Locate the quad display in the Core vs Peripheral Quads table in:
+
+client/src/pages/Analysis.tsx
+
+2. Each quad is currently stored as a string like:
+
+node|co1|co2|co3
+
+3. Split the quad string into its components using the "|" delimiter.
+
+Example:
+
+const [node, co1, co2, co3] = quadKey.split("|");
+
+4. Render the quad components separately in the table cell.
+
+5. Apply visual emphasis to the node lemma.
+
+Example styling:
+
+node → bold text and subtle colour highlight.
+
+Suggested Tailwind style:
+
+font-semibold text-indigo-700
+
+6. Render the quad visually like:
+
+node | co1 | co2 | co3
+
+7. Ensure spacing and separators remain readable.
+
+Example display:
+
+[LORD] | good | my | now
+
+or
+
+lord | good | my | now
+(where "lord" is visually emphasised)
+
+8. Do not change the underlying `quadKey` data.
+
+9. Do not modify CSV export (it must still export the raw quad string).
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification
+- dispersion column
+- summary counts
+- status filter
+- sorting behaviour
+- row limits
+- example expansion
+- CSV export
+- all other panels
+- Lexical and Semantic tabs
+- routing and overall layout
+
+Acceptance Criteria
+
+1. The quad column visually distinguishes the node lemma.
+
+2. The node lemma appears highlighted or bolded in each row.
+
+3. The quad still reads clearly as:
+
+node | co1 | co2 | co3
+
+4. Filtering, sorting, and example expansion continue to work.
+
+5. CSV export remains unchanged and still outputs the raw quad string.
+
+6. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.
