@@ -1,0 +1,111 @@
+Step 11.7 — Enable Sorting by Dispersion and Status in Core / Mid-zone / Peripheral Panel
+
+Scope Statement
+
+Add small table interaction improvements to the Core vs Peripheral Quads panel.
+
+Enable sorting for:
+
+- Dispersion
+- Status
+
+This step must affect table interaction only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- dispersion calculation
+- summary counts
+- status filtering
+- example expansion logic
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Make the table more analytically useful by allowing users to sort rows by:
+
+- Dispersion (based on slices_present)
+- Status (Core / Mid-zone / Peripheral)
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads table in:
+
+client/src/pages/Analysis.tsx
+
+2. Add sortable behaviour to the Dispersion column.
+
+3. The Dispersion sort must use the underlying numeric `slices_present` value,
+not the display label string.
+
+4. Add sortable behaviour to the Status column.
+
+5. For Status sorting, use a stable explicit order:
+
+Core
+Mid-zone
+Peripheral
+
+6. Preserve the current default sort behaviour by Total Frequency unless the user selects another sortable column.
+
+7. Ensure status filtering, row limits, and example expansion continue to work.
+
+8. Do not change CSV export behaviour.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification
+- dispersion display
+- summary counts
+- status filter
+- example expansion
+- default row display Top 20
+- dropdown row limits
+- CSV export
+- all other discursive panels
+- Lexical and Semantic tabs
+- routing and overall layout
+
+Acceptance Criteria
+
+1. The Dispersion column is sortable.
+
+2. Sorting Dispersion uses `slices_present` numerically.
+
+3. The Status column is sortable.
+
+4. Status sorting uses the order:
+   Core → Mid-zone → Peripheral
+
+5. Default load behaviour still sorts by Total Frequency.
+
+6. Filtering, row limits, and example expansion still work.
+
+7. CSV export remains unchanged.
+
+8. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.

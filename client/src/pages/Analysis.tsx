@@ -275,6 +275,10 @@ const DiscursiveTab = () => {
   // Core vs Peripheral expanded quad for example
   const [expandedQuad, setExpandedQuad] = useState<string | null>(null);
 
+  // Core vs Peripheral sorting
+  const [coreSortBy, setCoreSortBy] = useState<"frequency" | "dispersion" | "status">("frequency");
+  const [coreSortDir, setCoreSortDir] = useState<"asc" | "desc">("desc");
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -1086,16 +1090,29 @@ const DiscursiveTab = () => {
               <thead>
                 <tr className="bg-muted/20 border-b">
                   <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
-                  <th className="p-2 text-right font-bold border-r">Total Freq</th>
-                  <th className="p-2 text-center font-bold border-r">Dispersion</th>
+                  <th className="p-2 text-right font-bold border-r cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("frequency"); setCoreSortDir(coreSortBy === "frequency" && coreSortDir === "desc" ? "asc" : "desc"); }}>Total Freq {coreSortBy === "frequency" && (coreSortDir === "desc" ? "↓" : "↑")}</th>
+                  <th className="p-2 text-center font-bold border-r cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("dispersion"); setCoreSortDir(coreSortBy === "dispersion" && coreSortDir === "desc" ? "asc" : "desc"); }}>Dispersion {coreSortBy === "dispersion" && (coreSortDir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-center font-bold border-r">First Seen</th>
                   <th className="p-2 text-center font-bold border-r">Last Seen</th>
-                  <th className="p-2 text-center font-bold">Status</th>
+                  <th className="p-2 text-center font-bold cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("status"); setCoreSortDir(coreSortBy === "status" && coreSortDir === "asc" ? "desc" : "asc"); }}>Status {coreSortBy === "status" && (coreSortDir === "asc" ? "↑" : "↓")}</th>
                 </tr>
               </thead>
               <tbody>
                 {(() => {
-                  const sorted = [...corePeripheralData].sort((a, b) => b.total_frequency - a.total_frequency);
+                  const statusOrder = { "Core": 0, "Mid-zone": 1, "Peripheral": 2 };
+                  const sorted = [...corePeripheralData].sort((a, b) => {
+                    if (coreSortBy === "frequency") {
+                      return coreSortDir === "desc" ? b.total_frequency - a.total_frequency : a.total_frequency - b.total_frequency;
+                    } else if (coreSortBy === "dispersion") {
+                      const diff = b.slices_present - a.slices_present;
+                      return coreSortDir === "desc" ? diff : -diff;
+                    } else if (coreSortBy === "status") {
+                      const aOrd = statusOrder[a.status as keyof typeof statusOrder] ?? 999;
+                      const bOrd = statusOrder[b.status as keyof typeof statusOrder] ?? 999;
+                      return coreSortDir === "asc" ? aOrd - bOrd : bOrd - aOrd;
+                    }
+                    return 0;
+                  });
                   const filtered = coreStatusFilter === "All" ? sorted : sorted.filter(q => q.status === coreStatusFilter);
                   const displayed = coreTableLimit ? filtered.slice(0, coreTableLimit) : filtered;
                   return displayed.flatMap(row => [
