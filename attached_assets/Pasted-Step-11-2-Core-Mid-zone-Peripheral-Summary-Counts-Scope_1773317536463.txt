@@ -1,0 +1,101 @@
+Step 11.2 — Core / Mid-zone / Peripheral Summary Counts
+
+Scope Statement
+
+Implement a very small visual improvement to the Core vs Peripheral Quads panel.
+
+Add a compact summary row above the table showing the number of quads in each status category:
+
+Core
+Mid-zone
+Peripheral
+
+This step must modify presentation only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- sorting
+- display limits
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Make the panel easier to interpret by showing the total count of Core, Mid-zone, and Peripheral rows above the table.
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads panel rendering in:
+
+client/src/pages/Analysis.tsx
+
+2. Using the existing core/peripheral row data already computed for the table, calculate:
+
+- number of rows where status === "Core"
+- number of rows where status === "Mid-zone"
+- number of rows where status === "Peripheral"
+
+3. Render a small summary row above the table.
+
+Example labels:
+
+Core: [count]
+Mid-zone: [count]
+Peripheral: [count]
+
+4. Keep the styling simple and consistent with the new status badge colours if possible:
+
+- Core → green
+- Mid-zone → amber
+- Peripheral → grey
+
+5. Do not change the table itself except to place the summary above it.
+
+6. Do not alter CSV export content.
+
+7. Do not change sorting, row limits, or any classification logic.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not refactor other files.
+
+Behaviour Preservation
+
+All panel behaviour must remain identical:
+
+- classification logic
+- sorting
+- Top 20 / 50 / 100 / All
+- CSV export
+- dataset logic
+- modelling pipeline
+
+Acceptance Criteria
+
+1. The panel displays three summary counts above the table.
+
+2. The counts correctly reflect the currently loaded dataset for the selected node lemma.
+
+3. Core, Mid-zone, and Peripheral labels remain unchanged.
+
+4. The table still behaves exactly as before.
+
+5. CSV export still exports the full raw table.
+
+Stop after implementing this step.

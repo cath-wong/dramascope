@@ -1046,7 +1046,31 @@ const DiscursiveTab = () => {
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
           {corePeripheralData && corePeripheralData.length > 0 ? (
-            <table className="w-full border-collapse text-[10px]">
+            <>
+              <div className="px-4 py-3 flex gap-6 border-b bg-muted/5 flex-wrap text-[10px]">
+                {(() => {
+                  const coreCnt = corePeripheralData.filter(q => q.status === "Core").length;
+                  const midzoneCnt = corePeripheralData.filter(q => q.status === "Mid-zone").length;
+                  const peripheralCnt = corePeripheralData.filter(q => q.status === "Peripheral").length;
+                  return (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded font-medium">Core</span>
+                        <span className="font-mono font-bold">{coreCnt}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">Mid-zone</span>
+                        <span className="font-mono font-bold">{midzoneCnt}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-medium">Peripheral</span>
+                        <span className="font-mono font-bold">{peripheralCnt}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-muted/20 border-b">
                   <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
@@ -1086,6 +1110,7 @@ const DiscursiveTab = () => {
                 })()}
               </tbody>
             </table>
+            </>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
           )}
