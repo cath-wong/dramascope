@@ -1125,7 +1125,7 @@ const DiscursiveTab = () => {
                           const parts = row.quadKey.split("|");
                           return (
                             <span className="font-mono text-[9px]">
-                              <span className="font-semibold text-indigo-700 dark:text-indigo-400">{parts[0]}</span>
+                              {parts[0]}
                               {parts.slice(1).map((part, idx) => (
                                 <span key={idx}> | {part}</span>
                               ))}
