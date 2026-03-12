@@ -269,6 +269,9 @@ const DiscursiveTab = () => {
   // Core vs Peripheral table limit
   const [coreTableLimit, setCoreTableLimit] = useState<20 | 50 | 100 | null>(20);
 
+  // Core vs Peripheral status filter
+  const [coreStatusFilter, setCoreStatusFilter] = useState<"All" | "Core" | "Mid-zone" | "Peripheral">("All");
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -1026,7 +1029,13 @@ const DiscursiveTab = () => {
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Core vs Peripheral Quads</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={coreStatusFilter === "All" ? "default" : "ghost"} size="sm" onClick={() => setCoreStatusFilter("All")} className="h-7 text-[9px] px-3">All</Button>
+              <Button variant={coreStatusFilter === "Core" ? "default" : "ghost"} size="sm" onClick={() => setCoreStatusFilter("Core")} className="h-7 text-[9px] px-3">Core</Button>
+              <Button variant={coreStatusFilter === "Mid-zone" ? "default" : "ghost"} size="sm" onClick={() => setCoreStatusFilter("Mid-zone")} className="h-7 text-[9px] px-3">Mid-zone</Button>
+              <Button variant={coreStatusFilter === "Peripheral" ? "default" : "ghost"} size="sm" onClick={() => setCoreStatusFilter("Peripheral")} className="h-7 text-[9px] px-3">Peripheral</Button>
+            </div>
             <Label className="text-[9px] font-bold opacity-60">SHOW</Label>
             <Select value={coreTableLimit === null ? "all" : coreTableLimit.toString()} onValueChange={(v) => setCoreTableLimit(v === "all" ? null : Number(v) as 20 | 50 | 100)}>
               <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
@@ -1084,7 +1093,8 @@ const DiscursiveTab = () => {
               <tbody>
                 {(() => {
                   const sorted = [...corePeripheralData].sort((a, b) => b.total_frequency - a.total_frequency);
-                  const displayed = coreTableLimit ? sorted.slice(0, coreTableLimit) : sorted;
+                  const filtered = coreStatusFilter === "All" ? sorted : sorted.filter(q => q.status === coreStatusFilter);
+                  const displayed = coreTableLimit ? filtered.slice(0, coreTableLimit) : filtered;
                   return displayed.map(row => (
                     <tr 
                       key={row.quadKey}

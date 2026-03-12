@@ -1,0 +1,119 @@
+Step 11.3 — Status Filter for Core / Mid-zone / Peripheral Panel
+
+Scope Statement
+
+Implement a small UI improvement to the Core vs Peripheral Quads panel.
+
+Add a status filter control so the table can display:
+
+- All
+- Core only
+- Mid-zone only
+- Peripheral only
+
+This step must affect display only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- summary count logic
+- sorting logic
+- CSV export logic
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Allow the user to filter the table rows by status category while preserving all existing panel behaviour.
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads panel in:
+
+client/src/pages/Analysis.tsx
+
+2. Add a small filter control above the table, near the existing row-limit control if appropriate.
+
+3. The filter options must be:
+
+- All
+- Core
+- Mid-zone
+- Peripheral
+
+4. Default selection must be:
+
+All
+
+5. Apply the filter only to the displayed table rows.
+
+6. The summary counts above the table must remain based on the full dataset, not the filtered subset.
+
+7. Sorting must still work exactly as before.
+
+8. The existing Top 20 / Top 50 / Top 100 / All row-limit control must still work, but it should apply after the status filter is applied.
+
+9. CSV export must remain unchanged unless there is already a clear filtered-export pattern in this panel.
+For this step, safest behaviour is:
+- export the full underlying dataset exactly as before
+
+10. Make the smallest possible code change.
+Do not refactor nearby logic.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification rule
+- summary counts
+- coloured status badges
+- sorting by Total Frequency
+- default row display Top 20
+- dropdown row limits
+- CSV export of full dataset
+- all other discursive panels
+- Lexical and Semantic tabs
+- routing and overall page layout
+
+Acceptance Criteria
+
+1. A status filter control appears above the table.
+
+2. Default is All.
+
+3. Selecting Core shows only Core rows.
+
+4. Selecting Mid-zone shows only Mid-zone rows.
+
+5. Selecting Peripheral shows only Peripheral rows.
+
+6. Summary counts remain unchanged when filter changes.
+
+7. Sorting still works.
+
+8. Top 20 / 50 / 100 / All still works on the filtered rows displayed.
+
+9. CSV export still exports the full dataset.
+
+10. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.
