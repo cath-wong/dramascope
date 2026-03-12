@@ -1,0 +1,104 @@
+Step 11.5 — Streamline Core / Mid-zone / Peripheral Table
+
+Scope Statement
+
+Simplify the Core vs Peripheral Quads table by removing the visible
+"Slices Present" column and keeping only the "Dispersion" column.
+
+The Dispersion column already represents the same information in a
+more readable form (e.g., "3 slices").
+
+This step must affect presentation only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- summary count logic
+- status filter logic
+- sorting logic
+- CSV export logic
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Reduce visual clutter in the table by displaying dispersion in a
+single column instead of two.
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads table in:
+
+client/src/pages/Analysis.tsx
+
+2. Remove the visible column header:
+
+"Slices Present"
+
+3. Remove the corresponding cell rendering in each table row.
+
+4. Keep the existing "Dispersion" column unchanged.
+
+5. Do NOT remove or alter the `slices_present` field from the row data.
+
+6. Do NOT change how dispersion is calculated.
+
+7. If sorting previously depended on the removed column,
+ensure sorting by Total Frequency still works exactly as before.
+
+8. CSV export must remain unchanged and must still include the
+`slices_present` field in the exported dataset.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification rule
+- status badges
+- summary counts
+- status filtering
+- sorting by Total Frequency
+- default row display Top 20
+- dropdown row limits
+- CSV export of full dataset
+- all other discursive panels
+- Lexical and Semantic tabs
+- routing and overall page layout
+
+Acceptance Criteria
+
+1. The table no longer displays a "Slices Present" column.
+
+2. The Dispersion column remains and shows values such as:
+   "1 slice", "3 slices", etc.
+
+3. Classification behaviour remains unchanged.
+
+4. Status filtering still works.
+
+5. Summary counts remain correct.
+
+6. CSV export still includes the `slices_present` field.
+
+7. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.

@@ -1084,7 +1084,6 @@ const DiscursiveTab = () => {
                 <tr className="bg-muted/20 border-b">
                   <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
                   <th className="p-2 text-right font-bold border-r">Total Freq</th>
-                  <th className="p-2 text-center font-bold border-r">Slices Present</th>
                   <th className="p-2 text-center font-bold border-r">Dispersion</th>
                   <th className="p-2 text-center font-bold border-r">First Seen</th>
                   <th className="p-2 text-center font-bold border-r">Last Seen</th>
@@ -1104,7 +1103,6 @@ const DiscursiveTab = () => {
                     >
                       <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
                       <td className="p-2 text-right border-r font-mono">{row.total_frequency}</td>
-                      <td className="p-2 text-center border-r">{row.slices_present}</td>
                       <td className="p-2 text-center border-r font-mono text-[9px]">{row.slices_present === 1 ? "1 slice" : `${row.slices_present} slices`}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
