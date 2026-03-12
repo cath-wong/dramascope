@@ -1,0 +1,106 @@
+Step 11.4 — Add Dispersion Column to Core / Mid-zone / Peripheral Panel
+
+Scope Statement
+
+Implement a small analytical UI improvement to the Core vs Peripheral Quads panel.
+
+Add a new table column called:
+
+Dispersion
+
+This step must affect presentation only.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- summary count logic
+- status filter logic
+- sorting logic except to support the new column if needed
+- CSV export logic
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Make slice spread easier to interpret by displaying a dedicated Dispersion column based on the existing `slices_present` value already computed for each quad.
+
+Implementation Instructions
+
+1. Locate the Core vs Peripheral Quads panel in:
+
+client/src/pages/Analysis.tsx
+
+2. Add a new column to the table:
+
+Dispersion
+
+3. Populate this column using the existing `slices_present` value already present in each row.
+
+4. For this step, keep the display simple and literal.
+Render the value as either:
+- the raw number, or
+- a short label like `3 slices`
+
+Choose the smallest implementation that fits the existing table style.
+
+5. Do not change how `slices_present` is calculated.
+
+6. Do not remove the existing `Slices Present` field from the exported dataset.
+
+7. If the table column definitions are separate from the row data, make the smallest possible edit to include the new display column.
+
+8. If sorting is already supported in this table and can safely be enabled for the new column with a minimal change, it may sort by `slices_present`.
+If that requires broader refactoring, leave sorting unchanged for this step.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not create new files.
+Do not refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification rule
+- summary counts
+- coloured status badges
+- status filtering
+- sorting by Total Frequency
+- default row display Top 20
+- dropdown row limits
+- CSV export of full dataset
+- all other discursive panels
+- Lexical and Semantic tabs
+- routing and overall page layout
+
+Acceptance Criteria
+
+1. The Core vs Peripheral Quads table shows a new Dispersion column.
+
+2. The new column reflects the existing `slices_present` value for each row.
+
+3. No classification logic changes.
+
+4. No filtering logic changes.
+
+5. Summary counts remain unchanged.
+
+6. CSV export remains unchanged and still exports the full dataset.
+
+7. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.
