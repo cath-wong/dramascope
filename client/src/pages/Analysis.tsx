@@ -1073,9 +1073,13 @@ const DiscursiveTab = () => {
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
                       <td className="p-2 text-center">
-                        <Badge variant={row.status === "Core" ? "default" : "outline"} className="text-[9px]">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-medium inline-block ${
+                          row.status === "Core" ? "bg-green-100 text-green-800" :
+                          row.status === "Mid-zone" ? "bg-amber-100 text-amber-800" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>
                           {row.status}
-                        </Badge>
+                        </span>
                       </td>
                     </tr>
                   ));

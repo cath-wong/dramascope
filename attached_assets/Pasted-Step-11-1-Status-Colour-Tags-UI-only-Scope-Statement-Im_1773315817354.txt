@@ -1,0 +1,125 @@
+Step 11.1 — Status Colour Tags (UI only)
+
+Scope Statement
+
+Implement a very small visual improvement to the Core vs Peripheral Quads panel.
+
+Add colour-coded status badges for:
+
+Core
+Mid-zone
+Peripheral
+
+This step must modify visual presentation only.
+
+No modelling logic or data computation may change.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- frequency calculations
+- slice counting
+- classification logic
+- sorting
+- display limits
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- similarity matrix
+- clustering
+- corpus loading
+- routing
+- layout
+
+Goal
+
+Improve readability of the Status column by displaying each status as a small coloured label.
+
+Core → green badge  
+Mid-zone → amber badge  
+Peripheral → grey badge
+
+Implementation Instructions
+
+1. Locate the table rendering logic for the Core vs Peripheral Quads panel in:
+
+client/src/pages/Analysis.tsx
+
+2. Find where the Status column value is currently rendered.
+
+It likely looks like:
+
+status
+
+3. Replace the plain text rendering with a small styled badge.
+
+Example logic:
+
+if status === "Core"
+render a green badge
+
+if status === "Mid-zone"
+render an amber badge
+
+if status === "Peripheral"
+render a grey badge
+
+4. Use Tailwind utility classes.
+
+Suggested styling:
+
+Core
+
+bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium
+
+Mid-zone
+
+bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs font-medium
+
+Peripheral
+
+bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium
+
+5. Keep the label text unchanged:
+
+Core
+Mid-zone
+Peripheral
+
+6. Do not alter column order or table structure.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do not refactor other files.
+
+Behaviour Preservation
+
+All panel behaviour must remain identical:
+
+- sorting
+- Top 20 / 50 / 100 / All
+- CSV export
+- dataset logic
+- modelling pipeline
+
+Acceptance Criteria
+
+1. Status column shows coloured badges instead of plain text.
+
+2. Core rows display green badge.
+
+3. Mid-zone rows display amber badge.
+
+4. Peripheral rows display grey badge.
+
+5. Table sorting and row limits behave exactly as before.
+
+6. CSV export still exports the raw text status values.
+
+Stop after implementing this step.
