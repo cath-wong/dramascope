@@ -285,6 +285,9 @@ const DiscursiveTab = () => {
   // Recurring co-terms filter (All vs Core only)
   const [coTermFilter, setCoTermFilter] = useState<"All" | "Core">("All");
 
+  // Analysis word mode (All vs Content only)
+  const [analysisWordMode, setAnalysisWordMode] = useState<"all" | "content">("all");
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -723,15 +726,18 @@ const DiscursiveTab = () => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
         const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        coTermMap.set(co1, (coTermMap.get(co1) || 0) + 1);
-        coTermMap.set(co2, (coTermMap.get(co2) || 0) + 1);
-        coTermMap.set(co3, (coTermMap.get(co3) || 0) + 1);
+        const shouldIncludeCo1 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co1);
+        const shouldIncludeCo2 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co2);
+        const shouldIncludeCo3 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co3);
+        if (shouldIncludeCo1) coTermMap.set(co1, (coTermMap.get(co1) || 0) + 1);
+        if (shouldIncludeCo2) coTermMap.set(co2, (coTermMap.get(co2) || 0) + 1);
+        if (shouldIncludeCo3) coTermMap.set(co3, (coTermMap.get(co3) || 0) + 1);
       }
     });
     const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
     const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
     return sorted.slice(0, limit);
-  }, [corePeripheralData, coTermFilter, coTermLimit]);
+  }, [corePeripheralData, coTermFilter, coTermLimit, analysisWordMode]);
 
   const coTermPairs = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -741,17 +747,26 @@ const DiscursiveTab = () => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
         const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        const pair12 = [co1, co2].sort().join("|");
-        const pair13 = [co1, co3].sort().join("|");
-        const pair23 = [co2, co3].sort().join("|");
-        pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
-        pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
-        pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        const shouldIncludeCo1 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co1);
+        const shouldIncludeCo2 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co2);
+        const shouldIncludeCo3 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co3);
+        if (shouldIncludeCo1 && shouldIncludeCo2) {
+          const pair12 = [co1, co2].sort().join("|");
+          pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
+        }
+        if (shouldIncludeCo1 && shouldIncludeCo3) {
+          const pair13 = [co1, co3].sort().join("|");
+          pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
+        }
+        if (shouldIncludeCo2 && shouldIncludeCo3) {
+          const pair23 = [co2, co3].sort().join("|");
+          pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        }
       }
     });
     const sorted = Array.from(pairMap.entries()).sort((a, b) => b[1] - a[1]);
     return sorted.slice(0, 15);
-  }, [corePeripheralData, coTermFilter]);
+  }, [corePeripheralData, coTermFilter, analysisWordMode]);
 
   const coTermSubclusters = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -763,12 +778,21 @@ const DiscursiveTab = () => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
         const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        const pair12 = [co1, co2].sort().join("|");
-        const pair13 = [co1, co3].sort().join("|");
-        const pair23 = [co2, co3].sort().join("|");
-        pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
-        pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
-        pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        const shouldIncludeCo1 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co1);
+        const shouldIncludeCo2 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co2);
+        const shouldIncludeCo3 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co3);
+        if (shouldIncludeCo1 && shouldIncludeCo2) {
+          const pair12 = [co1, co2].sort().join("|");
+          pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
+        }
+        if (shouldIncludeCo1 && shouldIncludeCo3) {
+          const pair13 = [co1, co3].sort().join("|");
+          pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
+        }
+        if (shouldIncludeCo2 && shouldIncludeCo3) {
+          const pair23 = [co2, co3].sort().join("|");
+          pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        }
       }
     });
     
@@ -811,7 +835,7 @@ const DiscursiveTab = () => {
     
     clusters.sort((a, b) => b.terms.length - a.terms.length || b.edges - a.edges);
     return clusters;
-  }, [corePeripheralData, coTermFilter]);
+  }, [corePeripheralData, coTermFilter, analysisWordMode]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
@@ -1141,6 +1165,10 @@ const DiscursiveTab = () => {
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={analysisWordMode === "all" ? "default" : "ghost"} size="sm" onClick={() => setAnalysisWordMode("all")} className="h-7 text-[9px] px-3">All Words</Button>
+              <Button variant={analysisWordMode === "content" ? "default" : "ghost"} size="sm" onClick={() => setAnalysisWordMode("content")} className="h-7 text-[9px] px-3">Content Only</Button>
+            </div>
             <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
               <Button variant={coTermFilter === "All" ? "default" : "ghost"} size="sm" onClick={() => setCoTermFilter("All")} className="h-7 text-[9px] px-3">All</Button>
               <Button variant={coTermFilter === "Core" ? "default" : "ghost"} size="sm" onClick={() => setCoTermFilter("Core")} className="h-7 text-[9px] px-3">Core only</Button>
