@@ -279,6 +279,9 @@ const DiscursiveTab = () => {
   const [coreSortBy, setCoreSortBy] = useState<"frequency" | "dispersion" | "status">("frequency");
   const [coreSortDir, setCoreSortDir] = useState<"asc" | "desc">("desc");
 
+  // Recurring co-terms limit
+  const [coTermLimit, setCoTermLimit] = useState<10 | 20 | null>(10);
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -632,6 +635,23 @@ const DiscursiveTab = () => {
     if (!matrixData || !matrixData.matrix || matrixData.matrix.length < 2) return null;
     return computeClusters(matrixData.matrix, matrixData.nodes, clusteringThreshold);
   }, [matrixData, clusteringThreshold]);
+
+  const recurringCoTerms = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    const coTermMap = new Map<string, number>();
+    corePeripheralData.forEach(row => {
+      const parts = row.quadKey.split("|");
+      if (parts.length >= 4) {
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        coTermMap.set(co1, (coTermMap.get(co1) || 0) + 1);
+        coTermMap.set(co2, (coTermMap.get(co2) || 0) + 1);
+        coTermMap.set(co3, (coTermMap.get(co3) || 0) + 1);
+      }
+    });
+    const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
+    const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
+    return sorted.slice(0, limit);
+  }, [corePeripheralData, coTermLimit]);
 
   const similarityData = useMemo(() => {
     if (!results || !comparisonResults || nodeLemma === comparisonNodeLemma) return null;
@@ -1029,6 +1049,34 @@ const DiscursiveTab = () => {
             </table>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
+          <Select value={coTermLimit === null ? "all" : coTermLimit.toString()} onValueChange={(v) => setCoTermLimit(v === "all" ? null : Number(v) as 10 | 20)}>
+            <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">Top 10</SelectItem>
+              <SelectItem value="20">Top 20</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="p-4">
+          {recurringCoTerms.length > 0 ? (
+            <div className="space-y-1">
+              {recurringCoTerms.map(([term, count]) => (
+                <div key={term} className="flex justify-between items-center text-[10px] py-1 border-b border-muted/30">
+                  <span className="font-mono">{term}</span>
+                  <span className="text-muted-foreground font-bold">{count} quads</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[10px] text-muted-foreground italic">No co-terms available.</div>
           )}
         </CardContent>
       </Card>

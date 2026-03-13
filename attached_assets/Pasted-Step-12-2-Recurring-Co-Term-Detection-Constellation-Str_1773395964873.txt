@@ -1,0 +1,223 @@
+Step 12.2 — Recurring Co-Term Detection (Constellation Structure)
+
+Scope Statement
+
+Add a Recurring Co-Terms summary panel above the Core / Mid-zone / Peripheral table
+that shows which co-lemmas appear most frequently across the node’s quad constellation.
+
+This reveals internal constellation structure (shared co-terms across quads)
+and helps interpret discursive conceptual environments.
+
+This step must NOT change the modelling pipeline.
+It only derives counts from the existing quad list.
+
+----------------------------------------------------------------
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction logic
+- node window definition (±50)
+- neighbour selection
+- quad key structure
+- frequency aggregation
+- slice counting
+- behavioural classification (Core / Mid-zone / Peripheral)
+- filtering logic
+- sorting logic
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+----------------------------------------------------------------
+
+Goal
+
+Provide a quick summary showing which co-terms recur across multiple quads
+in the constellation.
+
+Example display:
+
+Recurring Co-Terms
+
+my        11 quads
+now        9 quads
+sir        6 quads
+good       5 quads
+king       4 quads
+
+This allows users to quickly see dominant lexical environments
+surrounding the node lemma.
+
+----------------------------------------------------------------
+
+Implementation Instructions
+
+1. Locate the quad dataset in:
+
+client/src/pages/Analysis.tsx
+
+Reuse the existing dataset already used for the Core / Mid / Peripheral table:
+
+corePeripheralData
+
+Each row contains:
+
+quadKey
+
+----------------------------------------------------------------
+
+2. Extract co-terms from quads
+
+For each row:
+
+quadKey.split("|")
+
+Example:
+
+["lord","good","my","now"]
+
+The first element is the node lemma.
+
+Ignore it.
+
+Use only:
+
+co1
+co2
+co3
+
+----------------------------------------------------------------
+
+3. Build a co-term frequency map
+
+Create a map:
+
+Map<string, number>
+
+For every quad:
+
+increment count for co1
+increment count for co2
+increment count for co3
+
+Important:
+
+Count quad occurrences, not token frequency.
+
+Each quad contributes one count per co-term.
+
+----------------------------------------------------------------
+
+4. Convert to sorted list
+
+Convert the map to an array:
+
+Array<[term, count]>
+
+Sort descending by count.
+
+----------------------------------------------------------------
+
+5. Limit display
+
+Display the top 10 co-terms.
+
+Add a small dropdown for:
+
+Top 10
+Top 20
+All
+
+Default: Top 10.
+
+----------------------------------------------------------------
+
+6. Render new panel
+
+Insert a small panel above the Core / Mid / Peripheral table.
+
+Suggested structure:
+
+Recurring Co-Terms
+------------------
+
+my        11
+now        9
+sir        6
+good       5
+king       4
+
+Suggested styling:
+
+- compact list
+- two columns (term | count)
+- right-aligned count
+- subtle badge or muted text
+
+----------------------------------------------------------------
+
+7. Stopwords
+
+Do not implement additional stopword filtering.
+
+The quad pipeline already respects the Content Words Only toggle,
+so simply use the quad data as-is.
+
+----------------------------------------------------------------
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do NOT create new files.
+Do NOT refactor existing logic.
+
+----------------------------------------------------------------
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification
+- dispersion calculation
+- status filtering
+- sorting behaviour
+- example expansion
+- row limits
+- CSV export
+- all other panels
+- Lexical tab
+- Semantic tab
+- routing and page layout
+
+----------------------------------------------------------------
+
+Acceptance Criteria
+
+1. A Recurring Co-Terms panel appears above the Core / Mid-zone / Peripheral table.
+
+2. The panel lists co-lemmas and the number of quads they appear in.
+
+3. The node lemma is NOT included.
+
+4. Terms are sorted by frequency.
+
+5. Default display shows Top 10.
+
+6. Dropdown allows Top 20 or All.
+
+7. Core / Mid / Peripheral table behaviour remains unchanged.
+
+8. No regressions occur elsewhere in the app.
+
+----------------------------------------------------------------
+
+Stop after implementing this step.
