@@ -753,6 +753,66 @@ const DiscursiveTab = () => {
     return sorted.slice(0, 15);
   }, [corePeripheralData, coTermFilter]);
 
+  const coTermSubclusters = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    const filtered = coTermFilter === "Core" ? corePeripheralData.filter(q => q.status === "Core") : corePeripheralData;
+    const pairMap = new Map<string, number>();
+    const graph = new Map<string, Set<string>>();
+    
+    filtered.forEach(row => {
+      const parts = row.quadKey.split("|");
+      if (parts.length >= 4) {
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        const pair12 = [co1, co2].sort().join("|");
+        const pair13 = [co1, co3].sort().join("|");
+        const pair23 = [co2, co3].sort().join("|");
+        pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
+        pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
+        pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+      }
+    });
+    
+    pairMap.forEach((count, pair) => {
+      if (count >= 2) {
+        const [t1, t2] = pair.split("|");
+        if (!graph.has(t1)) graph.set(t1, new Set());
+        if (!graph.has(t2)) graph.set(t2, new Set());
+        graph.get(t1)!.add(t2);
+        graph.get(t2)!.add(t1);
+      }
+    });
+    
+    const visited = new Set<string>();
+    const clusters: Array<{ terms: string[]; edges: number }> = [];
+    
+    const dfs = (node: string, cluster: Set<string>) => {
+      visited.add(node);
+      cluster.add(node);
+      (graph.get(node) || new Set()).forEach(neighbor => {
+        if (!visited.has(neighbor)) dfs(neighbor, cluster);
+      });
+    };
+    
+    graph.forEach((_, node) => {
+      if (!visited.has(node)) {
+        const cluster = new Set<string>();
+        dfs(node, cluster);
+        const terms = Array.from(cluster).sort();
+        let edges = 0;
+        pairMap.forEach((count, pair) => {
+          if (count >= 2) {
+            const [t1, t2] = pair.split("|");
+            if (cluster.has(t1) && cluster.has(t2)) edges += 1;
+          }
+        });
+        clusters.push({ terms, edges });
+      }
+    });
+    
+    clusters.sort((a, b) => b.terms.length - a.terms.length || b.edges - a.edges);
+    return clusters;
+  }, [corePeripheralData, coTermFilter]);
+
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
     { key: "co1", label: "Co-1 (L1)" },
@@ -1130,6 +1190,27 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="text-[10px] text-muted-foreground italic">No co-term pairs available.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b">
+          <CardTitle className="text-sm font-bold">Constellation Subclusters</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          {coTermSubclusters.length > 0 ? (
+            <div className="space-y-3">
+              {coTermSubclusters.map((cluster, idx) => (
+                <div key={idx} className="border-b border-muted/30 pb-2 last:border-b-0">
+                  <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {idx + 1}</div>
+                  <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
+                  <div className="text-[9px] text-muted-foreground">{cluster.terms.length} terms · {cluster.edges} links</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>
           )}
         </CardContent>
       </Card>

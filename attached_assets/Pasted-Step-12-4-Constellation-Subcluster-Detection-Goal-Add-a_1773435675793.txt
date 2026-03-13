@@ -1,0 +1,117 @@
+Step 12.4 — Constellation Subcluster Detection
+
+Goal
+
+Add a lightweight Constellation Subclusters panel that groups recurring co-terms
+into small connected lexical clusters based on co-term pairings already computed
+in the constellation.
+
+This step must NOT change the modelling pipeline.
+It only derives additional structure from existing co-term pair data.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction
+- window definition
+- neighbour selection
+- quad identity
+- aggregation logic
+- dispersion calculation
+- behavioural classification
+- recurring co-term logic
+- co-term pair detection logic
+- Sankey visualisation
+- CSV export
+- temporal concept flow
+- constellation similarity
+- lexical tab
+- semantic tab
+
+Implementation
+
+1. File
+
+client/src/pages/Analysis.tsx
+
+2. Data source
+
+Use the existing co-term pair data already introduced in Step 12.3.
+
+3. Build graph
+
+Treat each co-term as a node.
+
+Treat each co-term pair as an edge.
+
+4. Threshold
+
+To avoid noise, only include pair edges where:
+
+pair count >= 2
+
+If that produces no clusters for some nodes, allow graceful fallback to showing
+single-link components or an empty-state message.
+
+5. Detect subclusters
+
+Compute connected components of the co-term graph.
+
+Each connected component becomes one subcluster.
+
+6. Rank clusters
+
+Sort clusters by size descending.
+If tied, sort by total supporting edge weight descending.
+
+7. Render panel
+
+Add a panel below Top Co-Term Pairings.
+
+Title:
+
+Constellation Subclusters
+
+For each cluster, display:
+
+- Cluster label (e.g. Cluster 1)
+- comma-separated list of terms
+- optional small metadata:
+  - number of terms
+  - number of pair links
+
+Example:
+
+Cluster 1
+my, good, now, sir
+4 terms · 5 links
+
+Cluster 2
+king, crown, noble
+3 terms · 2 links
+
+8. Scope
+
+Respect the existing Recurring Co-Terms scope logic:
+
+- All
+- Core only
+
+If Core only is active, subclusters should be computed from Core-only pairings.
+
+9. Safety
+
+Do not modify existing panels.
+Do not alter corePeripheralData.
+Do not change any current table behaviour.
+
+Acceptance Criteria
+
+1. A Constellation Subclusters panel appears below Top Co-Term Pairings.
+2. Terms are grouped into connected lexical clusters.
+3. Clusters update when switching All / Core only.
+4. Existing functionality remains unchanged.
+5. No regressions occur elsewhere.
+
+Stop after implementing this step.
