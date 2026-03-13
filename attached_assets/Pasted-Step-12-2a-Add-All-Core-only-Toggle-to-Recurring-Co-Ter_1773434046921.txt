@@ -1,0 +1,114 @@
+Step 12.2a — Add All / Core-only Toggle to Recurring Co-Terms Panel
+
+Scope Statement
+
+Add a small analytical toggle to the Recurring Co-Terms panel so users can switch between:
+
+- All quads
+- Core only
+
+This step must affect derived display only.
+It must not change the modelling pipeline.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- quad extraction logic
+- node window definition
+- neighbour selection
+- quad key structure
+- frequency aggregation
+- slice counting
+- behavioural classification
+- status filtering in the main table
+- sorting logic
+- CSV export
+- Sankey visualisation
+- temporal concept flow
+- clustering
+- corpus loading
+- routing
+- layout outside this panel
+
+Goal
+
+Allow users to inspect recurring co-terms either across the full constellation
+or only across Core quads, so that stable conceptual structure can be distinguished
+from weaker or more local patterns.
+
+Implementation Instructions
+
+1. Open:
+
+client/src/pages/Analysis.tsx
+
+2. Locate the existing Recurring Co-Terms logic and panel added in Step 12.2.
+
+3. Add a small toggle or dropdown with two options:
+
+- All
+- Core only
+
+Default: All
+
+4. When "All" is selected:
+count co-terms from all rows in corePeripheralData.
+
+5. When "Core only" is selected:
+count co-terms only from rows where:
+
+status === "Core"
+
+6. Keep all existing co-term counting logic unchanged otherwise:
+- split quadKey
+- ignore node lemma
+- count co1/co2/co3 participation across quads
+
+7. Keep the existing Top 10 / Top 20 / All limit control unchanged.
+
+8. Make the smallest possible patch only.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do NOT create new files.
+Do NOT refactor working components.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- behavioural classification
+- main Core / Mid-zone / Peripheral table
+- dispersion display
+- summary counts
+- status filtering
+- sorting
+- example expansion
+- CSV export
+- all other panels
+- Lexical tab
+- Semantic tab
+- routing and page layout
+
+Acceptance Criteria
+
+1. Recurring Co-Terms panel includes:
+   - All
+   - Core only
+
+2. Default is All.
+
+3. Switching to Core only recalculates co-term counts using only Core rows.
+
+4. Top 10 / Top 20 / All limit still works.
+
+5. Main table behaviour remains unchanged.
+
+6. No regressions occur elsewhere.
+
+Stop after implementing this step.

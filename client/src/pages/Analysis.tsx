@@ -282,6 +282,9 @@ const DiscursiveTab = () => {
   // Recurring co-terms limit
   const [coTermLimit, setCoTermLimit] = useState<10 | 20 | null>(10);
 
+  // Recurring co-terms filter (All vs Core only)
+  const [coTermFilter, setCoTermFilter] = useState<"All" | "Core">("All");
+
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
   const results = useMemo(() => {
@@ -714,8 +717,9 @@ const DiscursiveTab = () => {
 
   const recurringCoTerms = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    const filtered = coTermFilter === "Core" ? corePeripheralData.filter(q => q.status === "Core") : corePeripheralData;
     const coTermMap = new Map<string, number>();
-    corePeripheralData.forEach(row => {
+    filtered.forEach(row => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
         const co1 = parts[1], co2 = parts[2], co3 = parts[3];
@@ -727,7 +731,7 @@ const DiscursiveTab = () => {
     const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
     const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
     return sorted.slice(0, limit);
-  }, [corePeripheralData, coTermLimit]);
+  }, [corePeripheralData, coTermFilter, coTermLimit]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
@@ -1056,14 +1060,20 @@ const DiscursiveTab = () => {
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
-          <Select value={coTermLimit === null ? "all" : coTermLimit.toString()} onValueChange={(v) => setCoTermLimit(v === "all" ? null : Number(v) as 10 | 20)}>
-            <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">Top 10</SelectItem>
-              <SelectItem value="20">Top 20</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={coTermFilter === "All" ? "default" : "ghost"} size="sm" onClick={() => setCoTermFilter("All")} className="h-7 text-[9px] px-3">All</Button>
+              <Button variant={coTermFilter === "Core" ? "default" : "ghost"} size="sm" onClick={() => setCoTermFilter("Core")} className="h-7 text-[9px] px-3">Core only</Button>
+            </div>
+            <Select value={coTermLimit === null ? "all" : coTermLimit.toString()} onValueChange={(v) => setCoTermLimit(v === "all" ? null : Number(v) as 10 | 20)}>
+              <SelectTrigger className="h-7 text-[9px] w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">Top 10</SelectItem>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
           {recurringCoTerms.length > 0 ? (
