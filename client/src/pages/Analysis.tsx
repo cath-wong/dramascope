@@ -636,23 +636,6 @@ const DiscursiveTab = () => {
     return computeClusters(matrixData.matrix, matrixData.nodes, clusteringThreshold);
   }, [matrixData, clusteringThreshold]);
 
-  const recurringCoTerms = useMemo(() => {
-    if (!corePeripheralData || corePeripheralData.length === 0) return [];
-    const coTermMap = new Map<string, number>();
-    corePeripheralData.forEach(row => {
-      const parts = row.quadKey.split("|");
-      if (parts.length >= 4) {
-        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        coTermMap.set(co1, (coTermMap.get(co1) || 0) + 1);
-        coTermMap.set(co2, (coTermMap.get(co2) || 0) + 1);
-        coTermMap.set(co3, (coTermMap.get(co3) || 0) + 1);
-      }
-    });
-    const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
-    const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
-    return sorted.slice(0, limit);
-  }, [corePeripheralData, coTermLimit]);
-
   const similarityData = useMemo(() => {
     if (!results || !comparisonResults || nodeLemma === comparisonNodeLemma) return null;
     const primaryQuads = new Set<string>();
@@ -728,6 +711,23 @@ const DiscursiveTab = () => {
     
     return corePeripheralRows;
   }, [results]);
+
+  const recurringCoTerms = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    const coTermMap = new Map<string, number>();
+    corePeripheralData.forEach(row => {
+      const parts = row.quadKey.split("|");
+      if (parts.length >= 4) {
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        coTermMap.set(co1, (coTermMap.get(co1) || 0) + 1);
+        coTermMap.set(co2, (coTermMap.get(co2) || 0) + 1);
+        coTermMap.set(co3, (coTermMap.get(co3) || 0) + 1);
+      }
+    });
+    const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
+    const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
+    return sorted.slice(0, limit);
+  }, [corePeripheralData, coTermLimit]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
