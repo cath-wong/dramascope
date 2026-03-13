@@ -733,6 +733,26 @@ const DiscursiveTab = () => {
     return sorted.slice(0, limit);
   }, [corePeripheralData, coTermFilter, coTermLimit]);
 
+  const coTermPairs = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    const filtered = coTermFilter === "Core" ? corePeripheralData.filter(q => q.status === "Core") : corePeripheralData;
+    const pairMap = new Map<string, number>();
+    filtered.forEach(row => {
+      const parts = row.quadKey.split("|");
+      if (parts.length >= 4) {
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        const pair12 = [co1, co2].sort().join("|");
+        const pair13 = [co1, co3].sort().join("|");
+        const pair23 = [co2, co3].sort().join("|");
+        pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
+        pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
+        pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+      }
+    });
+    const sorted = Array.from(pairMap.entries()).sort((a, b) => b[1] - a[1]);
+    return sorted.slice(0, 15);
+  }, [corePeripheralData, coTermFilter]);
+
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
     { key: "co1", label: "Co-1 (L1)" },
@@ -1087,6 +1107,29 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="text-[10px] text-muted-foreground italic">No co-terms available.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b">
+          <CardTitle className="text-sm font-bold">Top Co-Term Pairings</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          {coTermPairs.length > 0 ? (
+            <div className="space-y-1">
+              {coTermPairs.map(([pair, count]) => {
+                const [term1, term2] = pair.split("|");
+                return (
+                  <div key={pair} className="flex justify-between items-center text-[10px] py-1 border-b border-muted/30">
+                    <span className="font-mono">{term1} • {term2}</span>
+                    <span className="text-muted-foreground font-bold">{count} quads</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-[10px] text-muted-foreground italic">No co-term pairs available.</div>
           )}
         </CardContent>
       </Card>
