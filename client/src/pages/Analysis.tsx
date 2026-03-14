@@ -884,6 +884,31 @@ const DiscursiveTab = () => {
     return clusters;
   }, [corePeripheralData, coTermFilter, analysisWordMode]);
 
+  const quadStructuralCentrality = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return new Map<string, number>();
+    const centralityMap = new Map<string, number>();
+    corePeripheralData.forEach((quad, idx) => {
+      const parts = quad.quadKey.split("|");
+      if (parts.length >= 4) {
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        let linkCount = 0;
+        corePeripheralData.forEach((other, otherIdx) => {
+          if (idx === otherIdx) return;
+          const otherParts = other.quadKey.split("|");
+          if (otherParts.length >= 4) {
+            const otherCo1 = otherParts[1], otherCo2 = otherParts[2], otherCo3 = otherParts[3];
+            const sharedTerms = new Set([co1, co2, co3]);
+            if (sharedTerms.has(otherCo1) || sharedTerms.has(otherCo2) || sharedTerms.has(otherCo3)) {
+              linkCount += 1;
+            }
+          }
+        });
+        centralityMap.set(quad.quadKey, linkCount);
+      }
+    });
+    return centralityMap;
+  }, [corePeripheralData]);
+
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
     { key: "co1", label: "Co-1 (L1)" },
@@ -1352,6 +1377,7 @@ const DiscursiveTab = () => {
                   <th className="p-2 text-center font-bold border-r">First Seen</th>
                   <th className="p-2 text-center font-bold border-r">Last Seen</th>
                   <th className="p-2 text-center font-bold border-r">Temporal Behaviour</th>
+                  <th className="p-2 text-center font-bold border-r">Structural links</th>
                   <th className="p-2 text-center font-bold cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("status"); setCoreSortDir(coreSortBy === "status" && coreSortDir === "asc" ? "desc" : "asc"); }}>Status {coreSortBy === "status" && (coreSortDir === "asc" ? "↑" : "↓")}</th>
                 </tr>
               </thead>
@@ -1396,6 +1422,7 @@ const DiscursiveTab = () => {
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
                       <td className="p-2 text-center border-r text-[9px] text-muted-foreground">{row.temporal_behaviour}</td>
+                      <td className="p-2 text-center border-r text-[9px] font-mono text-amber-600">{quadStructuralCentrality.get(row.quadKey) ?? 0}</td>
                       <td className="p-2 text-center space-x-1">
                         <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[8px]" onClick={() => setExpandedQuad(expandedQuad === row.quadKey ? null : row.quadKey)}>
                           {expandedQuad === row.quadKey ? "−" : "+"}
@@ -1411,7 +1438,7 @@ const DiscursiveTab = () => {
                     </tr>,
                     expandedQuad === row.quadKey && results?.quadExamplesObj?.[row.quadKey]?.[0] ? (
                       <tr key={`${row.quadKey}-example`} className="bg-muted/5 border-b">
-                        <td colSpan={6} className="p-3 text-[9px]">
+                        <td colSpan={8} className="p-3 text-[9px]">
                           <div className="space-y-1">
                             <div className="font-bold text-[9px] text-foreground/80">{results.quadExamplesObj[row.quadKey][0].source.title} | {results.quadExamplesObj[row.quadKey][0].source.act}:{results.quadExamplesObj[row.quadKey][0].source.scene} | {results.quadExamplesObj[row.quadKey][0].source.speaker}</div>
                             <div className="italic text-foreground/70 max-w-2xl">"{results.quadExamplesObj[row.quadKey][0].source.excerpt}"</div>
