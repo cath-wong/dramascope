@@ -1,0 +1,167 @@
+Step 14 — Temporal Behaviour Labels for Quads
+
+Scope Statement
+
+Add a lightweight temporal behaviour classification layer to the
+Core / Mid-zone / Peripheral table using existing quad metadata:
+
+- first_seen
+- last_seen
+- slices_present
+
+This step must derive labels from existing data only.
+It must NOT change quad extraction, aggregation, or behavioural classification.
+
+Do NOT Change Rules
+
+Do NOT change:
+
+- corpus loading
+- tokenisation
+- node window definition
+- quad extraction
+- quad identity
+- frequency aggregation
+- dispersion calculation
+- Core / Mid-zone / Peripheral classification
+- recurring co-term logic
+- co-term pair logic
+- subcluster logic
+- Sankey visualisation
+- temporal concept flow
+- CSV export
+- lexical tab
+- semantic tab
+- routing
+- layout outside this panel
+
+Goal
+
+Add a simple temporal behaviour label for each quad so users can distinguish
+between stable, emerging, early-bound, and short-span patterns.
+
+Use only existing fields already present in the quad rows.
+
+Implementation Instructions
+
+1. Open:
+
+client/src/pages/Analysis.tsx
+
+2. Locate the existing Core / Mid-zone / Peripheral row construction
+(the same place where rows currently include):
+
+- quadKey
+- total_frequency
+- slices_present
+- first_seen
+- last_seen
+- status
+
+3. Compute timeline bounds from the currently loaded slice set.
+
+Use the existing slice list already available in the discursive analysis
+(e.g. results.sortedSlices).
+
+Determine:
+
+- earliest slice
+- latest slice
+- total slice span
+
+4. Add a derived temporal behaviour label to each quad row.
+
+Use this initial transparent rule set:
+
+Persistent
+- slices_present >= 3
+- and first_seen is not in the final third of the timeline
+- and last_seen is not in the first third of the timeline
+
+Emergent
+- first_seen falls in the final third of the timeline
+- and slices_present >= 2
+
+Early-bound
+- last_seen falls in the first third of the timeline
+- and slices_present >= 2
+
+Transient
+- everything else
+
+5. Add a new visible column to the Core / Mid-zone / Peripheral table:
+
+Temporal Behaviour
+
+6. Display one of these values:
+
+- Persistent
+- Emergent
+- Early-bound
+- Transient
+
+7. Keep the implementation simple and rule-based.
+Do not introduce statistical modelling.
+Do not create extra panels yet.
+
+8. Optional small styling:
+Use subtle neutral badges if easy, but plain text is acceptable.
+Do NOT introduce strong new colours unless they are already consistent
+with the panel style.
+
+9. Keep sorting behaviour unchanged for now unless adding sorting to the new
+column is trivial and local.
+If it is not trivial, do not add sorting in this step.
+
+10. CSV export must remain unchanged for now unless the export automatically
+includes all row fields.
+Do not refactor export logic just to add this field.
+
+File Scope
+
+Modify only:
+
+client/src/pages/Analysis.tsx
+
+Do NOT create new files.
+Do NOT refactor existing logic.
+Make the smallest possible patch.
+
+Behaviour Preservation
+
+The following must remain unchanged:
+
+- Core / Mid-zone / Peripheral classification
+- Dispersion display
+- summary counts
+- status filter
+- sorting by existing columns
+- example expansion
+- Recurring Co-Terms
+- Top Co-Term Pairings
+- Constellation Subclusters
+- Content Words toggle
+- All / Core-only toggle
+- row limits
+- CSV export behaviour
+- all other panels
+
+Acceptance Criteria
+
+1. The Core / Mid-zone / Peripheral table shows a new Temporal Behaviour column.
+
+2. Each row receives one of:
+   - Persistent
+   - Emergent
+   - Early-bound
+   - Transient
+
+3. Labels are computed only from existing slice metadata.
+
+4. No change occurs to quad extraction or classification logic.
+
+5. Existing filters, counts, and subcluster features still work.
+
+6. No regressions occur elsewhere in the app.
+
+Stop after implementing this step.

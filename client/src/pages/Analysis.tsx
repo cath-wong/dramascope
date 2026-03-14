@@ -701,17 +701,39 @@ const DiscursiveTab = () => {
     
     const sortedQuads = Array.from(quadStats.entries()).sort((a, b) => b[1].total - a[1].total);
     
+    // Compute temporal bounds
+    const slices = results.sortedSlices;
+    const firstThirdIdx = Math.floor(slices.length / 3);
+    const secondThirdIdx = Math.floor((2 * slices.length) / 3);
+    const firstThirdSlices = new Set(slices.slice(0, firstThirdIdx));
+    const finalThirdSlices = new Set(slices.slice(secondThirdIdx));
+    
     const corePeripheralRows = sortedQuads.map(([quadKey, stat]) => {
       const isCore = stat.total > 1 && stat.slices.size >= 2;
       const isPeripheral = stat.total === 1 && stat.slices.size === 1;
       const status = isCore ? "Core" : isPeripheral ? "Peripheral" : "Mid-zone";
+      
+      // Compute temporal behavior
+      let temporal_behaviour = "Transient";
+      const isEarly = finalThirdSlices.has(stat.first);
+      const isLate = firstThirdSlices.has(stat.last);
+      
+      if (stat.slices.size >= 3 && !isEarly && !isLate) {
+        temporal_behaviour = "Persistent";
+      } else if (isEarly && stat.slices.size >= 2) {
+        temporal_behaviour = "Emergent";
+      } else if (isLate && stat.slices.size >= 2) {
+        temporal_behaviour = "Early-bound";
+      }
+      
       return {
         quadKey,
         total_frequency: stat.total,
         slices_present: stat.slices.size,
         first_seen: stat.first,
         last_seen: stat.last,
-        status
+        status,
+        temporal_behaviour
       };
     });
     
@@ -1304,6 +1326,7 @@ const DiscursiveTab = () => {
                   <th className="p-2 text-center font-bold border-r cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("dispersion"); setCoreSortDir(coreSortBy === "dispersion" && coreSortDir === "desc" ? "asc" : "desc"); }}>Dispersion {coreSortBy === "dispersion" && (coreSortDir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-center font-bold border-r">First Seen</th>
                   <th className="p-2 text-center font-bold border-r">Last Seen</th>
+                  <th className="p-2 text-center font-bold border-r">Temporal Behaviour</th>
                   <th className="p-2 text-center font-bold cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("status"); setCoreSortDir(coreSortBy === "status" && coreSortDir === "asc" ? "desc" : "asc"); }}>Status {coreSortBy === "status" && (coreSortDir === "asc" ? "↑" : "↓")}</th>
                 </tr>
               </thead>
@@ -1347,6 +1370,7 @@ const DiscursiveTab = () => {
                       <td className="p-2 text-center border-r font-mono text-[9px]">{row.slices_present === 1 ? "1 slice" : `${row.slices_present} slices`}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
+                      <td className="p-2 text-center border-r text-[9px] text-muted-foreground">{row.temporal_behaviour}</td>
                       <td className="p-2 text-center space-x-1">
                         <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[8px]" onClick={() => setExpandedQuad(expandedQuad === row.quadKey ? null : row.quadKey)}>
                           {expandedQuad === row.quadKey ? "−" : "+"}
