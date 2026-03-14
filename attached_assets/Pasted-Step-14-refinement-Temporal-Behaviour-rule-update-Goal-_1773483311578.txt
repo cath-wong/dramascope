@@ -1,0 +1,94 @@
+Step 14 refinement — Temporal Behaviour rule update
+
+Goal
+Refine the Temporal Behaviour classification so that it uses both slice dispersion and temporal span, without changing quad extraction, aggregation, or any earlier analytical pipeline logic.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component.
+
+Locate the existing helper / mapping / useMemo section where the Temporal Behaviour label is currently assigned for the Core / Mid / Peripheral table.
+
+Implementation steps
+
+1. First identify the exact current location where Temporal Behaviour is assigned.
+   State:
+   - the nearest existing hook or helper name
+   - the surrounding derived data block
+   - where the patch will be inserted
+
+2. Compute the active corpus timeline dynamically from the existing speeches-derived slice data:
+   - corpusStart = minimum slice year
+   - corpusEnd = maximum slice year
+   - corpusSpan = corpusEnd - corpusStart
+
+3. For each quad, ensure the following derived values are available:
+   - firstSeen
+   - lastSeen
+   - slicesPresent
+   - spanYears = lastSeen - firstSeen
+   - relativeSpan = corpusSpan > 0 ? spanYears / corpusSpan : 0
+
+4. Replace only the current Temporal Behaviour labelling rule with a small helper function such as:
+   getTemporalBehaviour(...)
+
+5. Use this classification order:
+   - Persistent:
+     slicesPresent >= 3 AND relativeSpan >= 0.5
+   - Sparse persistent:
+     slicesPresent === 2 AND relativeSpan >= 0.4
+   - Early-bound:
+     firstSeen is in the first third of the active timeline
+     AND lastSeen is not in the final third
+     AND not already classified above
+   - Emergent:
+     lastSeen is in the final third of the active timeline
+     AND firstSeen is not in the first third
+     AND not already classified above
+   - Transient:
+     slicesPresent <= 2 AND relativeSpan < 0.25
+
+6. Preserve all existing table structure, badges, sorting, and filters unless label values need a minimal extension for display.
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- tokenisation
+- window definition
+- aggregation rules
+- core / mid / peripheral logic
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- existing hook order
+
+Do NOT rewrite Analysis.tsx.
+Do NOT regenerate the component.
+Do NOT refactor the file.
+
+Only patch the local Temporal Behaviour rule.
+
+Expected result
+
+The Temporal Behaviour column should:
+- stop over-labelling wide-span two-slice quads as Transient
+- classify long-gap two-slice quads as Sparse persistent
+- retain Persistent for widely distributed multi-slice quads
+- preserve existing app behaviour elsewhere
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- No hook order error appears
+- Existing tables and filters still work
+- Example case:
+  first_seen = 1597
+  last_seen = 1607
+  slices_present = 2
+  is no longer labelled Transient
+- Single-slice or narrow-span low-dispersion quads still appear as Transient
+- Multi-slice broad-span quads still appear as Persistent

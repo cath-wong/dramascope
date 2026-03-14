@@ -701,30 +701,59 @@ const DiscursiveTab = () => {
     
     const sortedQuads = Array.from(quadStats.entries()).sort((a, b) => b[1].total - a[1].total);
     
-    // Compute temporal bounds
+    // Compute corpus timeline bounds
     const slices = results.sortedSlices;
+    const sliceYears = slices.map(s => parseInt(s, 10)).filter(y => !isNaN(y));
+    const corpusStart = sliceYears.length > 0 ? Math.min(...sliceYears) : 0;
+    const corpusEnd = sliceYears.length > 0 ? Math.max(...sliceYears) : 0;
+    const corpusSpan = corpusEnd - corpusStart;
+    
+    // Compute timeline thirds for Early-bound and Emergent classification
     const firstThirdIdx = Math.floor(slices.length / 3);
     const secondThirdIdx = Math.floor((2 * slices.length) / 3);
     const firstThirdSlices = new Set(slices.slice(0, firstThirdIdx));
     const finalThirdSlices = new Set(slices.slice(secondThirdIdx));
     
+    // Helper function to classify temporal behavior
+    const getTemporalBehaviour = (firstSeen: string, lastSeen: string, slicesPresent: number): string => {
+      const firstYear = parseInt(firstSeen, 10);
+      const lastYear = parseInt(lastSeen, 10);
+      const spanYears = lastYear - firstYear;
+      const relativeSpan = corpusSpan > 0 ? spanYears / corpusSpan : 0;
+      
+      // Persistent: widely distributed over >= 50% of corpus
+      if (slicesPresent >= 3 && relativeSpan >= 0.5) {
+        return "Persistent";
+      }
+      
+      // Sparse persistent: two slices spanning >= 40% of corpus
+      if (slicesPresent === 2 && relativeSpan >= 0.4) {
+        return "Sparse persistent";
+      }
+      
+      // Early-bound: starts in first third, doesn't end in final third
+      if (firstThirdSlices.has(firstSeen) && !finalThirdSlices.has(lastSeen)) {
+        return "Early-bound";
+      }
+      
+      // Emergent: ends in final third, doesn't start in first third
+      if (finalThirdSlices.has(lastSeen) && !firstThirdSlices.has(firstSeen)) {
+        return "Emergent";
+      }
+      
+      // Transient: <= 2 slices and spans < 25% of corpus
+      if (slicesPresent <= 2 && relativeSpan < 0.25) {
+        return "Transient";
+      }
+      
+      return "Transient";
+    };
+    
     const corePeripheralRows = sortedQuads.map(([quadKey, stat]) => {
       const isCore = stat.total > 1 && stat.slices.size >= 2;
       const isPeripheral = stat.total === 1 && stat.slices.size === 1;
       const status = isCore ? "Core" : isPeripheral ? "Peripheral" : "Mid-zone";
-      
-      // Compute temporal behavior
-      let temporal_behaviour = "Transient";
-      const isEarly = finalThirdSlices.has(stat.first);
-      const isLate = firstThirdSlices.has(stat.last);
-      
-      if (stat.slices.size >= 3 && !isEarly && !isLate) {
-        temporal_behaviour = "Persistent";
-      } else if (isEarly && stat.slices.size >= 2) {
-        temporal_behaviour = "Emergent";
-      } else if (isLate && stat.slices.size >= 2) {
-        temporal_behaviour = "Early-bound";
-      }
+      const temporal_behaviour = getTemporalBehaviour(stat.first, stat.last, stat.slices.size);
       
       return {
         quadKey,
