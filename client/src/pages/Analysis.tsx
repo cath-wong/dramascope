@@ -707,12 +707,8 @@ const DiscursiveTab = () => {
     const corpusStart = sliceYears.length > 0 ? Math.min(...sliceYears) : 0;
     const corpusEnd = sliceYears.length > 0 ? Math.max(...sliceYears) : 0;
     const corpusSpan = corpusEnd - corpusStart;
-    
-    // Compute timeline thirds for Early-bound and Emergent classification
-    const firstThirdIdx = Math.floor(slices.length / 3);
-    const secondThirdIdx = Math.floor((2 * slices.length) / 3);
-    const firstThirdSlices = new Set(slices.slice(0, firstThirdIdx));
-    const finalThirdSlices = new Set(slices.slice(secondThirdIdx));
+    const earlyBoundary = corpusStart + corpusSpan / 3;
+    const lateBoundary = corpusStart + (2 * corpusSpan) / 3;
     
     // Helper function to classify temporal behavior
     const getTemporalBehaviour = (firstSeen: string, lastSeen: string, slicesPresent: number): string => {
@@ -721,29 +717,29 @@ const DiscursiveTab = () => {
       const spanYears = lastYear - firstYear;
       const relativeSpan = corpusSpan > 0 ? spanYears / corpusSpan : 0;
       
+      // Transient: 1 slice OR (<=2 slices spanning <25% of corpus)
+      if (slicesPresent === 1 || (slicesPresent <= 2 && relativeSpan < 0.25)) {
+        return "Transient";
+      }
+      
       // Persistent: widely distributed over >= 50% of corpus
       if (slicesPresent >= 3 && relativeSpan >= 0.5) {
         return "Persistent";
       }
       
-      // Sparse persistent: two slices spanning >= 40% of corpus
+      // Sporadic: two slices spanning >= 40% of corpus
       if (slicesPresent === 2 && relativeSpan >= 0.4) {
-        return "Sparse persistent";
+        return "Sporadic";
       }
       
-      // Early-bound: starts in first third, doesn't end in final third
-      if (firstThirdSlices.has(firstSeen) && !finalThirdSlices.has(lastSeen)) {
+      // Early-bound: multi-slice, starts early, doesn't extend to late period
+      if (slicesPresent >= 2 && firstYear <= earlyBoundary && lastYear < lateBoundary) {
         return "Early-bound";
       }
       
-      // Emergent: ends in final third, doesn't start in first third
-      if (finalThirdSlices.has(lastSeen) && !firstThirdSlices.has(firstSeen)) {
+      // Emergent: multi-slice, ends late, doesn't start early
+      if (slicesPresent >= 2 && lastYear >= lateBoundary && firstYear > earlyBoundary) {
         return "Emergent";
-      }
-      
-      // Transient: <= 2 slices and spans < 25% of corpus
-      if (slicesPresent <= 2 && relativeSpan < 0.25) {
-        return "Transient";
       }
       
       return "Transient";

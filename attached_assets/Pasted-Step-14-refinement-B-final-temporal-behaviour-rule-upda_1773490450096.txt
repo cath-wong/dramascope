@@ -1,0 +1,103 @@
+Step 14 refinement B — final temporal behaviour rule update
+
+Goal
+Refine the Temporal Behaviour classification so that it distinguishes sustained recurrence, scattered recurrence, early concentration, late concentration, and minimal temporal footprint, without changing quad extraction, aggregation, or the existing analytical pipeline.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component.
+
+Locate the existing helper / mapping / useMemo section where the Temporal Behaviour label is currently assigned for the Core / Mid / Peripheral table.
+
+Implementation steps
+
+1. First identify the exact current location where Temporal Behaviour is assigned.
+   State:
+   - the nearest existing hook or helper name
+   - the surrounding derived data block
+   - where the patch will be inserted
+
+2. Compute the active corpus timeline dynamically from the existing speeches-derived slice data:
+   - corpusStart = minimum slice year
+   - corpusEnd = maximum slice year
+   - corpusSpan = corpusEnd - corpusStart
+   - earlyBoundary = corpusStart + corpusSpan / 3
+   - lateBoundary = corpusStart + (2 * corpusSpan) / 3
+
+3. For each quad, ensure the following derived values are available:
+   - firstSeen
+   - lastSeen
+   - slicesPresent
+   - spanYears = lastSeen - firstSeen
+   - relativeSpan = corpusSpan > 0 ? spanYears / corpusSpan : 0
+
+4. Replace only the current Temporal Behaviour labelling rule with a small helper function such as:
+   getTemporalBehaviour(...)
+
+5. Use this classification order:
+   - Persistent:
+     slicesPresent >= 3 AND relativeSpan >= 0.5
+   - Sporadic:
+     slicesPresent === 2 AND relativeSpan >= 0.4
+   - Transient:
+     slicesPresent === 1
+     OR (slicesPresent <= 2 AND relativeSpan < 0.25)
+   - Early-bound:
+     slicesPresent >= 2
+     AND firstSeen <= earlyBoundary
+     AND lastSeen < lateBoundary
+     AND not already classified above
+   - Emergent:
+     slicesPresent >= 2
+     AND lastSeen >= lateBoundary
+     AND firstSeen > earlyBoundary
+     AND not already classified above
+
+6. Preserve all existing table structure, badges, sorting, and filters unless label values need a minimal update for display.
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- tokenisation
+- window definition
+- aggregation rules
+- core / mid / peripheral logic
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- existing hook order
+
+Do NOT rewrite Analysis.tsx.
+Do NOT regenerate the component.
+Do NOT refactor the file.
+
+Only patch the local Temporal Behaviour rule.
+
+Expected result
+
+The Temporal Behaviour column should:
+- classify all 1-slice quads as Transient
+- classify broad-gap 2-slice quads as Sporadic
+- retain Persistent for widely distributed multi-slice quads
+- reserve Early-bound for multi-slice early-concentrated cases
+- reserve Emergent for multi-slice late-concentrated cases
+- preserve existing app behaviour elsewhere
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- No hook order error appears
+- Existing tables and filters still work
+- Example case:
+  first_seen = 1597
+  last_seen = 1607
+  slices_present = 2
+  is labelled Sporadic, not Transient
+- Example case:
+  1591–1591, 1 slice
+  is labelled Transient, not Early-bound
+- Multi-slice broad-span quads still appear as Persistent
