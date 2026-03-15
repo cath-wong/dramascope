@@ -1,0 +1,86 @@
+Step 18 — Constellation Bridge Terms
+
+Goal
+Add a Bridge Terms panel that identifies co-terms appearing across multiple constellation subclusters. This feature must use the existing subcluster output and must not modify quad extraction, aggregation, or clustering logic.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component.
+
+Implementation steps
+
+1. Locate the existing derived data for constellation subclusters.
+
+2. Immediately after that stable useMemo, insert a new useMemo called:
+
+bridgeTermsData
+
+3. For each existing subcluster:
+   - identify the quads associated with that subcluster
+   - identify the co-terms appearing in those quads
+
+4. For each co-term, count:
+   - how many distinct subclusters it appears in
+   - how many distinct quads it appears in across those subclusters
+
+5. Define a bridge term as:
+   a co-term appearing in 2 or more distinct subclusters
+
+6. Create a sorted array of bridge terms with fields such as:
+   - term
+   - subclustersConnected
+   - quadsInvolved
+
+7. Render a new panel below the Constellation Subclusters panel:
+
+Title:
+Bridge Terms
+
+Columns:
+- Co-term
+- Subclusters Connected
+- Quads Involved
+
+8. Sort by:
+   - subclustersConnected descending
+   - then quadsInvolved descending
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- tokenisation
+- context window
+- aggregation
+- temporal behaviour logic
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- structural centrality
+- structural backbone
+- structural density
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+The previous manual styling fix must remain unchanged.
+
+Do NOT rewrite Analysis.tsx.
+Only add a new derived useMemo and a new panel.
+
+Expected result
+
+A new Bridge Terms panel appears below Constellation Subclusters, showing co-terms that connect 2 or more distinct subclusters.
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- existing panels remain unchanged
+- Constellation Subclusters output unchanged
+- Bridge Terms panel appears
+- terms shown in the panel connect 2 or more subclusters
+- Temporal Behaviour column styling remains unchanged
