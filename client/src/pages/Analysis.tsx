@@ -1436,7 +1436,7 @@ const DiscursiveTab = () => {
                       <td className="p-2 text-center border-r text-[9px]">{row.last_seen}</td>
                       <td className="p-2 text-center border-r text-[9px] text-muted-foreground">{row.temporal_behaviour}</td>
                       <td className="p-2 text-center border-r text-[9px] font-mono">{quadStructuralCentrality.get(row.quadKey) ?? 0}</td>
-                      <td className="p-2 text-center border-r text-[9px]">{quadStructuralBackbone.get(row.quadKey) ? <span className="bg-white border border-gray-400 text-gray-900 px-2 py-0.5 rounded font-medium text-[8px]">Yes</span> : <span className="text-gray-500">No</span>}</td>
+                      <td className="p-2 text-center border-r text-[9px]">{quadStructuralBackbone.get(row.quadKey) ? <span className="bg-gray-900 text-white px-2 py-0.5 rounded font-medium text-[8px]">Yes</span> : <span className="bg-gray-100 text-gray-900 px-2 py-0.5 rounded font-medium text-[8px]">No</span>}</td>
                       <td className="p-2 text-center space-x-1">
                         <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[8px]" onClick={() => setExpandedQuad(expandedQuad === row.quadKey ? null : row.quadKey)}>
                           {expandedQuad === row.quadKey ? "−" : "+"}
