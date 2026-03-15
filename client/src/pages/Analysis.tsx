@@ -928,52 +928,64 @@ const DiscursiveTab = () => {
     return quadCount > 0 ? totalStructuralLinks / quadCount : 0;
   }, [corePeripheralData, quadStructuralCentrality]);
 
-  const bridgeTermsData = useMemo(() => {
+  const bridgeQuadsData = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0 || coTermSubclusters.length === 0) return [];
     
-    // Map each subcluster to its constituent quads
-    const subclusterQuads = coTermSubclusters.map(cluster => {
-      const terms = new Set(cluster.terms);
-      const quadsInCluster: { quadKey: string; coTerms: Set<string> }[] = [];
-      corePeripheralData.forEach(quad => {
-        const parts = quad.quadKey.split("|");
-        if (parts.length >= 4) {
-          const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-          const coTerms = new Set([co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
-          if ([co1, co2, co3].some(t => terms.has(t))) {
-            quadsInCluster.push({ quadKey: quad.quadKey, coTerms });
-          }
-        }
+    // Build a map of term -> subcluster indices
+    const termToSubclusters = new Map<string, Set<number>>();
+    coTermSubclusters.forEach((cluster, idx) => {
+      cluster.terms.forEach(term => {
+        if (!termToSubclusters.has(term)) termToSubclusters.set(term, new Set());
+        termToSubclusters.get(term)!.add(idx);
       });
-      return { clusterTerms: cluster.terms, quads: quadsInCluster };
     });
     
-    // Count how many subclusters each term appears in
-    const bridgeTerms = new Map<string, { subclusters: Set<number>; quads: Set<string> }>();
-    subclusterQuads.forEach((cluster, clusterIdx) => {
-      cluster.clusterTerms.forEach(term => {
-        if (!bridgeTerms.has(term)) {
-          bridgeTerms.set(term, { subclusters: new Set(), quads: new Set() });
-        }
-        const entry = bridgeTerms.get(term)!;
-        entry.subclusters.add(clusterIdx);
-        cluster.quads.forEach(q => {
-          if (q.coTerms.has(term)) entry.quads.add(q.quadKey);
+    // For each quad, find which subclusters its co-terms touch
+    const bridgeQuads: Array<{ quadKey: string; subclustersTouched: number; coTermsBySubcluster: Map<number, string[]> }> = [];
+    corePeripheralData.forEach(quad => {
+      const parts = quad.quadKey.split("|");
+      if (parts.length >= 4) {
+        const node = parts[0], co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+        const subclustersTouched = new Set<number>();
+        const coTermsBySubcluster = new Map<number, Set<string>>();
+        
+        coTerms.forEach(term => {
+          const subclusters = termToSubclusters.get(term) || new Set();
+          subclusters.forEach(idx => {
+            subclustersTouched.add(idx);
+            if (!coTermsBySubcluster.has(idx)) coTermsBySubcluster.set(idx, new Set());
+            coTermsBySubcluster.get(idx)!.add(term);
+          });
         });
-      });
+        
+        if (subclustersTouched.size >= 2) {
+          const coTermDistribution = new Map<number, string[]>();
+          coTermsBySubcluster.forEach((terms, idx) => {
+            coTermDistribution.set(idx, Array.from(terms).sort());
+          });
+          bridgeQuads.push({
+            quadKey: quad.quadKey,
+            subclustersTouched: subclustersTouched.size,
+            coTermsBySubcluster: coTermDistribution
+          });
+        }
+      }
     });
     
-    // Filter for terms appearing in 2+ subclusters
-    const bridgeList = Array.from(bridgeTerms.entries())
-      .filter(([_, data]) => data.subclusters.size >= 2)
-      .map(([term, data]) => ({
-        term,
-        subclustersConnected: data.subclusters.size,
-        quadsInvolved: data.quads.size
-      }))
-      .sort((a, b) => b.subclustersConnected - a.subclustersConnected || b.quadsInvolved - a.quadsInvolved);
+    // Sort by subclustersTouched desc, then by quad frequency desc
+    const quadFreqMap = new Map<string, number>();
+    corePeripheralData.forEach(quad => {
+      quadFreqMap.set(quad.quadKey, quad.total_frequency);
+    });
     
-    return bridgeList;
+    bridgeQuads.sort((a, b) => {
+      const cmp = b.subclustersTouched - a.subclustersTouched;
+      if (cmp !== 0) return cmp;
+      return (quadFreqMap.get(b.quadKey) ?? 0) - (quadFreqMap.get(a.quadKey) ?? 0);
+    });
+    
+    return bridgeQuads;
   }, [corePeripheralData, coTermSubclusters, analysisWordMode]);
 
   const inventoryColumns = [
@@ -1384,30 +1396,38 @@ const DiscursiveTab = () => {
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b">
-          <CardTitle className="text-sm font-bold">Bridge Terms</CardTitle>
+          <CardTitle className="text-sm font-bold">Bridge Quads</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
-          {bridgeTermsData.length > 0 ? (
+          {bridgeQuadsData.length > 0 ? (
             <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-muted/20 border-b">
-                  <th className="p-2 text-left font-bold border-r">Co-term</th>
-                  <th className="p-2 text-center font-bold border-r">Subclusters Connected</th>
-                  <th className="p-2 text-center font-bold">Quads Involved</th>
+                  <th className="p-2 text-left font-bold border-r">Quad</th>
+                  <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
+                  <th className="p-2 text-left font-bold">Co-term Distribution</th>
                 </tr>
               </thead>
               <tbody>
-                {bridgeTermsData.map((row, idx) => (
+                {bridgeQuadsData.map((row, idx) => (
                   <tr key={idx} className="border-b hover:bg-muted/10">
-                    <td className="p-2 text-left font-mono">{row.term}</td>
-                    <td className="p-2 text-center border-r">{row.subclustersConnected}</td>
-                    <td className="p-2 text-center">{row.quadsInvolved}</td>
+                    <td className="p-2 text-left font-mono">{row.quadKey}</td>
+                    <td className="p-2 text-center border-r">{row.subclustersTouched}</td>
+                    <td className="p-2 text-left text-[9px]">
+                      {Array.from(row.coTermsBySubcluster.entries())
+                        .sort((a, b) => a[0] - b[0])
+                        .map(([clustIdx, terms]) => (
+                          <div key={clustIdx} className="text-muted-foreground">
+                            C{clustIdx + 1}: {terms.join(", ")}
+                          </div>
+                        ))}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <div className="p-4 text-[10px] text-muted-foreground italic">No bridge terms found.</div>
+            <div className="p-4 text-[10px] text-muted-foreground italic">No bridge quads found.</div>
           )}
         </CardContent>
       </Card>

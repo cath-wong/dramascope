@@ -1,0 +1,80 @@
+Step 18 refinement — replace Bridge Terms with Bridge Quads
+
+Goal
+Revise Step 18 because the current Bridge Terms definition is not methodologically valid under connected-component subclusters. A co-term cannot meaningfully belong to multiple subclusters in the current model, so the panel returns no results.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component.
+
+Implementation steps
+
+1. Keep the existing constellation subcluster logic unchanged.
+
+2. Remove or replace the current Bridge Terms derived data and panel.
+
+3. Add a new useMemo called:
+   bridgeQuadsData
+
+4. For each quad:
+   - inspect its co-terms
+   - determine which existing subclusters those co-terms belong to
+   - count how many distinct subclusters are represented in that quad
+
+5. Define a bridge quad as:
+   a quad whose co-terms map to 2 or more distinct subclusters
+
+6. Create a sorted array with fields such as:
+   - quadKey
+   - subclustersTouched
+   - coTermsBySubcluster
+
+7. Render a new panel below Constellation Subclusters:
+
+Title:
+Bridge Quads
+
+Columns:
+- Quad
+- Subclusters Touched
+- Co-term Distribution
+
+8. Sort by:
+   - subclustersTouched descending
+   - then frequency descending if available
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- structural centrality
+- structural backbone
+- structural density
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Only replace the local Step 18 derived logic and panel.
+
+Expected result
+
+The new panel identifies quads whose co-terms span multiple existing subclusters, providing a valid measure of cross-subcluster linkage.
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- existing panels remain unchanged
+- Constellation Subclusters output unchanged
+- Bridge Quads panel appears
+- at least some quads span 2 or more subclusters if such cases exist
+- Temporal Behaviour column styling remains unchanged
