@@ -951,7 +951,7 @@ const DiscursiveTab = () => {
     
     // Classify all quads by participation type
     const quadFreqMap = new Map<string, number>();
-    const participationList: Array<{ quadKey: string; participationType: string; subclustersTouched: number; unmappedCoTerms: number; frequency: number }> = [];
+    const participationList: Array<{ quadKey: string; participationType: string; subclustersTouched: number; unmappedCoTerms: number; mappedCoTerms: string[]; unmappedCoTermsList: string[]; frequency: number }> = [];
     
     corePeripheralData.forEach(quad => {
       const parts = quad.quadKey.split("|");
@@ -960,19 +960,21 @@ const DiscursiveTab = () => {
         const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
         
         const subclustersTouched = new Set<number>();
-        let unmappedCount = 0;
+        const mappedTerms: string[] = [];
+        const unmappedTerms: string[] = [];
         
         coTerms.forEach(term => {
           const subclusters = termToSubclusters.get(term);
           if (subclusters && subclusters.size > 0) {
             subclusters.forEach(idx => subclustersTouched.add(idx));
+            mappedTerms.push(term);
           } else {
-            unmappedCount += 1;
+            unmappedTerms.push(term);
           }
         });
         
         let participationType = "Intra-subcluster";
-        if (subclustersTouched.size === 1 && unmappedCount > 0) {
+        if (subclustersTouched.size === 1 && unmappedTerms.length > 0) {
           participationType = "Fringe";
         } else if (subclustersTouched.size >= 2) {
           participationType = "Cross-subcluster";
@@ -982,7 +984,9 @@ const DiscursiveTab = () => {
           quadKey: quad.quadKey,
           participationType,
           subclustersTouched: subclustersTouched.size,
-          unmappedCoTerms: unmappedCount,
+          unmappedCoTerms: unmappedTerms.length,
+          mappedCoTerms: mappedTerms.sort(),
+          unmappedCoTermsList: unmappedTerms.sort(),
           frequency: quad.total_frequency
         });
       }
@@ -1418,13 +1422,14 @@ const DiscursiveTab = () => {
                   <th className="p-2 text-left font-bold border-r">Quad</th>
                   <th className="p-2 text-center font-bold border-r">Participation Type</th>
                   <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
-                  <th className="p-2 text-center font-bold">Unmapped Co-terms</th>
+                  <th className="p-2 text-left font-bold border-r">Mapped Co-terms</th>
+                  <th className="p-2 text-left font-bold">Unmapped Co-terms</th>
                 </tr>
               </thead>
               <tbody>
                 {quadSubclusterParticipationData.map((row, idx) => (
                   <tr key={idx} className="border-b hover:bg-muted/10">
-                    <td className="p-2 text-left font-mono">{row.quadKey}</td>
+                    <td className="p-2 text-left font-mono text-[9px]">{row.quadKey}</td>
                     <td className="p-2 text-center border-r text-[9px]">
                       <span className={`px-2 py-0.5 rounded font-medium text-[8px] inline-block ${
                         row.participationType === "Cross-subcluster" ? "bg-purple-100 text-purple-800" :
@@ -1434,8 +1439,9 @@ const DiscursiveTab = () => {
                         {row.participationType}
                       </span>
                     </td>
-                    <td className="p-2 text-center border-r">{row.subclustersTouched}</td>
-                    <td className="p-2 text-center">{row.unmappedCoTerms}</td>
+                    <td className="p-2 text-center border-r text-[9px]">{row.subclustersTouched}</td>
+                    <td className="p-2 text-left border-r text-[9px] font-mono">{row.mappedCoTerms.join(", ") || "—"}</td>
+                    <td className="p-2 text-left text-[9px] font-mono">{row.unmappedCoTermsList.join(", ") || "—"}</td>
                   </tr>
                 ))}
               </tbody>

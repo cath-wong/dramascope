@@ -1,0 +1,71 @@
+Step 18C — improve Quad Subcluster Participation table content
+
+Goal
+Improve the interpretability of the Quad Subcluster Participation panel by showing which co-terms are mapped to subclusters and which are unmapped. This is a content refinement, not a methodological change.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component, in the existing Quad Subcluster Participation derived data and panel.
+
+Implementation steps
+
+1. Locate the existing useMemo:
+   quadSubclusterParticipationData
+
+2. Keep the current participation classification unchanged:
+   - Cross-subcluster
+   - Fringe
+   - Intra-subcluster
+
+3. Extend the derived data so that, for each quad, it also stores:
+   - mappedCoTerms: co-terms assigned to at least one subcluster
+   - unmappedCoTermsList: co-terms not assigned to any subcluster
+
+4. Keep the existing numeric columns:
+   - Subclusters Touched
+   - Unmapped Co-terms (count)
+
+5. Add two new table columns:
+   - Mapped Co-terms
+   - Unmapped Co-terms (terms)
+
+6. Render the term lists in a compact comma-separated format.
+
+7. Preserve existing sorting and existing classification logic.
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- structural centrality
+- structural backbone
+- structural density
+- participation type logic
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Only extend the current Step 18 panel data and columns.
+
+Expected result
+
+The Quad Subcluster Participation table becomes more interpretable by showing which co-terms are structurally mapped and which remain outside the subcluster structure.
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- participation type values unchanged
+- Subclusters Touched values unchanged
+- new columns appear
+- rows now show mapped and unmapped co-terms clearly
+- Temporal Behaviour column styling remains unchanged
