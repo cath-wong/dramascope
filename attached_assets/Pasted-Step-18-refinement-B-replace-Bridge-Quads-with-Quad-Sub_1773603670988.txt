@@ -1,0 +1,91 @@
+Step 18 refinement B — replace Bridge Quads with Quad Subcluster Participation
+
+Goal
+Revise Step 18 so that, instead of showing only rare bridge quads, the panel classifies all quads by how their co-terms relate to existing constellation subclusters. This must use the current subcluster output and must not modify quad extraction, aggregation, or subcluster logic.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component.
+
+Implementation steps
+
+1. Keep the existing constellation subcluster logic unchanged.
+
+2. Remove or replace the current Bridge Quads derived data and panel.
+
+3. Add a new useMemo called:
+   quadSubclusterParticipationData
+
+4. For each quad:
+   - inspect its co-terms
+   - determine which existing subclusters those co-terms belong to
+   - count how many distinct subclusters are represented
+   - count how many co-terms are not assigned to any subcluster
+
+5. Classify each quad into one of these participation types:
+
+   - Intra-subcluster:
+     mapped co-terms belong to exactly 1 subcluster and there are no cross-subcluster mappings
+
+   - Fringe:
+     quad touches exactly 1 subcluster but also contains 1 or more unmapped co-terms
+
+   - Cross-subcluster:
+     co-terms map to 2 or more distinct subclusters
+
+6. Create a sorted array with fields such as:
+   - quadKey
+   - participationType
+   - subclustersTouched
+   - unmappedCoTerms
+
+7. Render a new panel below Constellation Subclusters:
+
+Title:
+Quad Subcluster Participation
+
+Columns:
+- Quad
+- Participation Type
+- Subclusters Touched
+- Unmapped Co-terms
+
+8. Sort by:
+   - participationType with Cross-subcluster first, then Fringe, then Intra-subcluster
+   - then frequency descending if available
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- recurring co-terms
+- co-term pairings
+- constellation subclusters
+- structural centrality
+- structural backbone
+- structural density
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Only replace the local Step 18 derived logic and panel.
+
+Expected result
+
+The new panel classifies quads by whether they sit within a single subcluster, on the fringe of a subcluster, or across multiple subclusters.
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- existing panels remain unchanged
+- Constellation Subclusters output unchanged
+- Quad Subcluster Participation panel appears
+- the panel shows rows even if no Cross-subcluster quads exist
+- Temporal Behaviour column styling remains unchanged

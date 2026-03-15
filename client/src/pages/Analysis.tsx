@@ -928,8 +928,17 @@ const DiscursiveTab = () => {
     return quadCount > 0 ? totalStructuralLinks / quadCount : 0;
   }, [corePeripheralData, quadStructuralCentrality]);
 
-  const bridgeQuadsData = useMemo(() => {
-    if (!corePeripheralData || corePeripheralData.length === 0 || coTermSubclusters.length === 0) return [];
+  const quadSubclusterParticipationData = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return [];
+    if (coTermSubclusters.length === 0) {
+      return corePeripheralData.map(quad => ({
+        quadKey: quad.quadKey,
+        participationType: "Unclassified",
+        subclustersTouched: 0,
+        unmappedCoTerms: 0,
+        frequency: quad.total_frequency
+      }));
+    }
     
     // Build a map of term -> subcluster indices
     const termToSubclusters = new Map<string, Set<number>>();
@@ -940,52 +949,55 @@ const DiscursiveTab = () => {
       });
     });
     
-    // For each quad, find which subclusters its co-terms touch
-    const bridgeQuads: Array<{ quadKey: string; subclustersTouched: number; coTermsBySubcluster: Map<number, string[]> }> = [];
+    // Classify all quads by participation type
+    const quadFreqMap = new Map<string, number>();
+    const participationList: Array<{ quadKey: string; participationType: string; subclustersTouched: number; unmappedCoTerms: number; frequency: number }> = [];
+    
     corePeripheralData.forEach(quad => {
       const parts = quad.quadKey.split("|");
       if (parts.length >= 4) {
-        const node = parts[0], co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
         const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+        
         const subclustersTouched = new Set<number>();
-        const coTermsBySubcluster = new Map<number, Set<string>>();
+        let unmappedCount = 0;
         
         coTerms.forEach(term => {
-          const subclusters = termToSubclusters.get(term) || new Set();
-          subclusters.forEach(idx => {
-            subclustersTouched.add(idx);
-            if (!coTermsBySubcluster.has(idx)) coTermsBySubcluster.set(idx, new Set());
-            coTermsBySubcluster.get(idx)!.add(term);
-          });
+          const subclusters = termToSubclusters.get(term);
+          if (subclusters && subclusters.size > 0) {
+            subclusters.forEach(idx => subclustersTouched.add(idx));
+          } else {
+            unmappedCount += 1;
+          }
         });
         
-        if (subclustersTouched.size >= 2) {
-          const coTermDistribution = new Map<number, string[]>();
-          coTermsBySubcluster.forEach((terms, idx) => {
-            coTermDistribution.set(idx, Array.from(terms).sort());
-          });
-          bridgeQuads.push({
-            quadKey: quad.quadKey,
-            subclustersTouched: subclustersTouched.size,
-            coTermsBySubcluster: coTermDistribution
-          });
+        let participationType = "Intra-subcluster";
+        if (subclustersTouched.size === 1 && unmappedCount > 0) {
+          participationType = "Fringe";
+        } else if (subclustersTouched.size >= 2) {
+          participationType = "Cross-subcluster";
         }
+        
+        participationList.push({
+          quadKey: quad.quadKey,
+          participationType,
+          subclustersTouched: subclustersTouched.size,
+          unmappedCoTerms: unmappedCount,
+          frequency: quad.total_frequency
+        });
       }
     });
     
-    // Sort by subclustersTouched desc, then by quad frequency desc
-    const quadFreqMap = new Map<string, number>();
-    corePeripheralData.forEach(quad => {
-      quadFreqMap.set(quad.quadKey, quad.total_frequency);
+    // Sort: Cross-subcluster, Fringe, Intra-subcluster; then by frequency desc
+    const typeOrder = { "Cross-subcluster": 0, "Fringe": 1, "Intra-subcluster": 2, "Unclassified": 3 };
+    participationList.sort((a, b) => {
+      const typeA = typeOrder[a.participationType as keyof typeof typeOrder] ?? 999;
+      const typeB = typeOrder[b.participationType as keyof typeof typeOrder] ?? 999;
+      if (typeA !== typeB) return typeA - typeB;
+      return b.frequency - a.frequency;
     });
     
-    bridgeQuads.sort((a, b) => {
-      const cmp = b.subclustersTouched - a.subclustersTouched;
-      if (cmp !== 0) return cmp;
-      return (quadFreqMap.get(b.quadKey) ?? 0) - (quadFreqMap.get(a.quadKey) ?? 0);
-    });
-    
-    return bridgeQuads;
+    return participationList;
   }, [corePeripheralData, coTermSubclusters, analysisWordMode]);
 
   const inventoryColumns = [
@@ -1396,38 +1408,40 @@ const DiscursiveTab = () => {
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b">
-          <CardTitle className="text-sm font-bold">Bridge Quads</CardTitle>
+          <CardTitle className="text-sm font-bold">Quad Subcluster Participation</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
-          {bridgeQuadsData.length > 0 ? (
+          {quadSubclusterParticipationData.length > 0 ? (
             <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-muted/20 border-b">
                   <th className="p-2 text-left font-bold border-r">Quad</th>
+                  <th className="p-2 text-center font-bold border-r">Participation Type</th>
                   <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
-                  <th className="p-2 text-left font-bold">Co-term Distribution</th>
+                  <th className="p-2 text-center font-bold">Unmapped Co-terms</th>
                 </tr>
               </thead>
               <tbody>
-                {bridgeQuadsData.map((row, idx) => (
+                {quadSubclusterParticipationData.map((row, idx) => (
                   <tr key={idx} className="border-b hover:bg-muted/10">
                     <td className="p-2 text-left font-mono">{row.quadKey}</td>
-                    <td className="p-2 text-center border-r">{row.subclustersTouched}</td>
-                    <td className="p-2 text-left text-[9px]">
-                      {Array.from(row.coTermsBySubcluster.entries())
-                        .sort((a, b) => a[0] - b[0])
-                        .map(([clustIdx, terms]) => (
-                          <div key={clustIdx} className="text-muted-foreground">
-                            C{clustIdx + 1}: {terms.join(", ")}
-                          </div>
-                        ))}
+                    <td className="p-2 text-center border-r text-[9px]">
+                      <span className={`px-2 py-0.5 rounded font-medium text-[8px] inline-block ${
+                        row.participationType === "Cross-subcluster" ? "bg-purple-100 text-purple-800" :
+                        row.participationType === "Fringe" ? "bg-blue-100 text-blue-800" :
+                        "bg-gray-100 text-gray-700"
+                      }`}>
+                        {row.participationType}
+                      </span>
                     </td>
+                    <td className="p-2 text-center border-r">{row.subclustersTouched}</td>
+                    <td className="p-2 text-center">{row.unmappedCoTerms}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <div className="p-4 text-[10px] text-muted-foreground italic">No bridge quads found.</div>
+            <div className="p-4 text-[10px] text-muted-foreground italic">No participation data available.</div>
           )}
         </CardContent>
       </Card>
