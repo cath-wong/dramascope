@@ -921,6 +921,13 @@ const DiscursiveTab = () => {
     return backboneMap;
   }, [corePeripheralData, quadStructuralCentrality]);
 
+  const constellationStructuralDensity = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0) return 0;
+    const totalStructuralLinks = Array.from(quadStructuralCentrality.values()).reduce((a, b) => a + b, 0);
+    const quadCount = corePeripheralData.length;
+    return quadCount > 0 ? totalStructuralLinks / quadCount : 0;
+  }, [corePeripheralData, quadStructuralCentrality]);
+
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
     { key: "co1", label: "Co-1 (L1)" },
@@ -1357,6 +1364,12 @@ const DiscursiveTab = () => {
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
           {corePeripheralData && corePeripheralData.length > 0 ? (
             <>
+              <div className="px-4 py-3 border-b bg-blue-50/30 text-[10px]">
+                <div className="space-y-1">
+                  <span className="font-bold text-muted-foreground uppercase tracking-tight text-[9px]">Constellation Structural Density</span>
+                  <p className="text-sm font-bold text-blue-900">{constellationStructuralDensity.toFixed(2)}</p>
+                </div>
+              </div>
               <div className="px-4 py-3 flex gap-6 border-b bg-muted/5 flex-wrap text-[10px]">
                 {(() => {
                   const coreCnt = corePeripheralData.filter(q => q.status === "Core").length;
