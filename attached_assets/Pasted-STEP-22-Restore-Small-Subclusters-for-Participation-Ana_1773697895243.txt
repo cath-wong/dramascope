@@ -1,0 +1,127 @@
+STEP 22 — Restore Small Subclusters for Participation Analysis
+
+Goal
+
+Make the Quad Subcluster Participation panel meaningful again in Content Words mode by allowing 2-term subclusters to count for participation analysis.
+
+This step must preserve the existing quad method, stoplist behaviour, Sankey behaviour, and all previous manual edits.
+
+IMPORTANT
+
+Do NOT modify, revert, overwrite, or refactor any manually edited code.
+Do NOT change the current quad extraction method.
+Do NOT alter stoplists, Sankey logic, or clustering thresholds based on edge weight.
+Do NOT change the existing threshold of pair count >= 3 for building the co-term graph.
+
+This step only changes how small connected components are treated after the graph has already been built.
+
+
+Where to implement
+
+Primary file:
+- client/src/pages/Analysis.tsx
+
+Focus area:
+- coTermSubclusters
+- clusterAnchorsData
+- quadSubclusterParticipationData
+- any display rule currently requiring subclusters to have 3+ terms
+
+
+Implementation Steps
+
+1. Locate the logic in Analysis.tsx where subclusters are generated from the co-term graph.
+
+2. Preserve the existing graph construction logic exactly as it is:
+   - keep pair threshold >= 3
+   - keep DFS / connected component logic
+   - keep current sorting
+
+3. Change the treatment of connected components so that:
+   - 2-term connected components are retained as valid subclusters for participation analysis
+   - 3+ term subclusters may still remain the default emphasis for display if needed
+
+4. Specifically ensure that quadSubclusterParticipationData uses all valid subclusters of size >= 2, not only those of size >= 3.
+
+5. Ensure that clusterAnchorsData also has access to subclusters of size >= 2 if that data is needed for participation mapping.
+
+6. If the Constellation Subclusters display panel currently hides clusters smaller than 3 terms, keep that display rule for now unless it blocks the participation logic.
+   In other words:
+   - modelling / participation logic should use size >= 2
+   - visible subcluster panel may still prefer size >= 3 for readability
+
+7. Do NOT redesign the UI.
+   Do NOT add new controls in this step.
+
+8. Keep all existing ordering and labels unchanged.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- refactor the Discursive tab broadly
+- modify quad extraction
+- modify processTokens()
+- modify stoplists
+- modify Sankey logic
+- alter pair threshold >= 3
+- alter hook ordering
+- rename variables unnecessarily
+- revert any manual edits already made by the user
+
+Only make minimal targeted edits required to let 2-term subclusters count in participation analysis.
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only the lines necessary to:
+- preserve 2-term connected components for participation mapping
+- keep existing display behaviour stable
+
+Do NOT regenerate large sections of the file.
+Do NOT restructure unrelated logic.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- Sankey visualisation
+- Recurring Co-Terms
+- Co-Term Pairings
+- Temporal Flow
+- Core vs Peripheral table
+- similarity matrix
+- constellation clustering panels
+- overall Discursive tab layout
+
+Only restore meaningful participation classification by allowing small subclusters to count.
+
+
+Expected Result
+
+After implementation:
+
+1. In Content Words mode, 2-term subclusters can contribute to participation classification.
+2. The Quad Subcluster Participation panel should no longer collapse into Fringe-only results when meaningful 2-term lexical clusters exist.
+3. Intra-subcluster and Cross-subcluster rows may reappear where justified by the data.
+4. The visible Constellation Subclusters panel may still remain selective and readable.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Existing manual edits remain intact.
+3. Pair threshold >= 3 is unchanged.
+4. Sankey behaviour is unchanged.
+5. Content-word mode now allows 2-term subclusters to count for participation logic.
+6. Quad Subcluster Participation is no longer Fringe-only if 2-term subclusters exist.
+7. No unrelated panels change behaviour.
+
+STOP AFTER STEP 22

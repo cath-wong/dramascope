@@ -980,8 +980,10 @@ const DiscursiveTab = () => {
     }
     
     // Build a map of term -> subcluster indices
+    // Use >= 2 term subclusters for participation mapping (keeps display panel at >= 3 separately)
+    const validSubclusters = coTermSubclusters.filter(c => c.terms.length >= 2);
     const termToSubclusters = new Map<string, Set<number>>();
-    coTermSubclusters.forEach((cluster, idx) => {
+    validSubclusters.forEach((cluster, idx) => {
       cluster.terms.forEach(term => {
         if (!termToSubclusters.has(term)) termToSubclusters.set(term, new Set());
         termToSubclusters.get(term)!.add(idx);
