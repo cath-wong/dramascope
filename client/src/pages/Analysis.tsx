@@ -787,7 +787,7 @@ const DiscursiveTab = () => {
     const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
     const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
     return sorted.slice(0, limit);
-  }, [corePeripheralData, coTermFilter, coTermLimit, analysisWordMode]);
+  }, [corePeripheralData, coTermFilter, coTermLimit, analysisWordMode, nodeLemma]);
 
   const coTermPairs = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -796,27 +796,18 @@ const DiscursiveTab = () => {
     filtered.forEach(row => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
-        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        const shouldIncludeCo1 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co1);
-        const shouldIncludeCo2 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co2);
-        const shouldIncludeCo3 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co3);
-        if (shouldIncludeCo1 && shouldIncludeCo2) {
-          const pair12 = [co1, co2].sort().join("|");
-          pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
-        }
-        if (shouldIncludeCo1 && shouldIncludeCo3) {
-          const pair13 = [co1, co3].sort().join("|");
-          pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
-        }
-        if (shouldIncludeCo2 && shouldIncludeCo3) {
-          const pair23 = [co2, co3].sort().join("|");
-          pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+        for (let i = 0; i < filteredCoTerms.length; i++) {
+          for (let j = i + 1; j < filteredCoTerms.length; j++) {
+            const pair = [filteredCoTerms[i], filteredCoTerms[j]].sort().join("|");
+            pairMap.set(pair, (pairMap.get(pair) || 0) + 1);
+          }
         }
       }
     });
     const sorted = Array.from(pairMap.entries()).sort((a, b) => b[1] - a[1]);
     return sorted.slice(0, 15);
-  }, [corePeripheralData, coTermFilter, analysisWordMode]);
+  }, [corePeripheralData, coTermFilter, analysisWordMode, nodeLemma]);
 
   const coTermSubclusters = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -827,21 +818,12 @@ const DiscursiveTab = () => {
     filtered.forEach(row => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
-        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        const shouldIncludeCo1 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co1);
-        const shouldIncludeCo2 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co2);
-        const shouldIncludeCo3 = analysisWordMode === "all" || !FUNCTION_WORDS.has(co3);
-        if (shouldIncludeCo1 && shouldIncludeCo2) {
-          const pair12 = [co1, co2].sort().join("|");
-          pairMap.set(pair12, (pairMap.get(pair12) || 0) + 1);
-        }
-        if (shouldIncludeCo1 && shouldIncludeCo3) {
-          const pair13 = [co1, co3].sort().join("|");
-          pairMap.set(pair13, (pairMap.get(pair13) || 0) + 1);
-        }
-        if (shouldIncludeCo2 && shouldIncludeCo3) {
-          const pair23 = [co2, co3].sort().join("|");
-          pairMap.set(pair23, (pairMap.get(pair23) || 0) + 1);
+        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+        for (let i = 0; i < filteredCoTerms.length; i++) {
+          for (let j = i + 1; j < filteredCoTerms.length; j++) {
+            const pair = [filteredCoTerms[i], filteredCoTerms[j]].sort().join("|");
+            pairMap.set(pair, (pairMap.get(pair) || 0) + 1);
+          }
         }
       }
     });
@@ -892,7 +874,7 @@ const DiscursiveTab = () => {
     
     clusters.sort((a, b) => b.terms.length - a.terms.length || b.edges - a.edges);
     return clusters;
-  }, [corePeripheralData, coTermFilter, analysisWordMode]);
+  }, [corePeripheralData, coTermFilter, analysisWordMode, nodeLemma]);
 
   const clusterAnchorsData = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0 || coTermSubclusters.length === 0) return [];
@@ -909,8 +891,7 @@ const DiscursiveTab = () => {
       filtered.forEach(quad => {
         const parts = quad.quadKey.split("|");
         if (parts.length >= 4) {
-          const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-          const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+          const coTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
           
           let hasClusterTerm = false;
           coTerms.forEach(term => {
@@ -937,7 +918,7 @@ const DiscursiveTab = () => {
         termCount: cluster.terms.length
       };
     });
-  }, [corePeripheralData, coTermSubclusters, coTermFilter, analysisWordMode]);
+  }, [corePeripheralData, coTermSubclusters, coTermFilter, analysisWordMode, nodeLemma]);
 
   const quadStructuralCentrality = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return new Map<string, number>();
@@ -945,15 +926,15 @@ const DiscursiveTab = () => {
     corePeripheralData.forEach((quad, idx) => {
       const parts = quad.quadKey.split("|");
       if (parts.length >= 4) {
-        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+        const coTerms = parts.filter(t => t !== nodeLemma);
+        const sharedTerms = new Set(coTerms);
         let linkCount = 0;
         corePeripheralData.forEach((other, otherIdx) => {
           if (idx === otherIdx) return;
           const otherParts = other.quadKey.split("|");
           if (otherParts.length >= 4) {
-            const otherCo1 = otherParts[1], otherCo2 = otherParts[2], otherCo3 = otherParts[3];
-            const sharedTerms = new Set([co1, co2, co3]);
-            if (sharedTerms.has(otherCo1) || sharedTerms.has(otherCo2) || sharedTerms.has(otherCo3)) {
+            const otherCoTerms = otherParts.filter(t => t !== nodeLemma);
+            if (otherCoTerms.some(t => sharedTerms.has(t))) {
               linkCount += 1;
             }
           }
@@ -962,7 +943,7 @@ const DiscursiveTab = () => {
       }
     });
     return centralityMap;
-  }, [corePeripheralData]);
+  }, [corePeripheralData, nodeLemma]);
 
   const quadStructuralBackbone = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return new Map<string, boolean>();
@@ -1011,8 +992,7 @@ const DiscursiveTab = () => {
     corePeripheralData.forEach(quad => {
       const parts = quad.quadKey.split("|");
       if (parts.length >= 4) {
-        const co1 = parts[1], co2 = parts[2], co3 = parts[3];
-        const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+        const coTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
         
         const subclustersTouched = new Set<number>();
         const mappedTerms: string[] = [];
@@ -1057,7 +1037,7 @@ const DiscursiveTab = () => {
     });
     
     return participationList;
-  }, [corePeripheralData, coTermSubclusters, analysisWordMode]);
+  }, [corePeripheralData, coTermSubclusters, analysisWordMode, nodeLemma]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
