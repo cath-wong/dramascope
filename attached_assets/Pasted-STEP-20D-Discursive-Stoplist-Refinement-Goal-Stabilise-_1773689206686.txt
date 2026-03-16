@@ -1,0 +1,168 @@
+STEP 20D — Discursive Stoplist Refinement
+
+Goal
+
+Stabilise constellation subclusters by filtering high-frequency discourse markers and stage-direction artefacts that behave as graph hubs and distort conceptual clustering.
+
+This task continues Step 20 development and must NOT modify or revert previously implemented steps (Step 20A and Step 20C).
+
+Only a minimal edit to the stoplist is required.
+
+
+Where to implement
+
+client/src/utils/discursiveFilter.ts
+
+Only modify the FUNCTION_WORDS constant.
+
+
+Implementation Steps
+
+1. Locate the FUNCTION_WORDS set in:
+
+   client/src/utils/discursiveFilter.ts
+
+
+2. Extend the set with the following discourse and artefact tokens:
+
+sir
+madam
+well
+nay
+yea
+ay
+
+enter
+exit
+exeunt
+aside
+within
+stage
+scene
+act
+
+tis
+thi
+ll
+d
+
+good
+
+
+3. Do NOT remove any existing entries in FUNCTION_WORDS.
+
+4. Do NOT modify:
+
+   - processTokens()
+   - quad extraction logic
+   - constellation clustering
+   - tokenisation
+   - lemmatisation
+
+5. Ensure the additions are simple string entries within the existing Set.
+
+6. Maintain alphabetical consistency if convenient, but do not restructure the file.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx
+- rewrite discursiveFilter.ts entirely
+- refactor any existing modules
+- modify quad extraction logic
+- modify tokenisation or lemmatisation
+- alter clustering thresholds
+- rename variables
+- change hook ordering
+- modify UI components
+- alter Sankey logic
+- alter constellation clustering algorithms
+
+Only extend the FUNCTION_WORDS set.
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only the lines inside the FUNCTION_WORDS Set where the new tokens are added.
+
+Do NOT restructure the file or rewrite surrounding code.
+
+Do NOT regenerate the entire file.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- any tables
+- any charts
+- Sankey visualisation
+- quad participation panels
+- constellation clustering panels
+- UI layout or components
+
+
+Expected Result
+
+When the Discursive tab runs in:
+
+Content Words Only mode
+
+the following tokens should no longer appear in:
+
+- Recurring Co-Terms
+- Co-Term Pairings
+- Constellation Subclusters
+
+Tokens filtered:
+
+good
+sir
+madam
+well
+nay
+yea
+ay
+enter
+exit
+exeunt
+aside
+within
+stage
+scene
+act
+tis
+thi
+ll
+d
+
+
+Conceptual tokens such as:
+
+king
+lord
+duke
+love
+god
+
+must remain available for discursive modelling.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Lexical tab still displays "good".
+3. Discursive tab filters the new tokens in Content Words Only mode.
+4. Quad generation still functions normally.
+5. Constellation clusters become smaller and more interpretable.
+6. No UI behaviour changes occur.
+7. Step 20A and Step 20C behaviour remains unchanged.
+
+
+STOP AFTER STEP 20D

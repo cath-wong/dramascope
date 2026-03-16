@@ -10,7 +10,11 @@ export const FUNCTION_WORDS = new Set([
   "shall","will","would","should","may","might","must","can","could",
   "to","of","in","on","at","by","for","from","with","about","into","onto","out","over","under","between","among","through","during",
   "so","as","such","not","no","nor","neither","both","very","too","more","less","most","least",
-  "all","each","every","any","some","few","many","much","one","two","three"
+  "all","each","every","any","some","few","many","much","one","two","three",
+  "sir","madam","well","nay","yea","ay",
+  "enter","exit","exeunt","aside","within","stage","scene","act",
+  "tis","thi","ll","d",
+  "good"
 ]);
 
 export function isContentWord(token: string): boolean {
