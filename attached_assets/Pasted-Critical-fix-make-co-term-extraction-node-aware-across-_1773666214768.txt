@@ -1,0 +1,79 @@
+Critical fix — make co-term extraction node-aware across derived analyses
+
+Goal
+Fix the derived constellation analyses so that the current node lemma is never treated as a co-term. The current outputs suggest that the node (e.g. "lord") is leaking into recurring co-terms, co-term pairings, and the subcluster graph, which distorts the results.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component, in the derived logic that currently extracts co-terms from quadKey.
+
+Implementation steps
+
+1. Identify all derived analyses that currently assume co-terms are in fixed positions of quadKey, such as:
+   - recurring co-terms
+   - co-term pairings
+   - constellation subclusters
+   - cluster anchors
+   - quad subcluster participation
+
+2. Do NOT assume:
+   parts[1], parts[2], parts[3]
+   are always the co-terms.
+
+3. Replace this with node-aware extraction:
+   - split quadKey into its four terms
+   - remove the current selected node lemma
+   - treat the remaining three terms as the co-terms
+
+4. Use this node-aware co-term extraction consistently across all derived constellation analyses listed above.
+
+5. Preserve all existing analytical logic otherwise:
+   - pair counting
+   - thresholds
+   - connected components
+   - anchor scoring
+   - participation classification
+
+6. Add a temporary validation check if helpful:
+   confirm that the current node lemma no longer appears in:
+   - Recurring Co-Terms
+   - Top Co-Term Pairings
+   - Constellation Subclusters
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- temporal behaviour logic
+- structural centrality
+- structural backbone
+- structural density
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Only patch the local co-term extraction logic in the relevant derived analyses.
+
+Expected result
+
+For a node such as "lord":
+- "lord" no longer appears in Recurring Co-Terms
+- "lord" no longer appears in Top Co-Term Pairings
+- subclusters become less artificially glued together
+- participation results become more meaningful
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- current node lemma is excluded from all co-term-based panels
+- recurring co-terms no longer include the node
+- top co-term pairings no longer include the node
+- subclusters become more segmented and interpretable
+- Temporal Behaviour column styling remains unchanged
