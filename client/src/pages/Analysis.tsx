@@ -884,6 +884,51 @@ const DiscursiveTab = () => {
     return clusters;
   }, [corePeripheralData, coTermFilter, analysisWordMode]);
 
+  const clusterAnchorsData = useMemo(() => {
+    if (!corePeripheralData || corePeripheralData.length === 0 || coTermSubclusters.length === 0) return [];
+    
+    const filtered = coTermFilter === "Core" ? corePeripheralData.filter(q => q.status === "Core") : corePeripheralData;
+    const displayedClusters = coTermSubclusters.filter(cluster => cluster.terms.length >= 3);
+    
+    return displayedClusters.map(cluster => {
+      const clusterTermsSet = new Set(cluster.terms);
+      const anchorScores = new Map<string, number>();
+      const quadsInCluster = new Set<string>();
+      
+      // Count quads and anchor scores
+      filtered.forEach(quad => {
+        const parts = quad.quadKey.split("|");
+        if (parts.length >= 4) {
+          const co1 = parts[1], co2 = parts[2], co3 = parts[3];
+          const coTerms = [co1, co2, co3].filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+          
+          let hasClusterTerm = false;
+          coTerms.forEach(term => {
+            if (clusterTermsSet.has(term)) {
+              hasClusterTerm = true;
+              anchorScores.set(term, (anchorScores.get(term) || 0) + 1);
+            }
+          });
+          if (hasClusterTerm) quadsInCluster.add(quad.quadKey);
+        }
+      });
+      
+      // Get top 5 anchor terms
+      const topAnchors = Array.from(anchorScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([term, score]) => ({ term, score }));
+      
+      return {
+        terms: cluster.terms,
+        edges: cluster.edges,
+        topAnchors,
+        quadCount: quadsInCluster.size,
+        termCount: cluster.terms.length
+      };
+    });
+  }, [corePeripheralData, coTermSubclusters, coTermFilter, analysisWordMode]);
+
   const quadStructuralCentrality = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return new Map<string, number>();
     const centralityMap = new Map<string, number>();
@@ -1394,16 +1439,20 @@ const DiscursiveTab = () => {
           <CardTitle className="text-sm font-bold">Constellation Subclusters</CardTitle>
         </CardHeader>
         <CardContent className="p-4">
-          {coTermSubclusters.length > 0 ? (
+          {clusterAnchorsData.length > 0 ? (
             <div className="space-y-3">
-              {coTermSubclusters.filter(cluster => cluster.terms.length >= 3).map((cluster, displayIdx) => (
+              {clusterAnchorsData.map((cluster, displayIdx) => (
                 <div key={displayIdx} className="border-b border-muted/30 pb-2 last:border-b-0">
                   <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {displayIdx + 1}</div>
                   <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
-                  <div className="text-[9px] text-muted-foreground">{cluster.terms.length} terms · {cluster.edges} links</div>
+                  <div className="text-[9px] text-muted-foreground mb-1">{cluster.termCount} terms · {cluster.edges} links · {cluster.quadCount} quads</div>
+                  <div className="text-[9px] mb-1">
+                    <span className="font-bold text-foreground/70">Anchors: </span>
+                    <span className="font-mono text-[8px]">{cluster.topAnchors.map(a => `${a.term}(${a.score})`).join(", ")}</span>
+                  </div>
                 </div>
               ))}
-              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed.</div>
+              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed. Anchor scores show quads containing each term.</div>
             </div>
           ) : (
             <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>

@@ -1,0 +1,71 @@
+Step 19 — Cluster Anchors
+
+Goal
+Make the Constellation Subclusters panel more interpretable by identifying the strongest anchor terms within each displayed subcluster. This must use the existing displayed subclusters and must not modify quad extraction, aggregation, or subcluster construction logic.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component, in the existing Constellation Subclusters derived data and panel.
+
+Implementation steps
+
+1. Locate the existing displayed subclusters data used by the Constellation Subclusters panel.
+
+2. Keep the current subcluster logic unchanged:
+   - recurrent co-term pair graph
+   - connected components
+   - minimum display size filter (3+ co-terms)
+
+3. For each displayed subcluster:
+   - collect the quads associated with that subcluster
+   - for each co-term in the subcluster, count how many distinct quads in that subcluster contain that term
+
+4. Define this count as the anchor score for that co-term within the subcluster.
+
+5. For each displayed subcluster, derive:
+   - topAnchorTerms: top 3 or top 5 co-terms ranked by anchor score
+   - quadCount: number of quads associated with the subcluster
+   - termCount: number of co-terms in the subcluster
+
+6. Extend the Constellation Subclusters panel so each displayed subcluster shows:
+   - its co-terms as before
+   - Top Anchor Terms
+   - Quad Count
+   - Term Count
+
+7. Keep the panel compact and readable.
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- recurring co-terms
+- co-term pairings
+- subcluster graph construction
+- structural centrality
+- structural backbone
+- structural density
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Only extend the current displayed subcluster data and panel.
+
+Expected result
+
+Each displayed subcluster becomes easier to interpret because it now shows the most structurally important co-terms within that cluster.
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- Constellation Subclusters output unchanged apart from added anchor information
+- each displayed subcluster shows top anchor terms
+- anchor terms are ranked by number of quads in the subcluster containing the term
+- Temporal Behaviour column styling remains unchanged
