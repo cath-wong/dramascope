@@ -1396,13 +1396,14 @@ const DiscursiveTab = () => {
         <CardContent className="p-4">
           {coTermSubclusters.length > 0 ? (
             <div className="space-y-3">
-              {coTermSubclusters.map((cluster, idx) => (
-                <div key={idx} className="border-b border-muted/30 pb-2 last:border-b-0">
-                  <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {idx + 1}</div>
+              {coTermSubclusters.filter(cluster => cluster.terms.length >= 3).map((cluster, displayIdx) => (
+                <div key={displayIdx} className="border-b border-muted/30 pb-2 last:border-b-0">
+                  <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {displayIdx + 1}</div>
                   <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
                   <div className="text-[9px] text-muted-foreground">{cluster.terms.length} terms · {cluster.edges} links</div>
                 </div>
               ))}
+              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed.</div>
             </div>
           ) : (
             <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>
