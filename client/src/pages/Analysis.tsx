@@ -884,6 +884,13 @@ const DiscursiveTab = () => {
       }
     });
     
+    // DIAGNOSTIC: log top 10 highest-degree co-terms
+    const graphDegrees = Array.from(graph.entries())
+      .map(([term, neighbors]) => ({ term, degree: neighbors.size }))
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 10);
+    console.log("[Diagnostic] Top 10 highest-degree co-terms in subcluster graph (threshold: count>=3):", graphDegrees);
+    
     clusters.sort((a, b) => b.terms.length - a.terms.length || b.edges - a.edges);
     return clusters;
   }, [corePeripheralData, coTermFilter, analysisWordMode]);
