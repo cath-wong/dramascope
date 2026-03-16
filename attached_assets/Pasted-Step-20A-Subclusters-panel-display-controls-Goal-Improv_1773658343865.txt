@@ -1,0 +1,105 @@
+Step 20A — Subclusters panel display controls
+
+Goal
+Improve the readability of the Constellation Subclusters panel by adding small display controls for sorting and limiting the number of displayed subclusters. This is a UI/display refinement only and must not modify the subcluster algorithm or any analytical logic.
+
+Where to implement
+File:
+client/src/pages/Analysis.tsx
+
+Inside the DiscursiveTab component, in the existing Constellation Subclusters panel.
+
+Implementation steps
+
+1. Locate the existing derived data and render block for the Constellation Subclusters panel.
+
+2. Keep the current subcluster logic unchanged:
+   - recurrent co-term pair graph
+   - connected components
+   - minimum display size filter (3+ co-terms)
+   - cluster anchor calculation
+   - quad count / term count / edge count
+
+3. Add two small local UI controls for this panel only:
+
+   A. Show control
+   Options:
+   - Top 5
+   - Top 10
+   - Top 20
+   - All
+
+   Default:
+   - Top 10
+
+   B. Sort control
+   Options:
+   - Quad count
+   - Term count
+   - Anchor strength
+
+   Default:
+   - Quad count
+
+4. Implement these as display-level controls only.
+   Do NOT change the underlying subcluster data generation.
+
+5. Sorting rules:
+   - Quad count: descending by quadCount
+   - Term count: descending by termCount
+   - Anchor strength: descending by the highest anchor score in that subcluster
+
+6. After sorting, apply the Show control:
+   - Top 5 = first 5 displayed subclusters
+   - Top 10 = first 10
+   - Top 20 = first 20
+   - All = no limit
+
+7. Keep the existing subcluster content visible:
+   - co-terms
+   - anchor terms
+   - quad count
+   - term count
+   - edge count
+   - explanatory note
+
+8. Place the controls neatly at the top of the Constellation Subclusters panel in the same general UI style as existing panel controls elsewhere in the tab.
+
+Safety constraints
+
+Do NOT modify:
+- quad extraction
+- aggregation
+- recurring co-terms
+- co-term pairings
+- constellation subclusters algorithm
+- structural centrality
+- structural backbone
+- structural density
+- quad participation classification
+- hook order
+
+UI protection rule
+
+Do NOT reintroduce muted text styling for the Temporal Behaviour column.
+
+Do NOT rewrite Analysis.tsx.
+Do NOT refactor the file.
+Only add small display controls and display-level sorting/limiting for the existing Constellation Subclusters panel.
+
+Expected result
+
+The Constellation Subclusters panel becomes easier to read by allowing the user to:
+- sort displayed subclusters by Quad count, Term count, or Anchor strength
+- limit the view to Top 5, Top 10, Top 20, or All
+
+Validation checklist
+
+Confirm:
+- Analysis tab loads without crash
+- existing subcluster logic unchanged
+- existing anchor calculations unchanged
+- controls appear only in the Constellation Subclusters panel
+- changing Sort updates display order correctly
+- changing Show limits displayed subclusters correctly
+- Temporal Behaviour column styling remains unchanged

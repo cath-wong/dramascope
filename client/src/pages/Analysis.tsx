@@ -279,6 +279,10 @@ const DiscursiveTab = () => {
   const [coreSortBy, setCoreSortBy] = useState<"frequency" | "dispersion" | "status">("frequency");
   const [coreSortDir, setCoreSortDir] = useState<"asc" | "desc">("desc");
 
+  // Constellation Subclusters display controls
+  const [subclusterShowLimit, setSubclusterShowLimit] = useState<10 | 5 | 20 | null>(10);
+  const [subclusterSortBy, setSubclusterSortBy] = useState<"quad-count" | "term-count" | "anchor-strength">("quad-count");
+
   // Recurring co-terms limit
   const [coTermLimit, setCoTermLimit] = useState<10 | 20 | null>(10);
 
@@ -1435,13 +1439,39 @@ const DiscursiveTab = () => {
       </Card>
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
-        <CardHeader className="bg-muted/5 border-b">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Constellation Subclusters</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={subclusterSortBy === "quad-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("quad-count")} className="h-6 text-[9px] px-2">Quad Count</Button>
+              <Button variant={subclusterSortBy === "term-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("term-count")} className="h-6 text-[9px] px-2">Term Count</Button>
+              <Button variant={subclusterSortBy === "anchor-strength" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("anchor-strength")} className="h-6 text-[9px] px-2">Anchor Strength</Button>
+            </div>
+            <Select value={subclusterShowLimit === null ? "all" : subclusterShowLimit.toString()} onValueChange={(v) => setSubclusterShowLimit(v === "all" ? null : Number(v) as 5 | 10 | 20)}>
+              <SelectTrigger className="h-6 text-[9px] w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">Top 5</SelectItem>
+                <SelectItem value="10">Top 10</SelectItem>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
           {clusterAnchorsData.length > 0 ? (
             <div className="space-y-3">
-              {clusterAnchorsData.map((cluster, displayIdx) => (
+              {(() => {
+                let sorted = [...clusterAnchorsData];
+                if (subclusterSortBy === "quad-count") {
+                  sorted.sort((a, b) => b.quadCount - a.quadCount);
+                } else if (subclusterSortBy === "term-count") {
+                  sorted.sort((a, b) => b.termCount - a.termCount);
+                } else if (subclusterSortBy === "anchor-strength") {
+                  sorted.sort((a, b) => (b.topAnchors[0]?.score || 0) - (a.topAnchors[0]?.score || 0));
+                }
+                const displayed = subclusterShowLimit ? sorted.slice(0, subclusterShowLimit) : sorted;
+                return displayed.map((cluster, displayIdx) => (
                 <div key={displayIdx} className="border-b border-muted/30 pb-2 last:border-b-0">
                   <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {displayIdx + 1}</div>
                   <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
@@ -1451,7 +1481,8 @@ const DiscursiveTab = () => {
                     <span className="font-mono text-[8px]">{cluster.topAnchors.map(a => `${a.term}(${a.score})`).join(", ")}</span>
                   </div>
                 </div>
-              ))}
+              ));
+              })()}
               <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed. Anchor scores show quads containing each term.</div>
             </div>
           ) : (
