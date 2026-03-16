@@ -848,7 +848,7 @@ const DiscursiveTab = () => {
     });
     
     pairMap.forEach((count, pair) => {
-      if (count >= 2) {
+      if (count >= 3) {
         const [t1, t2] = pair.split("|");
         if (!graph.has(t1)) graph.set(t1, new Set());
         if (!graph.has(t2)) graph.set(t2, new Set());
@@ -875,7 +875,7 @@ const DiscursiveTab = () => {
         const terms = Array.from(cluster).sort();
         let edges = 0;
         pairMap.forEach((count, pair) => {
-          if (count >= 2) {
+          if (count >= 3) {
             const [t1, t2] = pair.split("|");
             if (cluster.has(t1) && cluster.has(t2)) edges += 1;
           }
