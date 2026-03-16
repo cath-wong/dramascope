@@ -1,0 +1,155 @@
+STEP 21 — Quad Subcluster Participation Panel Cleanup
+
+Goal
+
+Improve the interpretability of the Quad Subcluster Participation panel by adding view filters so that analytically important quads can be isolated more easily, especially boundary behaviour.
+
+This step must preserve all existing modelling logic and all previously implemented manual edits.
+
+IMPORTANT
+Do NOT modify, revert, overwrite, or “clean up” any code that was manually edited after earlier development steps.
+Do NOT change any existing behaviour outside the specific panel controls requested here.
+This includes preserving:
+- Step 20A display controls
+- Step 20C subcluster pair threshold >= 3
+- Step 20D stoplist refinement
+- the recent manual Sankey-related edits in Analysis.tsx
+- any existing manual fixes already present in the Discursive tab
+
+
+Where to implement
+
+Primary file:
+- client/src/pages/Analysis.tsx
+
+Only make small targeted edits inside the Discursive tab, specifically around the Quad Subcluster Participation panel and its existing derived data.
+
+
+Implementation Steps
+
+1. Locate the Quad Subcluster Participation section in Analysis.tsx.
+
+2. Add a new UI filter control for participation type with the following options:
+   - All
+   - Boundary only
+   - Cross-subcluster only
+   - Fringe only
+
+3. Define “Boundary only” as:
+   - include Cross-subcluster
+   - include Fringe
+   - exclude Intra-subcluster
+
+4. Add a small row-limit control for the panel with the following options:
+   - Top 20
+   - Top 50
+   - All
+
+5. Apply these controls only to the displayed Quad Subcluster Participation table.
+   Do NOT change how participation types are computed.
+
+6. Keep the current ordering logic unless the filter removes rows.
+   Existing sort order should remain:
+   - Cross-subcluster first
+   - Fringe second
+   - Intra-subcluster third
+   - then by frequency descending
+
+7. If the filtered result is empty, show a short empty-state message such as:
+   - “No quads match the current participation filter.”
+
+8. Keep the existing table columns unchanged unless a very small spacing adjustment is needed for the new controls.
+
+9. Do NOT add CSV export in this step.
+   Do NOT add collapsible behaviour in this step.
+   Do NOT redesign the panel.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- refactor the Discursive tab broadly
+- modify quad extraction logic
+- modify constellation subcluster logic
+- modify Sankey logic
+- modify stoplists
+- modify tokenisation or lemmatisation
+- alter clustering thresholds
+- alter hook ordering
+- rename existing variables unless absolutely necessary
+- revert any manual edits already made by the user
+
+Only make minimal targeted edits required for:
+- one participation filter control
+- one row-limit control
+- one filtered display view for the Quad Subcluster Participation panel
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only:
+- the local state needed for the new controls
+- the derived filtered/displayed participation rows
+- the panel header controls
+- the empty-state message if needed
+
+Do NOT restructure unrelated code.
+Do NOT regenerate large sections of the file.
+Do NOT touch surrounding panels unless strictly necessary for layout consistency.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- Sankey visualisation
+- Recurring Co-Terms
+- Co-Term Pairings
+- Constellation Subclusters
+- Temporal Flow table
+- Core vs Peripheral table
+- similarity matrix
+- clustering panels
+- overall Discursive tab layout
+
+Only improve the usability of the Quad Subcluster Participation panel.
+
+
+Expected Result
+
+The Quad Subcluster Participation panel should become easier to read by allowing the user to:
+
+- view all participation rows
+- isolate only boundary behaviour
+- isolate only cross-subcluster quads
+- isolate only fringe quads
+- limit the display to Top 20, Top 50, or All
+
+This should make the panel more analytically useful without changing the underlying model.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Existing manual edits remain intact.
+3. The Quad Subcluster Participation panel now has:
+   - participation filter
+   - row-limit control
+4. “Boundary only” shows:
+   - Cross-subcluster
+   - Fringe
+   and hides Intra-subcluster
+5. “Cross-subcluster only” shows only Cross-subcluster rows.
+6. “Fringe only” shows only Fringe rows.
+7. Top 20 / Top 50 / All works correctly.
+8. Existing row ordering remains unchanged within the filtered view.
+9. No other Discursive panels change behaviour.
+10. Sankey remains exactly as currently working.
+
+STOP AFTER STEP 21

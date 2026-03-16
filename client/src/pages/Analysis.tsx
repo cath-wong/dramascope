@@ -286,6 +286,10 @@ const DiscursiveTab = () => {
   // Recurring co-terms limit
   const [coTermLimit, setCoTermLimit] = useState<10 | 20 | null>(10);
 
+  // Quad Subcluster Participation controls
+  const [participationFilter, setParticipationFilter] = useState<"All" | "Boundary" | "Cross-subcluster" | "Fringe">("All");
+  const [participationRowLimit, setParticipationRowLimit] = useState<20 | 50 | null>(20);
+
   // Recurring co-terms filter (All vs Core only)
   const [coTermFilter, setCoTermFilter] = useState<"All" | "Core">("All");
 
@@ -456,8 +460,7 @@ const DiscursiveTab = () => {
     // Filter quad instances BEFORE Sankey construction when contentWordOnly is enabled
     if (contentWordOnly) {
       instances = instances.filter(q => {
-        const quadParts = [q.node, ...q.co];
-        return quadParts.every(lemma => isContentWord(lemma));
+        return q.co.every(lemma => isContentWord(lemma));
       });
     }
 
@@ -1478,44 +1481,69 @@ const DiscursiveTab = () => {
       </Card>
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
-        <CardHeader className="bg-muted/5 border-b">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-sm font-bold">Quad Subcluster Participation</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={participationFilter === "All" ? "default" : "ghost"} size="sm" onClick={() => setParticipationFilter("All")} className="h-6 text-[9px] px-2">All</Button>
+              <Button variant={participationFilter === "Boundary" ? "default" : "ghost"} size="sm" onClick={() => setParticipationFilter("Boundary")} className="h-6 text-[9px] px-2">Boundary</Button>
+              <Button variant={participationFilter === "Cross-subcluster" ? "default" : "ghost"} size="sm" onClick={() => setParticipationFilter("Cross-subcluster")} className="h-6 text-[9px] px-2">Cross</Button>
+              <Button variant={participationFilter === "Fringe" ? "default" : "ghost"} size="sm" onClick={() => setParticipationFilter("Fringe")} className="h-6 text-[9px] px-2">Fringe</Button>
+            </div>
+            <Select value={participationRowLimit === null ? "all" : participationRowLimit.toString()} onValueChange={(v) => setParticipationRowLimit(v === "all" ? null : Number(v) as 20 | 50)}>
+              <SelectTrigger className="h-6 text-[9px] w-20"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="50">Top 50</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto custom-scrollbar">
-          {quadSubclusterParticipationData.length > 0 ? (
-            <table className="w-full border-collapse text-[10px]">
-              <thead>
-                <tr className="bg-muted/20 border-b">
-                  <th className="p-2 text-left font-bold border-r">Quad</th>
-                  <th className="p-2 text-center font-bold border-r">Participation Type</th>
-                  <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
-                  <th className="p-2 text-left font-bold border-r">Mapped Co-terms</th>
-                  <th className="p-2 text-left font-bold">Unmapped Co-terms</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quadSubclusterParticipationData.map((row, idx) => (
-                  <tr key={idx} className="border-b hover:bg-muted/10">
-                    <td className="p-2 text-left font-mono text-[9px]">{row.quadKey}</td>
-                    <td className="p-2 text-center border-r text-[9px]">
-                      <span className={`px-2 py-0.5 rounded font-medium text-[8px] inline-block ${
-                        row.participationType === "Cross-subcluster" ? "bg-purple-100 text-purple-800" :
-                        row.participationType === "Fringe" ? "bg-blue-100 text-blue-800" :
-                        "bg-gray-100 text-gray-700"
-                      }`}>
-                        {row.participationType}
-                      </span>
-                    </td>
-                    <td className="p-2 text-center border-r text-[9px]">{row.subclustersTouched}</td>
-                    <td className="p-2 text-left border-r text-[9px] font-mono">{row.mappedCoTerms.join(", ") || "—"}</td>
-                    <td className="p-2 text-left text-[9px] font-mono">{row.unmappedCoTermsList.join(", ") || "—"}</td>
+          {(() => {
+            const filteredRows = quadSubclusterParticipationData.filter(row => {
+              if (participationFilter === "All") return true;
+              if (participationFilter === "Boundary") return row.participationType === "Cross-subcluster" || row.participationType === "Fringe";
+              return row.participationType === participationFilter;
+            });
+            const displayedRows = participationRowLimit ? filteredRows.slice(0, participationRowLimit) : filteredRows;
+            if (filteredRows.length === 0) {
+              return <div className="p-4 text-[10px] text-muted-foreground italic">No quads match the current participation filter.</div>;
+            }
+            return (
+              <table className="w-full border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-muted/20 border-b">
+                    <th className="p-2 text-left font-bold border-r">Quad</th>
+                    <th className="p-2 text-center font-bold border-r">Participation Type</th>
+                    <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
+                    <th className="p-2 text-left font-bold border-r">Mapped Co-terms</th>
+                    <th className="p-2 text-left font-bold">Unmapped Co-terms</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-4 text-[10px] text-muted-foreground italic">No participation data available.</div>
-          )}
+                </thead>
+                <tbody>
+                  {displayedRows.map((row, idx) => (
+                    <tr key={idx} className="border-b hover:bg-muted/10">
+                      <td className="p-2 text-left font-mono text-[9px]">{row.quadKey}</td>
+                      <td className="p-2 text-center border-r text-[9px]">
+                        <span className={`px-2 py-0.5 rounded font-medium text-[8px] inline-block ${
+                          row.participationType === "Cross-subcluster" ? "bg-purple-100 text-purple-800" :
+                          row.participationType === "Fringe" ? "bg-blue-100 text-blue-800" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>
+                          {row.participationType}
+                        </span>
+                      </td>
+                      <td className="p-2 text-center border-r text-[9px]">{row.subclustersTouched}</td>
+                      <td className="p-2 text-left border-r text-[9px] font-mono">{row.mappedCoTerms.join(", ") || "—"}</td>
+                      <td className="p-2 text-left text-[9px] font-mono">{row.unmappedCoTermsList.join(", ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </CardContent>
       </Card>
 
