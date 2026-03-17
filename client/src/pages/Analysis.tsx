@@ -1513,7 +1513,31 @@ const DiscursiveTab = () => {
             if (filteredRows.length === 0) {
               return <div className="p-4 text-[10px] text-muted-foreground italic">No quads match the current participation filter.</div>;
             }
+            const total = displayedRows.length;
+            const intraCount = displayedRows.filter(r => r.participationType === "Intra-subcluster").length;
+            const crossCount = displayedRows.filter(r => r.participationType === "Cross-subcluster").length;
+            const fringeCount = displayedRows.filter(r => r.participationType === "Fringe").length;
+            const pct = (n: number) => total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
+            const handleExport = () => exportToCsv(
+              `quad_subcluster_participation_${nodeLemma}_${participationFilter.toLowerCase().replace(/[^a-z0-9]/g, "_")}.csv`,
+              displayedRows.map(r => ({
+                quadKey: r.quadKey,
+                participationType: r.participationType,
+                subclustersTouched: r.subclustersTouched,
+                mappedCoTerms: r.mappedCoTerms.join(", "),
+                unmappedCoTermsList: r.unmappedCoTermsList.join(", "),
+                frequency: r.frequency
+              }))
+            );
             return (
+              <>
+                <div className="flex items-center gap-4 px-3 py-2 bg-muted/10 border-b text-[9px] flex-wrap">
+                  <span className="font-bold text-foreground/70">Showing {total} quads</span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-gray-300 mr-0.5" />Intra: <strong>{intraCount}</strong> <span className="text-muted-foreground">({pct(intraCount)})</span></span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-purple-300 mr-0.5" />Cross: <strong>{crossCount}</strong> <span className="text-muted-foreground">({pct(crossCount)})</span></span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-300 mr-0.5" />Fringe: <strong>{fringeCount}</strong> <span className="text-muted-foreground">({pct(fringeCount)})</span></span>
+                  <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={handleExport}><Download className="h-3 w-3 mr-1" />Export CSV</Button>
+                </div>
               <table className="w-full border-collapse text-[10px]">
                 <thead>
                   <tr className="bg-muted/20 border-b">
@@ -1544,6 +1568,7 @@ const DiscursiveTab = () => {
                   ))}
                 </tbody>
               </table>
+              </>
             );
           })()}
         </CardContent>

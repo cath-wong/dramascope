@@ -1,0 +1,165 @@
+STEP 23 — Participation Summary Panel + CSV Export
+
+Goal
+
+Improve the interpretability of the strict Quad Subcluster Participation results by adding:
+
+1. a compact Participation Summary panel
+2. CSV export for the currently displayed Quad Subcluster Participation view
+
+This step must preserve the current modelling logic exactly as it is.
+
+IMPORTANT
+
+Do NOT modify, revert, overwrite, or refactor any manually edited code.
+Do NOT change the quad extraction method.
+Do NOT change stoplists.
+Do NOT change Sankey logic.
+Do NOT change subcluster edge threshold logic.
+Do NOT change participation classification rules.
+
+This step is interpretation and export only.
+
+
+Where to implement
+
+Primary file:
+- client/src/pages/Analysis.tsx
+
+Existing utility already available:
+- exportToCsv from "@/utils/exportCsv"
+
+Focus area:
+- quadSubclusterParticipationData
+- Quad Subcluster Participation panel UI
+
+
+Implementation Steps
+
+1. Locate the Quad Subcluster Participation section in Analysis.tsx.
+
+2. Add a compact Participation Summary block above the participation table.
+
+3. The summary must show:
+   - Total quads in current displayed participation view
+   - Intra-subcluster count
+   - Cross-subcluster count
+   - Fringe count
+
+4. Also show percentages for each of the three real participation categories:
+   - Intra-subcluster
+   - Cross-subcluster
+   - Fringe
+
+5. Percentages should be calculated against the currently displayed filtered participation rows, not the full underlying dataset.
+
+6. Keep “Boundary” as a UI filter only.
+   Do NOT treat Boundary as a fourth participation category in the summary.
+   Boundary = Cross-subcluster + Fringe for filtering only.
+
+7. Add an Export CSV button to the Quad Subcluster Participation panel header.
+
+8. The export must download the currently displayed filtered rows only, respecting:
+   - participation filter
+   - row limit (Top 20 / Top 50 / All)
+
+9. Export filename should be descriptive, for example:
+   quad_subcluster_participation_<nodeLemma>_<filter>.csv
+
+10. Export columns should match the currently displayed table columns:
+   - quadKey
+   - participationType
+   - subclustersTouched
+   - mappedCoTerms
+   - unmappedCoTermsList
+   - frequency
+
+11. Keep the existing table and controls intact.
+   Do NOT redesign the panel.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- refactor the Discursive tab broadly
+- modify quad extraction logic
+- modify stoplists
+- modify Sankey logic
+- modify subcluster generation logic
+- modify participation classification logic
+- alter hook ordering
+- rename variables unnecessarily
+- revert any manual edits already made by the user
+
+Only make minimal targeted edits required for:
+- participation summary
+- CSV export
+- using the already displayed filtered participation rows
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only:
+- local derived summary values
+- the Quad Subcluster Participation panel header
+- the summary display block
+- the CSV export handler for this panel
+
+Do NOT restructure unrelated code.
+Do NOT regenerate large sections of the file.
+Do NOT touch surrounding panels unless strictly necessary for layout consistency.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- Sankey visualisation
+- Recurring Co-Terms
+- Co-Term Pairings
+- Constellation Subclusters
+- Temporal Flow
+- Core vs Peripheral table
+- similarity matrix
+- constellation clustering panels
+- overall Discursive tab layout
+
+Only improve interpretation and export for the Quad Subcluster Participation panel.
+
+
+Expected Result
+
+The Quad Subcluster Participation panel should become more interpretable by showing, at a glance:
+
+- how many displayed quads are Intra-subcluster
+- how many are Cross-subcluster
+- how many are Fringe
+- what percentage each category represents
+
+It should also allow the user to export the currently displayed participation rows as CSV.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Existing manual edits remain intact.
+3. The Quad Subcluster Participation panel now includes:
+   - Participation Summary
+   - Export CSV button
+4. The summary counts use the currently displayed filtered rows.
+5. Percentages are calculated correctly.
+6. Boundary is not counted as a separate category.
+7. CSV export respects:
+   - participation filter
+   - row limit
+8. Exported CSV includes the displayed participation data only.
+9. No other Discursive panels change behaviour.
+10. Sankey remains exactly as currently working.
+
+STOP AFTER STEP 23
