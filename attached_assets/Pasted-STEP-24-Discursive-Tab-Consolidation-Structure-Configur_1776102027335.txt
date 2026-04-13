@@ -1,0 +1,184 @@
+STEP 24 — Discursive Tab Consolidation (Structure → Configuration → Behaviour → Change)
+
+Goal
+
+Consolidate the existing Discursive tab into a coherent analytical dashboard organised around four outputs:
+
+1. Constellation Snapshot
+2. Cluster / Configuration Profile
+3. Concept Behaviour Summary
+4. Diachronic Change View
+
+This step must NOT add new analytical features or change the modelling logic.
+It is a UI and interpretation-layer consolidation step only.
+
+IMPORTANT
+
+Do NOT modify, revert, overwrite, or refactor any manually edited code.
+Do NOT change:
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- Sankey logic
+- subcluster generation logic
+- participation classification logic
+- thresholds
+- CSV logic already added
+- any existing manual fixes in Analysis.tsx
+
+This step must preserve all current computations and outputs.
+Only regroup, relabel, and lightly frame what already exists.
+
+
+Where to implement
+
+Primary file:
+- client/src/pages/Analysis.tsx
+
+Focus area:
+- DiscursiveTab return layout only
+- section headings
+- panel grouping
+- light summary labels / descriptive text
+- optional collapsible grouping for supporting data
+
+Do NOT modify utility files in this step.
+
+
+Implementation Steps
+
+1. Keep the top-level Discursive tab exactly as a single tab.
+   Do NOT add new tabs.
+
+2. Reorganise the visible layout of the Discursive tab into four named sections, in this order:
+
+   A. Constellation Snapshot
+   B. Cluster / Configuration Profile
+   C. Concept Behaviour Summary
+   D. Diachronic Change View
+
+3. Under “Constellation Snapshot”, place:
+   - Sankey Traffic (Synchronic Overview)
+   - Top Quads / Quad Drill-Down if already visually tied to the snapshot view
+
+4. Under “Cluster / Configuration Profile”, place:
+   - Constellation Subclusters
+   - Recurring Co-Terms
+   - Top Co-Term Pairings
+
+5. Under “Concept Behaviour Summary”, place:
+   - Participation Summary block (from Step 23)
+   - Quad Subcluster Participation panel
+   - Core vs Peripheral Quads
+
+6. Under “Diachronic Change View”, place:
+   - Diachronic Stability
+   - Temporal Concept Flow
+
+7. Keep existing controls and panel internals intact unless a tiny spacing or heading adjustment is needed.
+
+8. Add short section headings and 1-line descriptive subtitles for each section.
+   Use plain analytical language, for example:
+   - Constellation Snapshot → “Cross-sectional view of the node lemma’s current constellation structure.”
+   - Cluster / Configuration Profile → “Configuration of recurring co-terms and thematic grouping within the constellation.”
+   - Concept Behaviour Summary → “How the concept behaves structurally across clusters, cores, and peripheral zones.”
+   - Diachronic Change View → “How the concept’s structure and prominence vary across time slices.”
+
+9. Do NOT invent new metrics in this step.
+
+10. If needed for readability, place lower-priority tables inside Collapsible components, but ONLY if this can be done with minimal risk.
+    Preferred candidates for optional collapse:
+    - Top Co-Term Pairings
+    - full Quad Subcluster Participation table
+    Do NOT collapse Sankey, Constellation Subclusters, or Temporal Concept Flow.
+
+11. Preserve the existing data/export functionality.
+
+12. Do NOT remove any current panels in this step.
+    If something is demoted visually, it must still remain accessible.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- broadly refactor DiscursiveTab logic
+- touch Sankey code
+- touch utility modules
+- modify derived computations
+- modify stoplists
+- alter clustering or participation rules
+- rename core variables unnecessarily
+- change hook ordering
+- revert any manual edits already made by the user
+
+Only make minimal targeted edits required to:
+- regroup panels
+- add section headings
+- improve narrative order
+- optionally collapse secondary evidence panels
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only:
+- layout order inside DiscursiveTab
+- section wrappers / headings / descriptions
+- optional collapsible wrappers for secondary evidence
+- light panel titles if needed for consistency
+
+Do NOT regenerate large sections of the file.
+Do NOT restructure unrelated code.
+Do NOT touch Lexical or Semantic tabs.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- Sankey computation or behaviour
+- subcluster logic
+- participation calculations
+- temporal calculations
+- CSV export logic
+- overall 3-tab top navigation (Lexical / Semantic / Discursive)
+
+Only improve Discursive tab organisation and interpretive readability.
+
+
+Expected Result
+
+The Discursive tab should now read as a coherent narrative dashboard:
+
+1. First: what the constellation looks like
+2. Then: how it is internally configured
+3. Then: how it behaves structurally
+4. Then: how it changes over time
+
+The same underlying analyses remain available, but the tab should feel less like a workbench and more like an analytical results interface.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Existing manual edits remain intact.
+3. No modelling logic changes occurred.
+4. The Discursive tab now visibly contains four sections:
+   - Constellation Snapshot
+   - Cluster / Configuration Profile
+   - Concept Behaviour Summary
+   - Diachronic Change View
+5. Sankey remains unchanged and still works exactly as before.
+6. Subclusters, participation, and temporal panels still function as before.
+7. Exports still work.
+8. No additional top-level tabs were added.
+9. Lexical and Semantic tabs remain unchanged.
+10. The Discursive tab is now easier to read as a narrative sequence.
+
+STOP AFTER STEP 24

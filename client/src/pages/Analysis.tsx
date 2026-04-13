@@ -1108,6 +1108,11 @@ const DiscursiveTab = () => {
         </Card>
       </div>
 
+      <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">A · Constellation Snapshot</h2>
+        <p className="text-[9px] text-muted-foreground/70 mt-0.5">Cross-sectional view of the node lemma's current constellation structure.</p>
+      </div>
+
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -1296,74 +1301,60 @@ const DiscursiveTab = () => {
         </div>
       </div>
 
-      <Card className="shadow-none border-muted/60">
-        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Diachronic Stability</CardTitle>
-          <div className="flex items-center gap-2">
-            <Select value={driftMetric} onValueChange={(v: any) => setDriftMetric(v)}>
-              <SelectTrigger className="h-7 text-[10px] w-44 shadow-sm"><SelectValue/></SelectTrigger>
-              <SelectContent><SelectItem value="jaccard">Jaccard Index (Stability)</SelectItem><SelectItem value="size">Vocabulary Variety (Unique Quads)</SelectItem></SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={results?.driftTable}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                <XAxis dataKey="slice" fontSize={9} />
-                <YAxis fontSize={9} />
-                <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                <Line type="monotone" dataKey={driftMetric} name={driftMetric === 'jaccard' ? 'Stability' : 'Variety'} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(var(--primary))" }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">B · Cluster / Configuration Profile</h2>
+        <p className="text-[9px] text-muted-foreground/70 mt-0.5">Configuration of recurring co-terms and thematic grouping within the constellation.</p>
+      </div>
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Temporal Concept Flow</CardTitle>
-          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
-            if (temporalFlowData) exportToCsv(`temporal_flow_${nodeLemma}_${corpusScope}.csv`, temporalFlowData);
-          }}>
-            <Download className="h-3 w-3 mr-1" /> Export Flow
-          </Button>
+          <CardTitle className="text-sm font-bold">Constellation Subclusters</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
+              <Button variant={subclusterSortBy === "quad-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("quad-count")} className="h-6 text-[9px] px-2">Quad Count</Button>
+              <Button variant={subclusterSortBy === "term-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("term-count")} className="h-6 text-[9px] px-2">Term Count</Button>
+              <Button variant={subclusterSortBy === "anchor-strength" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("anchor-strength")} className="h-6 text-[9px] px-2">Anchor Strength</Button>
+            </div>
+            <Select value={subclusterShowLimit === null ? "all" : subclusterShowLimit.toString()} onValueChange={(v) => setSubclusterShowLimit(v === "all" ? null : Number(v) as 5 | 10 | 20)}>
+              <SelectTrigger className="h-6 text-[9px] w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">Top 5</SelectItem>
+                <SelectItem value="10">Top 10</SelectItem>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
-          {temporalFlowData && temporalFlowData.length > 0 ? (
-            <table className="w-full border-collapse text-[10px]">
-              <thead>
-                <tr className="bg-muted/20 border-b">
-                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
-                  {results?.sortedSlices.map(s => (
-                    <th key={s} className="p-2 text-center font-bold border-r">{s}</th>
-                  ))}
-                  <th className="p-2 text-right font-bold border-r">Total</th>
-                  <th className="p-2 text-center font-bold border-r">First Seen</th>
-                  <th className="p-2 text-center font-bold">Last Seen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {temporalFlowData.map(row => (
-                  <tr 
-                    key={row.quadKey}
-                    className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
-                    onClick={() => setSelectedQuadKey(row.quadKey)}
-                  >
-                    <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
-                    {results?.sortedSlices.map(s => (
-                      <td key={s} className="p-2 text-center border-r">{row[s] || 0}</td>
-                    ))}
-                    <td className="p-2 text-right border-r font-mono">{row.total}</td>
-                    <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
-                    <td className="p-2 text-center">{row.last_seen}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <CardContent className="p-4">
+          {clusterAnchorsData.length > 0 ? (
+            <div className="space-y-3">
+              {(() => {
+                let sorted = [...clusterAnchorsData];
+                if (subclusterSortBy === "quad-count") {
+                  sorted.sort((a, b) => b.quadCount - a.quadCount);
+                } else if (subclusterSortBy === "term-count") {
+                  sorted.sort((a, b) => b.termCount - a.termCount);
+                } else if (subclusterSortBy === "anchor-strength") {
+                  sorted.sort((a, b) => (b.topAnchors[0]?.score || 0) - (a.topAnchors[0]?.score || 0));
+                }
+                const displayed = subclusterShowLimit ? sorted.slice(0, subclusterShowLimit) : sorted;
+                return displayed.map((cluster, displayIdx) => (
+                <div key={displayIdx} className="border-b border-muted/30 pb-2 last:border-b-0">
+                  <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {displayIdx + 1}</div>
+                  <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
+                  <div className="text-[9px] text-muted-foreground mb-1">{cluster.termCount} terms · {cluster.edges} links · {cluster.quadCount} quads</div>
+                  <div className="text-[9px] mb-1">
+                    <span className="font-bold text-foreground/70">Anchors: </span>
+                    <span className="font-mono text-[8px]">{cluster.topAnchors.map(a => `${a.term}(${a.score})`).join(", ")}</span>
+                  </div>
+                </div>
+              ));
+              })()}
+              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed. Anchor scores show quads containing each term.</div>
+            </div>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
+            <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>
           )}
         </CardContent>
       </Card>
@@ -1429,58 +1420,10 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
-      <Card className="shadow-none border-muted/60 overflow-hidden">
-        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Constellation Subclusters</CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
-              <Button variant={subclusterSortBy === "quad-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("quad-count")} className="h-6 text-[9px] px-2">Quad Count</Button>
-              <Button variant={subclusterSortBy === "term-count" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("term-count")} className="h-6 text-[9px] px-2">Term Count</Button>
-              <Button variant={subclusterSortBy === "anchor-strength" ? "default" : "ghost"} size="sm" onClick={() => setSubclusterSortBy("anchor-strength")} className="h-6 text-[9px] px-2">Anchor Strength</Button>
-            </div>
-            <Select value={subclusterShowLimit === null ? "all" : subclusterShowLimit.toString()} onValueChange={(v) => setSubclusterShowLimit(v === "all" ? null : Number(v) as 5 | 10 | 20)}>
-              <SelectTrigger className="h-6 text-[9px] w-24"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">Top 5</SelectItem>
-                <SelectItem value="10">Top 10</SelectItem>
-                <SelectItem value="20">Top 20</SelectItem>
-                <SelectItem value="all">All</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          {clusterAnchorsData.length > 0 ? (
-            <div className="space-y-3">
-              {(() => {
-                let sorted = [...clusterAnchorsData];
-                if (subclusterSortBy === "quad-count") {
-                  sorted.sort((a, b) => b.quadCount - a.quadCount);
-                } else if (subclusterSortBy === "term-count") {
-                  sorted.sort((a, b) => b.termCount - a.termCount);
-                } else if (subclusterSortBy === "anchor-strength") {
-                  sorted.sort((a, b) => (b.topAnchors[0]?.score || 0) - (a.topAnchors[0]?.score || 0));
-                }
-                const displayed = subclusterShowLimit ? sorted.slice(0, subclusterShowLimit) : sorted;
-                return displayed.map((cluster, displayIdx) => (
-                <div key={displayIdx} className="border-b border-muted/30 pb-2 last:border-b-0">
-                  <div className="text-[10px] font-bold text-foreground/80 mb-1">Cluster {displayIdx + 1}</div>
-                  <div className="text-[9px] font-mono mb-1">{cluster.terms.join(", ")}</div>
-                  <div className="text-[9px] text-muted-foreground mb-1">{cluster.termCount} terms · {cluster.edges} links · {cluster.quadCount} quads</div>
-                  <div className="text-[9px] mb-1">
-                    <span className="font-bold text-foreground/70">Anchors: </span>
-                    <span className="font-mono text-[8px]">{cluster.topAnchors.map(a => `${a.term}(${a.score})`).join(", ")}</span>
-                  </div>
-                </div>
-              ));
-              })()}
-              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed. Anchor scores show quads containing each term.</div>
-            </div>
-          ) : (
-            <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">C · Concept Behaviour Summary</h2>
+        <p className="text-[9px] text-muted-foreground/70 mt-0.5">How the concept behaves structurally across clusters, cores, and peripheral zones.</p>
+      </div>
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between flex-wrap gap-2">
@@ -1720,6 +1663,83 @@ const DiscursiveTab = () => {
             </>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">D · Diachronic Change View</h2>
+        <p className="text-[9px] text-muted-foreground/70 mt-0.5">How the concept's structure and prominence vary across time slices.</p>
+      </div>
+
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Diachronic Stability</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={driftMetric} onValueChange={(v: any) => setDriftMetric(v)}>
+              <SelectTrigger className="h-7 text-[10px] w-44 shadow-sm"><SelectValue/></SelectTrigger>
+              <SelectContent><SelectItem value="jaccard">Jaccard Index (Stability)</SelectItem><SelectItem value="size">Vocabulary Variety (Unique Quads)</SelectItem></SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={results?.driftTable}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                <XAxis dataKey="slice" fontSize={9} />
+                <YAxis fontSize={9} />
+                <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                <Line type="monotone" dataKey={driftMetric} name={driftMetric === 'jaccard' ? 'Stability' : 'Variety'} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(var(--primary))" }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-muted/60 overflow-hidden">
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Temporal Concept Flow</CardTitle>
+          <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
+            if (temporalFlowData) exportToCsv(`temporal_flow_${nodeLemma}_${corpusScope}.csv`, temporalFlowData);
+          }}>
+            <Download className="h-3 w-3 mr-1" /> Export Flow
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
+          {temporalFlowData && temporalFlowData.length > 0 ? (
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-muted/20 border-b">
+                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
+                  {results?.sortedSlices.map(s => (
+                    <th key={s} className="p-2 text-center font-bold border-r">{s}</th>
+                  ))}
+                  <th className="p-2 text-right font-bold border-r">Total</th>
+                  <th className="p-2 text-center font-bold border-r">First Seen</th>
+                  <th className="p-2 text-center font-bold">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {temporalFlowData.map(row => (
+                  <tr 
+                    key={row.quadKey}
+                    className={`border-b hover:bg-muted/10 cursor-pointer transition-colors ${selectedQuadKey === row.quadKey ? 'bg-muted/20' : ''}`}
+                    onClick={() => setSelectedQuadKey(row.quadKey)}
+                  >
+                    <td className="sticky left-0 bg-background z-10 p-2 border-r font-medium">{row.quadKey}</td>
+                    {results?.sortedSlices.map(s => (
+                      <td key={s} className="p-2 text-center border-r">{row[s] || 0}</td>
+                    ))}
+                    <td className="p-2 text-right border-r font-mono">{row.total}</td>
+                    <td className="p-2 text-center border-r text-[9px]">{row.first_seen}</td>
+                    <td className="p-2 text-center">{row.last_seen}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
           )}
         </CardContent>
       </Card>
