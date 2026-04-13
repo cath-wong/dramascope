@@ -1,0 +1,214 @@
+STEP 25 — Discursive Interpretation Layer (Lightweight, Non-Invasive)
+
+Goal
+
+Add a minimal interpretation layer so the Discursive tab reads like an analytical result,
+not just a visual dashboard.
+
+This step must NOT introduce new computations.
+It must ONLY summarise and narrate existing outputs.
+
+The purpose is to make the interface:
+→ readable
+→ explainable
+→ paper-aligned
+
+WITHOUT turning it into a verbose UI.
+
+
+Where to implement
+
+client/src/pages/Analysis.tsx
+
+Only inside the Discursive tab render section.
+
+
+CRITICAL RULE
+
+Do NOT modify:
+- Sankey logic
+- quad extraction
+- clustering logic
+- participation logic
+- temporal logic
+- stoplists
+- existing calculations
+
+Only ADD lightweight summary text blocks.
+
+
+Implementation Steps
+
+1. Under each of the four sections, add a small "Interpretation Summary" block.
+
+Use simple <div> or existing Card component.
+
+Do NOT create new components or hooks.
+
+
+--------------------------------------------------
+SECTION 1 — Constellation Snapshot
+--------------------------------------------------
+
+Add below Sankey:
+
+Title:
+"Interpretation"
+
+Content (dynamic, simple logic only):
+
+- Total nodes (out.nodes.length)
+- Total links (out.links.length)
+
+Add text:
+
+"The constellation shows [X] nodes connected by [Y] links, indicating a [dense / moderate / sparse] structure."
+
+Density rule (simple heuristic):
+- links > nodes → "dense"
+- links ≈ nodes → "moderate"
+- links < nodes → "sparse"
+
+
+--------------------------------------------------
+SECTION 2 — Cluster / Configuration Profile
+--------------------------------------------------
+
+Add above subcluster table:
+
+Title:
+"Configuration Summary"
+
+Content:
+
+Use existing subcluster data:
+
+- number of clusters
+- size of largest cluster
+
+Add text:
+
+"The constellation contains [X] clusters, with the largest cluster comprising [Y] items, suggesting a [centralised / distributed] configuration."
+
+Rule:
+- largest cluster > 50% → centralised
+- otherwise → distributed
+
+
+--------------------------------------------------
+SECTION 3 — Concept Behaviour Summary
+--------------------------------------------------
+
+Add above participation panel:
+
+Title:
+"Behaviour Summary"
+
+Content:
+
+Use participation data:
+
+- proportion of fringe vs non-fringe quads
+
+Add text:
+
+"The concept displays [high / moderate / low] peripheral activity, indicating a [stable / expanding / diffuse] behaviour."
+
+Rule:
+- high fringe → diffuse
+- low fringe → stable
+- mixed → expanding
+
+
+IMPORTANT:
+Do NOT change existing participation logic.
+Only summarise its output.
+
+
+--------------------------------------------------
+SECTION 4 — Diachronic Change View
+--------------------------------------------------
+
+Add above temporal flow panel:
+
+Title:
+"Change Summary"
+
+Content:
+
+Use temporal data:
+
+- number of slices with activity
+- presence/absence across slices
+
+Add text:
+
+"The concept shows [continuous / intermittent / emerging] presence across time, suggesting [stability / fluctuation / expansion]."
+
+Rule:
+- present in all slices → continuous
+- missing in some → intermittent
+- only later slices → emerging
+
+
+--------------------------------------------------
+Formatting Rules
+
+- Keep each summary to 1–2 sentences MAX
+- No academic jargon overload
+- No long paragraphs
+- No new charts
+- No new controls
+
+This is NOT a report generator — just interpretive cues.
+
+
+--------------------------------------------------
+UI Constraints
+
+Do NOT:
+- move panels again
+- add new tabs
+- introduce filters
+- expand tables
+
+Only insert summary blocks at the top of each section.
+
+
+--------------------------------------------------
+Expected Result
+
+Each section now reads like:
+
+[Visual / Table]
+↓
+[Interpretation]
+
+So the user immediately understands:
+
+- what they are seeing
+- what it means
+- how to read it
+
+The dashboard now functions as:
+
+→ a narrative analytical interface
+→ directly usable for paper writing
+
+
+--------------------------------------------------
+Validation Checklist
+
+Confirm:
+
+1. App compiles without errors
+2. No existing logic changed
+3. Sankey unchanged
+4. All four sections now contain a short interpretation block
+5. Text updates dynamically with data
+6. No UI clutter added
+7. No performance issues
+8. Lexical / Semantic tabs untouched
+
+
+STOP AFTER STEP 25

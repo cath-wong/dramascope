@@ -1205,6 +1205,18 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
+      {sankeyData && (
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
+          <span className="font-semibold text-foreground/80">Interpretation: </span>
+          {(() => {
+            const n = sankeyData.nodes.length;
+            const l = sankeyData.links.length;
+            const density = l > n ? "dense" : l === n ? "moderate" : "sparse";
+            return `The constellation shows ${n} nodes connected by ${l} links, indicating a ${density} structure.`;
+          })()}
+        </div>
+      )}
+
       <Card className="shadow-none border-amber-100 bg-amber-50/5">
         <CardHeader className="bg-amber-100/20 border-b border-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1305,6 +1317,19 @@ const DiscursiveTab = () => {
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">B · Cluster / Configuration Profile</h2>
         <p className="text-[9px] text-muted-foreground/70 mt-0.5">Configuration of recurring co-terms and thematic grouping within the constellation.</p>
       </div>
+
+      {clusterAnchorsData.length > 0 && (
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
+          <span className="font-semibold text-foreground/80">Configuration Summary: </span>
+          {(() => {
+            const n = clusterAnchorsData.length;
+            const largest = clusterAnchorsData[0]?.termCount || 0;
+            const total = clusterAnchorsData.reduce((s, c) => s + c.termCount, 0);
+            const config = total > 0 && largest / total > 0.5 ? "centralised" : "distributed";
+            return `The constellation contains ${n} cluster${n !== 1 ? "s" : ""}, with the largest comprising ${largest} item${largest !== 1 ? "s" : ""}, suggesting a ${config} configuration.`;
+          })()}
+        </div>
+      )}
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
@@ -1424,6 +1449,20 @@ const DiscursiveTab = () => {
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">C · Concept Behaviour Summary</h2>
         <p className="text-[9px] text-muted-foreground/70 mt-0.5">How the concept behaves structurally across clusters, cores, and peripheral zones.</p>
       </div>
+
+      {quadSubclusterParticipationData.length > 0 && (
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
+          <span className="font-semibold text-foreground/80">Behaviour Summary: </span>
+          {(() => {
+            const total = quadSubclusterParticipationData.length;
+            const fringe = quadSubclusterParticipationData.filter(r => r.participationType === "Fringe").length;
+            const fringePct = total > 0 ? fringe / total : 0;
+            const level = fringePct > 0.6 ? "high" : fringePct > 0.3 ? "moderate" : "low";
+            const behaviour = fringePct > 0.6 ? "diffuse" : fringePct > 0.3 ? "expanding" : "stable";
+            return `The concept displays ${level} peripheral activity, indicating a ${behaviour} behaviour.`;
+          })()}
+        </div>
+      )}
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between flex-wrap gap-2">
@@ -1696,6 +1735,22 @@ const DiscursiveTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {temporalFlowData && results?.sortedSlices && (
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
+          <span className="font-semibold text-foreground/80">Change Summary: </span>
+          {(() => {
+            const slices = results.sortedSlices;
+            const total = slices.length;
+            const activeSlices = slices.filter(s => temporalFlowData.some(row => (row[s] || 0) > 0)).length;
+            const halfIdx = Math.floor(total / 2);
+            const firstHalfActive = slices.slice(0, halfIdx).some(s => temporalFlowData.some(row => (row[s] || 0) > 0));
+            const type = activeSlices === total ? "continuous" : !firstHalfActive && activeSlices > 0 ? "emerging" : "intermittent";
+            const interp = type === "continuous" ? "stability" : type === "emerging" ? "expansion" : "fluctuation";
+            return `The concept shows ${type} presence across time, suggesting ${interp}.`;
+          })()}
+        </div>
+      )}
 
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
