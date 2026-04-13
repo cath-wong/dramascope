@@ -1,0 +1,109 @@
+STEP 26A-1 — Fix Scrollable Table with Sticky Header (Quad Inventory)
+
+Goal
+
+Convert the Quad Inventory table into a properly scrollable table with a sticky (fixed) header.
+
+The table body should scroll vertically within a fixed-height container,
+while the column headers remain visible at the top at all times.
+
+This is a UI-only fix. No data, logic, or structure should be changed.
+
+
+IMPORTANT
+
+Do NOT modify:
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- filtering logic
+- sorting logic
+- search logic
+- column structure
+- any existing manual edits
+
+Only adjust layout and CSS-related behaviour.
+
+
+Where to implement
+
+client/src/pages/Analysis.tsx
+
+Locate the Quad Inventory table component.
+
+
+Implementation Steps
+
+1. Wrap the Quad Inventory table inside a scroll container:
+
+   <div className="max-h-[450px] overflow-y-auto">
+     <table>...</table>
+   </div>
+
+   (You may adjust height slightly, e.g. 400px–500px depending on layout,
+   but it must be tall enough to show multiple rows clearly.)
+
+2. Ensure the table is fully contained inside this wrapper.
+
+   The scroll must happen INSIDE this container, not on the page.
+
+
+3. Apply sticky header behaviour:
+
+   On the header row (<thead> or <thead> <tr>):
+
+   className="sticky top-0 z-10 bg-background"
+
+4. Ensure all header cells (<th>) have a visible background:
+
+   className="bg-muted/20"
+
+   This prevents visual overlap when scrolling.
+
+5. If horizontal scrolling is present or possible:
+
+   - optionally add overflow-x-auto to the container
+   - ensure the top-left header cell has higher z-index (z-20) if needed
+
+6. Do NOT modify:
+   - table data
+   - number of rows
+   - pagination or filtering behaviour
+   - column widths unless absolutely necessary
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- refactor the table logic
+- move the table to another section
+- change any computed values
+- modify other panels
+- touch Sankey or any visualisation logic
+
+Only implement the scroll container and sticky header.
+
+
+Expected Result
+
+- The Quad Inventory table has a fixed visible height
+- The table body scrolls vertically inside the container
+- The header row remains visible (sticky) at the top
+- The table is easier to read without losing column context
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors
+2. The table is visually constrained in height
+3. Vertical scrolling occurs inside the table container
+4. The header remains visible when scrolling
+5. No data, sorting, or filtering behaviour changed
+6. No other UI components are affected
+
+
+STOP AFTER STEP 26A-1

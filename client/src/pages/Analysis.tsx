@@ -1250,6 +1250,7 @@ const DiscursiveTab = () => {
             onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} 
             filename={`quad_inventory_${nodeLemma}_${inventoryScope}.csv`}
             metadata={{ node: nodeLemma, scope: inventoryScope, timeMode, minFreq }}
+            scrollable
           />
         </CardContent>
       </Card>

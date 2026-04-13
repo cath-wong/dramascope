@@ -19,9 +19,10 @@ interface ResultsTableProps {
   filename?: string;
   onPin?: (item: any) => void;
   metadata?: any;
+  scrollable?: boolean;
 }
 
-export function ResultsTable({ data, columns, filename = "results.csv", onPin, metadata }: ResultsTableProps) {
+export function ResultsTable({ data, columns, filename = "results.csv", onPin, metadata, scrollable }: ResultsTableProps) {
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
   const { toast } = useToast();
@@ -89,12 +90,12 @@ export function ResultsTable({ data, columns, filename = "results.csv", onPin, m
           <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV"><Download className="h-3.5 w-3.5" /></Button>
         </div>
       </div>
-      <div className="rounded-md border overflow-hidden bg-background">
+      <div className={`rounded-md border bg-background ${scrollable ? "max-h-[450px] overflow-y-auto overflow-x-auto" : "overflow-hidden"}`}>
         <Table>
-          <TableHeader className="bg-muted/50 sticky top-0">
+          <TableHeader className="sticky top-0 z-10">
             <TableRow>
               {columns.map(col => (
-                <TableHead key={col.key} className={`h-8 text-[10px] ${col.align === "right" ? "text-right" : ""}`}>
+                <TableHead key={col.key} className={`h-8 text-[10px] bg-muted/50 ${col.align === "right" ? "text-right" : ""}`}>
                   {col.sortable ? (
                     <button onClick={() => handleSort(col.key)} className="inline-flex items-center gap-1 hover:text-foreground">
                       {col.label} <ArrowUpDown className="h-2.5 w-2.5" />
@@ -102,7 +103,7 @@ export function ResultsTable({ data, columns, filename = "results.csv", onPin, m
                   ) : col.label}
                 </TableHead>
               ))}
-              {onPin && <TableHead className="w-8 h-8"></TableHead>}
+              {onPin && <TableHead className="w-8 h-8 bg-muted/50"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
