@@ -1,0 +1,178 @@
+STEP 26A — Discursive Tab UI Usability Pass (Collapsible Panels + Sticky Headers + Better Scroll Heights)
+
+Goal
+
+Improve the usability of the Discursive tab without changing any modelling logic.
+
+This step should:
+1. make long secondary/supporting panels collapsible
+2. give long tables sticky/frozen headers inside scrollable containers
+3. increase the visible height of short internal scroll boxes that currently show too few rows
+
+This is a cosmetic and usability step only.
+
+
+IMPORTANT
+
+Do NOT modify, revert, overwrite, or refactor any manually edited code.
+Do NOT change:
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- Sankey logic
+- subcluster generation logic
+- participation logic
+- temporal logic
+- similarity calculations
+- CSV export logic
+- any summary logic added earlier
+
+Only improve layout, scroll behaviour, and panel visibility.
+
+
+Where to implement
+
+Primary file:
+- client/src/pages/Analysis.tsx
+
+Use existing UI primitives where possible:
+- Collapsible
+- CollapsibleTrigger
+- CollapsibleContent
+
+Do NOT modify utility files in this step.
+
+
+Implementation Steps
+
+1. Keep the four main section headings visible and NOT collapsible:
+   - Constellation Snapshot
+   - Cluster / Configuration Profile
+   - Concept Behaviour Summary
+   - Diachronic Change View
+
+2. Within those sections, make secondary/supporting panels collapsible.
+
+3. Prefer the following default behaviour:
+
+   KEEP OPEN by default:
+   - Sankey Traffic (Synchronic Overview)
+   - Constellation Subclusters
+   - Participation Summary / main behaviour block
+   - Diachronic Stability or Temporal Concept Flow (whichever is already more primary in the layout)
+
+   COLLAPSE by default:
+   - Recurring Co-Terms
+   - Top Co-Term Pairings
+   - full Quad Subcluster Participation table
+   - Constellation Similarity / Distance
+   - Constellation Similarity Matrix
+   - Constellation Clusters
+   - any other long supporting evidence tables
+
+4. Add a clear trigger label for collapsed panels using the existing card title and a small chevron if convenient.
+
+5. For long tables, wrap the table body area in a fixed-height scroll container and keep the table header sticky.
+
+6. Apply sticky/frozen table headers to long tables where practical, especially:
+   - Quad Subcluster Participation
+   - Core vs Peripheral Quads
+   - Constellation Similarity Matrix if applicable
+   - any other tall tables already inside scroll containers
+
+7. Use CSS classes or inline className adjustments only.
+   Preferred approach:
+   - add max-h / h to the scroll container
+   - add overflow-y-auto
+   - add sticky top-0 z-10 bg-background to header rows or header cells
+
+8. Fix the “Top Shared Quads” and “Top Shared Co-lemmas” boxes in the Constellation Similarity / Distance panel:
+   - increase their visible height so they show substantially more than 3 rows
+   - target roughly 8–10 visible rows if data exists
+   - keep scrolling if needed, but make the frame meaningfully taller
+
+9. Do NOT reduce readability by making everything tiny.
+   Use reasonable heights and preserve current typography where possible.
+
+10. Do NOT collapse the main Sankey visual or remove any current content.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- broadly refactor DiscursiveTab logic
+- modify calculations or derived data
+- touch utility modules
+- touch Sankey computation
+- change filtering behaviour
+- change thresholds
+- alter hook ordering
+- rename variables unnecessarily
+- revert any manual edits already made by the user
+
+Only make minimal targeted UI/layout edits required for:
+- collapsible supporting panels
+- sticky headers
+- better scroll heights
+
+
+Minimal Edit Rule (IMPORTANT)
+
+Perform a minimal targeted edit only.
+
+Edit only:
+- panel wrappers
+- collapsible wrappers
+- scroll container classNames
+- header classNames for sticky behaviour
+- height classNames for short list panels
+
+Do NOT restructure unrelated code.
+Do NOT regenerate large sections of the file.
+Do NOT touch Lexical or Semantic tabs.
+
+
+UI Protection Rule
+
+This step must NOT change:
+
+- top-level tab navigation
+- Discursive analytical sequence
+- data content
+- metric definitions
+- exported content
+- wording of interpretation summaries unless needed for a collapsible trigger
+
+Only improve usability and readability.
+
+
+Expected Result
+
+After implementation:
+
+1. The Discursive tab is easier to navigate because long supporting panels can be expanded only when needed.
+2. Important primary panels remain visible without excessive clicking.
+3. Long tables retain visible headers while scrolling.
+4. The similarity panel’s “Top Shared Quads” and “Top Shared Co-lemmas” lists become tall enough to be useful.
+5. No analytical behaviour changes.
+
+
+Validation Checklist
+
+After implementation confirm:
+
+1. The app compiles without errors.
+2. Existing manual edits remain intact.
+3. Main section headings are still visible.
+4. Secondary/supporting panels are collapsible.
+5. Sankey remains open and unchanged.
+6. Long tables now have sticky/frozen headers where practical.
+7. Scrollable tables are easier to read.
+8. “Top Shared Quads” and “Top Shared Co-lemmas” show many more rows before scrolling.
+9. No logic or data outputs changed.
+10. Lexical and Semantic tabs remain unchanged.
+
+STOP AFTER STEP 26A

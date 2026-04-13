@@ -1384,6 +1384,7 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
+      <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
@@ -1404,8 +1405,12 @@ const DiscursiveTab = () => {
                 <SelectItem value="all">All</SelectItem>
               </SelectContent>
             </Select>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><ChevronDown className="h-3 w-3" /></Button>
+            </CollapsibleTrigger>
           </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="p-4">
           {recurringCoTerms.length > 0 ? (
             <div className="space-y-1">
@@ -1420,12 +1425,19 @@ const DiscursiveTab = () => {
             <div className="text-[10px] text-muted-foreground italic">No co-terms available.</div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
+      <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-hidden">
-        <CardHeader className="bg-muted/5 border-b">
-          <CardTitle className="text-sm font-bold">Top Co-Term Pairings</CardTitle>
-        </CardHeader>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="bg-muted/5 border-b cursor-pointer hover:bg-muted/10 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold">Top Co-Term Pairings</CardTitle>
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
         <CardContent className="p-4">
           {coTermPairs.length > 0 ? (
             <div className="space-y-1">
@@ -1443,7 +1455,9 @@ const DiscursiveTab = () => {
             <div className="text-[10px] text-muted-foreground italic">No co-term pairs available.</div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">C · Concept Behaviour Summary</h2>
@@ -1520,14 +1534,15 @@ const DiscursiveTab = () => {
                   <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-300 mr-0.5" />Fringe: <strong>{fringeCount}</strong> <span className="text-muted-foreground">({pct(fringeCount)})</span></span>
                   <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={handleExport}><Download className="h-3 w-3 mr-1" />Export CSV</Button>
                 </div>
+              <div className="overflow-y-auto max-h-[400px]">
               <table className="w-full border-collapse text-[10px]">
                 <thead>
-                  <tr className="bg-muted/20 border-b">
-                    <th className="p-2 text-left font-bold border-r">Quad</th>
-                    <th className="p-2 text-center font-bold border-r">Participation Type</th>
-                    <th className="p-2 text-center font-bold border-r">Subclusters Touched</th>
-                    <th className="p-2 text-left font-bold border-r">Mapped Co-terms</th>
-                    <th className="p-2 text-left font-bold">Unmapped Co-terms</th>
+                  <tr className="bg-muted/20 border-b sticky top-0 z-10">
+                    <th className="p-2 text-left font-bold border-r bg-muted/20">Quad</th>
+                    <th className="p-2 text-center font-bold border-r bg-muted/20">Participation Type</th>
+                    <th className="p-2 text-center font-bold border-r bg-muted/20">Subclusters Touched</th>
+                    <th className="p-2 text-left font-bold border-r bg-muted/20">Mapped Co-terms</th>
+                    <th className="p-2 text-left font-bold bg-muted/20">Unmapped Co-terms</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1550,6 +1565,7 @@ const DiscursiveTab = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
               </>
             );
           })()}
@@ -1615,10 +1631,11 @@ const DiscursiveTab = () => {
                   );
                 })()}
               </div>
+              <div className="overflow-y-auto max-h-[420px]">
               <table className="w-full border-collapse text-[10px]">
               <thead>
-                <tr className="bg-muted/20 border-b">
-                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
+                <tr className="bg-muted/20 border-b sticky top-0 z-10">
+                  <th className="sticky left-0 bg-muted/20 z-20 p-2 text-left font-bold border-r">Quad</th>
                   <th className="p-2 text-right font-bold border-r cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("frequency"); setCoreSortDir(coreSortBy === "frequency" && coreSortDir === "desc" ? "asc" : "desc"); }}>Total Freq {coreSortBy === "frequency" && (coreSortDir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-center font-bold border-r cursor-pointer hover:bg-muted/30 select-none" onClick={() => { setCoreSortBy("dispersion"); setCoreSortDir(coreSortBy === "dispersion" && coreSortDir === "desc" ? "asc" : "desc"); }}>Dispersion {coreSortBy === "dispersion" && (coreSortDir === "desc" ? "↓" : "↑")}</th>
                   <th className="p-2 text-center font-bold border-r">First Seen</th>
@@ -1699,6 +1716,7 @@ const DiscursiveTab = () => {
                 })()}
               </tbody>
             </table>
+            </div>
             </>
           ) : (
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
@@ -1799,9 +1817,11 @@ const DiscursiveTab = () => {
         </CardContent>
       </Card>
 
+      <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold">Constellation Similarity / Distance</CardTitle>
+          <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-7 text-[9px]" onClick={() => {
             if (similarityData) {
               const exportData = [
@@ -1817,7 +1837,12 @@ const DiscursiveTab = () => {
           }}>
             <Download className="h-3 w-3 mr-1" /> Export
           </Button>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><ChevronDown className="h-3 w-3" /></Button>
+          </CollapsibleTrigger>
+          </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="pt-4 space-y-4">
           {similarityData ? (
             <>
@@ -1850,7 +1875,7 @@ const DiscursiveTab = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[9px] font-bold mb-2">Top Shared Quads</p>
-                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                  <div className="space-y-1 max-h-[240px] overflow-y-auto">
                     {similarityData.sharedQuadData.map((q: any) => (
                       <div key={q.quadKey} className="p-2 border rounded text-[9px] cursor-pointer hover:bg-muted/10" onClick={() => setSelectedQuadKey(q.quadKey)}>
                         {q.quadKey}
@@ -1860,7 +1885,7 @@ const DiscursiveTab = () => {
                 </div>
                 <div>
                   <p className="text-[9px] font-bold mb-2">Top Shared Co-lemmas</p>
-                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                  <div className="space-y-1 max-h-[240px] overflow-y-auto">
                     {similarityData.sharedColemmaData.map((c: any) => (
                       <div key={c.colemma} className="p-2 border rounded text-[9px]">
                         {c.colemma}
@@ -1874,8 +1899,11 @@ const DiscursiveTab = () => {
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No comparison constellation available under current settings.</div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
+      <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-x-auto">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <div className="space-y-1">
@@ -1909,8 +1937,12 @@ const DiscursiveTab = () => {
             }}>
               <Download className="h-3 w-3 mr-1" /> Export
             </Button>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><ChevronDown className="h-3 w-3" /></Button>
+            </CollapsibleTrigger>
           </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="pt-4">
           {matrixData && matrixData.valid.length >= 2 ? (
             <div className="overflow-x-auto">
@@ -1947,8 +1979,11 @@ const DiscursiveTab = () => {
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No constellation matrix available under current settings.</div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
+      <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
           <div className="space-y-1">
@@ -1978,8 +2013,12 @@ const DiscursiveTab = () => {
             }}>
               <Download className="h-3 w-3 mr-1" /> Export
             </Button>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><ChevronDown className="h-3 w-3" /></Button>
+            </CollapsibleTrigger>
           </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="pt-4 space-y-4">
           {clusteringData && clusteringData.clusterStats.length > 0 ? (
             <div className="space-y-4">
@@ -2011,7 +2050,9 @@ const DiscursiveTab = () => {
             <div className="p-8 text-center text-[10px] text-muted-foreground italic">No clusters available under current settings.</div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       <Card className="shadow-none border-muted/60">
         <CardHeader className="bg-muted/5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3">
