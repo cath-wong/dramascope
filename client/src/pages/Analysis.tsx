@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
@@ -1085,6 +1085,124 @@ const DiscursiveTab = () => {
     });
   }, [sankeyData]);
 
+  const constellationSnapshotSummary = useMemo(() => {
+    const topCoLemmas = recurringCoTerms.slice(0, 5).map(([term]) => term);
+    const n = sankeyData?.nodes.length || 0;
+    const l = sankeyData?.links.length || 0;
+    const density = l > n ? "dense" : l === n ? "moderate" : "sparse";
+    return {
+      node_lemma: nodeLemma,
+      top_co_lemmas: topCoLemmas.join("; ") || "(none)",
+      total_nodes: n,
+      total_links: l,
+      density_pattern: density,
+      total_quads: corePeripheralData.length
+    };
+  }, [recurringCoTerms, sankeyData, nodeLemma, corePeripheralData]);
+
+  const configurationProfileSummary = useMemo(() => {
+    const n = clusterAnchorsData.length;
+    const largest = clusterAnchorsData[0]?.termCount || 0;
+    const total = clusterAnchorsData.reduce((s, c) => s + c.termCount, 0);
+    const config = total > 0 && largest / total > 0.5 ? "centralised" : "distributed";
+    const anchors = clusterAnchorsData.slice(0, 3).map(c => c.topAnchors[0]?.term || "").filter(Boolean);
+    return {
+      node_lemma: nodeLemma,
+      cluster_count: n,
+      largest_cluster_size: largest,
+      total_clustered_terms: total,
+      configuration_type: n > 0 ? config : "(no clusters)",
+      top_cluster_anchors: anchors.join("; ") || "(none)"
+    };
+  }, [clusterAnchorsData, nodeLemma]);
+
+  const behaviourSummary = useMemo(() => {
+    const total = quadSubclusterParticipationData.length;
+    if (total === 0) return null;
+    const intra = quadSubclusterParticipationData.filter(r => r.participationType === "Intra-subcluster").length;
+    const cross = quadSubclusterParticipationData.filter(r => r.participationType === "Cross-subcluster").length;
+    const fringe = quadSubclusterParticipationData.filter(r => r.participationType === "Fringe").length;
+    const fringePct = fringe / total;
+    const dominant = fringePct > 0.6 ? "fringe-dominated" : fringePct > 0.3 ? "expanding" : "stable";
+    return {
+      node_lemma: nodeLemma,
+      total_quads: total,
+      intra_subcluster_count: intra,
+      intra_ratio: (intra / total).toFixed(2),
+      cross_subcluster_count: cross,
+      cross_ratio: (cross / total).toFixed(2),
+      fringe_count: fringe,
+      fringe_ratio: fringePct.toFixed(2),
+      dominant_behaviour: dominant
+    };
+  }, [quadSubclusterParticipationData, nodeLemma]);
+
+  const diachronicChangeSummary = useMemo(() => {
+    if (!temporalFlowData || !results?.sortedSlices) return null;
+    const slices = results.sortedSlices;
+    const total = slices.length;
+    const activeSlices = slices.filter(s => temporalFlowData.some(row => (row[s] || 0) > 0)).length;
+    const halfIdx = Math.floor(total / 2);
+    const firstHalfActive = slices.slice(0, halfIdx).some(s => temporalFlowData.some(row => (row[s] || 0) > 0));
+    const presenceType = activeSlices === total ? "continuous" : (!firstHalfActive && activeSlices > 0) ? "emerging" : "intermittent";
+    const changeSuggestion = presenceType === "continuous" ? "stability" : presenceType === "emerging" ? "expansion" : "fluctuation";
+    const firstSlice = slices.find(s => temporalFlowData.some(row => (row[s] || 0) > 0)) || "";
+    const lastSlice = [...slices].reverse().find(s => temporalFlowData.some(row => (row[s] || 0) > 0)) || "";
+    return {
+      node_lemma: nodeLemma,
+      total_slices: total,
+      active_slices: activeSlices,
+      coverage_ratio: (activeSlices / total).toFixed(2),
+      first_active_slice: firstSlice,
+      last_active_slice: lastSlice,
+      presence_type: presenceType,
+      change_suggestion: changeSuggestion
+    };
+  }, [temporalFlowData, results, nodeLemma]);
+
+  const exportCombinedSummaryTxt = () => {
+    const lines = [
+      `DISCURSIVE ANALYSIS SUMMARY`,
+      `Node: ${nodeLemma}`,
+      `Generated: ${new Date().toISOString().slice(0, 10)}`,
+      ``,
+      `--- A. CONSTELLATION SNAPSHOT ---`,
+      `Top co-lemmas: ${constellationSnapshotSummary.top_co_lemmas}`,
+      `Structure: ${constellationSnapshotSummary.total_nodes} nodes, ${constellationSnapshotSummary.total_links} links (${constellationSnapshotSummary.density_pattern})`,
+      `Total quads: ${constellationSnapshotSummary.total_quads}`,
+      ``,
+      `--- B. CLUSTER / CONFIGURATION PROFILE ---`,
+      `Cluster count: ${configurationProfileSummary.cluster_count}`,
+      `Configuration type: ${configurationProfileSummary.configuration_type}`,
+      `Largest cluster: ${configurationProfileSummary.largest_cluster_size} terms`,
+      `Top cluster anchors: ${configurationProfileSummary.top_cluster_anchors}`,
+      ``,
+      `--- C. CONCEPT BEHAVIOUR SUMMARY ---`,
+      ...(behaviourSummary ? [
+        `Intra-subcluster: ${behaviourSummary.intra_subcluster_count} quads (${(parseFloat(behaviourSummary.intra_ratio) * 100).toFixed(0)}%)`,
+        `Cross-subcluster: ${behaviourSummary.cross_subcluster_count} quads (${(parseFloat(behaviourSummary.cross_ratio) * 100).toFixed(0)}%)`,
+        `Fringe: ${behaviourSummary.fringe_count} quads (${(parseFloat(behaviourSummary.fringe_ratio) * 100).toFixed(0)}%)`,
+        `Dominant behaviour: ${behaviourSummary.dominant_behaviour}`,
+      ] : [`(no participation data)`]),
+      ``,
+      `--- D. DIACHRONIC CHANGE VIEW ---`,
+      ...(diachronicChangeSummary ? [
+        `Active slices: ${diachronicChangeSummary.active_slices} of ${diachronicChangeSummary.total_slices}`,
+        `First active: ${diachronicChangeSummary.first_active_slice}`,
+        `Last active: ${diachronicChangeSummary.last_active_slice}`,
+        `Presence type: ${diachronicChangeSummary.presence_type}`,
+        `Change suggestion: ${diachronicChangeSummary.change_suggestion}`,
+      ] : [`(no temporal data)`]),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `discursive_summary_${nodeLemma}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6 pb-12">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
@@ -1206,14 +1324,20 @@ const DiscursiveTab = () => {
       </Card>
 
       {sankeyData && (
-        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/80">Interpretation: </span>
-          {(() => {
-            const n = sankeyData.nodes.length;
-            const l = sankeyData.links.length;
-            const density = l > n ? "dense" : l === n ? "moderate" : "sparse";
-            return `The constellation shows ${n} nodes connected by ${l} links, indicating a ${density} structure.`;
-          })()}
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground flex items-start justify-between gap-2">
+          <span>
+            <span className="font-semibold text-foreground/80">Interpretation: </span>
+            {(() => {
+              const n = sankeyData.nodes.length;
+              const l = sankeyData.links.length;
+              const density = l > n ? "dense" : l === n ? "moderate" : "sparse";
+              return `The constellation shows ${n} nodes connected by ${l} links, indicating a ${density} structure.`;
+            })()}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => exportToCsv(`constellation_snapshot_${nodeLemma}.csv`, [constellationSnapshotSummary])} title="Export Constellation Snapshot CSV"><Download className="h-2.5 w-2.5 mr-1" />CSV</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => navigator.clipboard.writeText(Object.entries(constellationSnapshotSummary).map(([k,v]) => `${k}: ${v}`).join("\n"))} title="Copy summary"><Clipboard className="h-2.5 w-2.5 mr-1" />Copy</Button>
+          </div>
         </div>
       )}
 
@@ -1320,15 +1444,21 @@ const DiscursiveTab = () => {
       </div>
 
       {clusterAnchorsData.length > 0 && (
-        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/80">Configuration Summary: </span>
-          {(() => {
-            const n = clusterAnchorsData.length;
-            const largest = clusterAnchorsData[0]?.termCount || 0;
-            const total = clusterAnchorsData.reduce((s, c) => s + c.termCount, 0);
-            const config = total > 0 && largest / total > 0.5 ? "centralised" : "distributed";
-            return `The constellation contains ${n} cluster${n !== 1 ? "s" : ""}, with the largest comprising ${largest} item${largest !== 1 ? "s" : ""}, suggesting a ${config} configuration.`;
-          })()}
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground flex items-start justify-between gap-2">
+          <span>
+            <span className="font-semibold text-foreground/80">Configuration Summary: </span>
+            {(() => {
+              const n = clusterAnchorsData.length;
+              const largest = clusterAnchorsData[0]?.termCount || 0;
+              const total = clusterAnchorsData.reduce((s, c) => s + c.termCount, 0);
+              const config = total > 0 && largest / total > 0.5 ? "centralised" : "distributed";
+              return `The constellation contains ${n} cluster${n !== 1 ? "s" : ""}, with the largest comprising ${largest} item${largest !== 1 ? "s" : ""}, suggesting a ${config} configuration.`;
+            })()}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => exportToCsv(`configuration_profile_${nodeLemma}.csv`, [configurationProfileSummary])} title="Export Configuration Profile CSV"><Download className="h-2.5 w-2.5 mr-1" />CSV</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => navigator.clipboard.writeText(Object.entries(configurationProfileSummary).map(([k,v]) => `${k}: ${v}`).join("\n"))} title="Copy summary"><Clipboard className="h-2.5 w-2.5 mr-1" />Copy</Button>
+          </div>
         </div>
       )}
 
@@ -1466,16 +1596,22 @@ const DiscursiveTab = () => {
       </div>
 
       {quadSubclusterParticipationData.length > 0 && (
-        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/80">Behaviour Summary: </span>
-          {(() => {
-            const total = quadSubclusterParticipationData.length;
-            const fringe = quadSubclusterParticipationData.filter(r => r.participationType === "Fringe").length;
-            const fringePct = total > 0 ? fringe / total : 0;
-            const level = fringePct > 0.6 ? "high" : fringePct > 0.3 ? "moderate" : "low";
-            const behaviour = fringePct > 0.6 ? "diffuse" : fringePct > 0.3 ? "expanding" : "stable";
-            return `The concept displays ${level} peripheral activity, indicating a ${behaviour} behaviour.`;
-          })()}
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground flex items-start justify-between gap-2">
+          <span>
+            <span className="font-semibold text-foreground/80">Behaviour Summary: </span>
+            {(() => {
+              const total = quadSubclusterParticipationData.length;
+              const fringe = quadSubclusterParticipationData.filter(r => r.participationType === "Fringe").length;
+              const fringePct = total > 0 ? fringe / total : 0;
+              const level = fringePct > 0.6 ? "high" : fringePct > 0.3 ? "moderate" : "low";
+              const behaviour = fringePct > 0.6 ? "diffuse" : fringePct > 0.3 ? "expanding" : "stable";
+              return `The concept displays ${level} peripheral activity, indicating a ${behaviour} behaviour.`;
+            })()}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => behaviourSummary && exportToCsv(`concept_behaviour_${nodeLemma}.csv`, [behaviourSummary])} title="Export Behaviour Summary CSV"><Download className="h-2.5 w-2.5 mr-1" />CSV</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => behaviourSummary && navigator.clipboard.writeText(Object.entries(behaviourSummary).map(([k,v]) => `${k}: ${v}`).join("\n"))} title="Copy summary"><Clipboard className="h-2.5 w-2.5 mr-1" />Copy</Button>
+          </div>
         </div>
       )}
 
@@ -1756,18 +1892,25 @@ const DiscursiveTab = () => {
       </Card>
 
       {temporalFlowData && results?.sortedSlices && (
-        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/80">Change Summary: </span>
-          {(() => {
-            const slices = results.sortedSlices;
-            const total = slices.length;
-            const activeSlices = slices.filter(s => temporalFlowData.some(row => (row[s] || 0) > 0)).length;
-            const halfIdx = Math.floor(total / 2);
-            const firstHalfActive = slices.slice(0, halfIdx).some(s => temporalFlowData.some(row => (row[s] || 0) > 0));
-            const type = activeSlices === total ? "continuous" : !firstHalfActive && activeSlices > 0 ? "emerging" : "intermittent";
-            const interp = type === "continuous" ? "stability" : type === "emerging" ? "expansion" : "fluctuation";
-            return `The concept shows ${type} presence across time, suggesting ${interp}.`;
-          })()}
+        <div className="rounded-md border border-muted/40 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground flex items-start justify-between gap-2">
+          <span>
+            <span className="font-semibold text-foreground/80">Change Summary: </span>
+            {(() => {
+              const slices = results.sortedSlices;
+              const total = slices.length;
+              const activeSlices = slices.filter(s => temporalFlowData.some(row => (row[s] || 0) > 0)).length;
+              const halfIdx = Math.floor(total / 2);
+              const firstHalfActive = slices.slice(0, halfIdx).some(s => temporalFlowData.some(row => (row[s] || 0) > 0));
+              const type = activeSlices === total ? "continuous" : !firstHalfActive && activeSlices > 0 ? "emerging" : "intermittent";
+              const interp = type === "continuous" ? "stability" : type === "emerging" ? "expansion" : "fluctuation";
+              return `The concept shows ${type} presence across time, suggesting ${interp}.`;
+            })()}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => diachronicChangeSummary && exportToCsv(`diachronic_change_${nodeLemma}.csv`, [diachronicChangeSummary])} title="Export Diachronic Change CSV"><Download className="h-2.5 w-2.5 mr-1" />CSV</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={() => diachronicChangeSummary && navigator.clipboard.writeText(Object.entries(diachronicChangeSummary).map(([k,v]) => `${k}: ${v}`).join("\n"))} title="Copy summary"><Clipboard className="h-2.5 w-2.5 mr-1" />Copy</Button>
+            <Button variant="ghost" size="sm" className="h-6 text-[8px] px-2" onClick={exportCombinedSummaryTxt} title="Download all four summaries as .txt"><Download className="h-2.5 w-2.5 mr-1" />.txt</Button>
+          </div>
         </div>
       )}
 

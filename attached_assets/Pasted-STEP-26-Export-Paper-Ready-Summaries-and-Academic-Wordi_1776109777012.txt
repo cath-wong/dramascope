@@ -1,0 +1,227 @@
+STEP 26 — Export Paper-Ready Summaries and Academic Wording
+
+Goal
+
+Transform Discursive tab outputs into exportable, paper-ready summaries.
+
+This step does NOT introduce new analysis.
+It converts existing results into structured, interpretable, and exportable outputs suitable for academic writing.
+
+
+IMPORTANT
+
+Do NOT modify:
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- Sankey logic
+- clustering logic
+- participation logic
+- temporal logic
+- similarity calculations
+
+Do NOT:
+- add new metrics
+- change thresholds
+- change filtering behaviour
+- alter any existing results
+
+This is a PRESENTATION + EXPORT step only.
+
+
+Scope
+
+Apply ONLY to the Discursive Concept tab.
+
+Do NOT modify Lexical or Semantic tabs.
+
+
+Implementation Overview
+
+Add exportable “paper-ready summaries” for the following four analytical layers:
+
+1. Constellation Snapshot
+2. Cluster / Configuration Profile
+3. Concept Behaviour Summary
+4. Diachronic Change View
+
+
+--------------------------------------------------
+PART 1 — Structured Summary Blocks (UI + Data)
+--------------------------------------------------
+
+For each of the four sections above, create a structured summary object.
+
+Each summary should be:
+
+- concise
+- interpretable
+- based only on existing computed data
+- written in neutral academic tone (no exaggeration, no buzzwords)
+
+
+1. Constellation Snapshot Summary
+
+Content should include:
+- dominant co-lemmas (top recurring co-terms)
+- general pattern (e.g. concentrated vs dispersed)
+- any visible clustering tendency
+
+Format example (data, not hardcoded text):
+
+{
+  nodeLemma: "lord",
+  topCoLemmas: ["church", "god", "duke", "earl"],
+  patternType: "mixed (religious + secular)",
+  density: "moderate"
+}
+
+
+2. Cluster / Configuration Profile Summary
+
+Content should include:
+- number of clusters/subclusters
+- relative sizes
+- degree of separation vs overlap
+
+Example:
+
+{
+  clusterCount: 2,
+  dominantClusters: ["religious", "secular"],
+  configurationType: "bimodal",
+  overlapLevel: "low"
+}
+
+
+3. Concept Behaviour Summary
+
+Content should include:
+- distribution of quad types:
+  - intra-subcluster
+  - cross-subcluster
+  - fringe
+- dominant behaviour type
+
+Example:
+
+{
+  intraRatio: 0.25,
+  crossRatio: 0.15,
+  fringeRatio: 0.60,
+  dominantBehaviour: "fringe-dominated"
+}
+
+
+4. Diachronic Change Summary
+
+Content should include:
+- stability vs change across slices
+- emergence or decline patterns
+- any directional trend (if observable)
+
+Example:
+
+{
+  stability: "low",
+  changePattern: "increasing diversification",
+  notableShift: "expansion into secular domain after mid-period"
+}
+
+
+--------------------------------------------------
+PART 2 — CSV Export (REQUIRED)
+--------------------------------------------------
+
+Add export functionality for these summaries.
+
+Each summary should be exportable as CSV.
+
+Create separate exports:
+
+- constellation_snapshot_summary.csv
+- configuration_profile_summary.csv
+- concept_behaviour_summary.csv
+- diachronic_change_summary.csv
+
+Each CSV should contain:
+- node lemma
+- key metrics/fields from that section
+- no raw quads (only summarised values)
+
+
+--------------------------------------------------
+PART 3 — Optional Text Summary (Lightweight)
+--------------------------------------------------
+
+Add a simple text export (plain text or downloadable .txt) that combines all four summaries.
+
+This should:
+
+- NOT be over-written
+- NOT include interpretation claims beyond data
+- remain descriptive and modest in tone
+
+Example style:
+
+"The constellation shows a mixed configuration, with co-occurrence patterns spanning both religious and secular domains. Cluster structure is relatively dispersed, with a high proportion of fringe associations. Diachronic patterns suggest gradual diversification over time."
+
+
+--------------------------------------------------
+PART 4 — UI Placement
+--------------------------------------------------
+
+For each of the four sections:
+
+- place a small “Export Summary” button
+- optionally include:
+  - “Download CSV”
+  - “Copy Summary”
+  - “Download Text”
+
+Do NOT clutter UI:
+- keep buttons small and consistent
+- do NOT add large new panels
+
+
+--------------------------------------------------
+Safety Constraints
+
+The agent must NOT:
+
+- refactor existing analysis code
+- move panels around
+- rename core variables
+- alter computed values
+- introduce new interpretations beyond summarised data
+
+
+--------------------------------------------------
+Expected Result
+
+After Step 26:
+
+- Each analytical layer produces a clean, structured summary
+- Summaries are exportable as CSV
+- A combined textual summary is available
+- The system becomes usable for:
+  - writing papers
+  - reporting results
+  - sharing outputs
+
+
+--------------------------------------------------
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors
+2. All four summary objects are generated correctly
+3. CSV export works for each summary
+4. No analytical outputs have changed
+5. UI remains clean and uncluttered
+6. No impact on Sankey, clusters, or tables
+
+
+STOP AFTER STEP 26
