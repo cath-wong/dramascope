@@ -1,0 +1,264 @@
+STEP 27 — Discursive Tab QA and Consistency Validation
+
+Goal
+
+Perform a comprehensive quality assurance (QA) and consistency review of the Discursive Concept tab.
+
+This step introduces NO new analytical methods, visualisations, metrics, or UI components.
+
+The purpose is to verify that all existing panels behave consistently, produce coherent outputs, and respond correctly across different node lemmas before the Discursive tab is considered complete.
+
+This is a validation and robustness step only.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- Sankey construction
+- constellation generation
+- clustering logic
+- participation logic
+- similarity calculations
+- temporal calculations
+- summary generation
+- export functionality
+
+Do NOT add:
+
+- new analyses
+- new panels
+- new visualisations
+- new metrics
+- new filters
+
+The only permitted code changes are small bug fixes required to resolve inconsistencies discovered during validation.
+
+
+Scope
+
+Apply ONLY to the Discursive Concept tab.
+
+Do NOT modify Lexical or Semantic tabs.
+
+
+Validation Objectives
+
+The Discursive tab should behave consistently regardless of which node lemma is selected.
+
+Recommended validation lemmas include (where available):
+
+- lord
+- king
+- father
+- god
+- love
+- duke
+
+The purpose is NOT to obtain similar results for each lemma.
+
+The purpose is to verify that the analytical workflow behaves correctly for all lemmas.
+
+
+--------------------------------------------------
+PART 1 — Analytical Consistency
+--------------------------------------------------
+
+Confirm that the following analytical sequence remains internally consistent:
+
+Node Lemma
+        ↓
+Quad Extraction
+        ↓
+Constellation Construction
+        ↓
+Cluster / Configuration Analysis
+        ↓
+Concept Behaviour Analysis
+        ↓
+Diachronic Analysis
+        ↓
+Summary + Export
+
+Each downstream panel should derive from the same underlying constellation for the selected node lemma.
+
+No panel should display stale, unrelated, or inconsistent data.
+
+
+--------------------------------------------------
+PART 2 — Filter Consistency
+--------------------------------------------------
+
+Verify that changing:
+
+- Content Words Only
+- All Words
+
+updates every relevant panel consistently.
+
+Confirm that:
+
+- Sankey
+- Recurring Co-Terms
+- Co-Term Pairings
+- Constellation Subclusters
+- Participation analyses
+- Similarity analyses
+- Temporal analyses
+- Summary objects
+
+all remain internally coherent.
+
+No panel should silently use a different filtering state unless explicitly intended.
+
+
+--------------------------------------------------
+PART 3 — Empty-State Behaviour
+--------------------------------------------------
+
+If a node lemma produces insufficient data:
+
+The app should:
+
+- remain stable
+- display an informative empty-state message
+- avoid runtime errors
+- avoid broken charts
+- avoid misleading summaries
+
+No component should crash.
+
+
+--------------------------------------------------
+PART 4 — Export Validation
+--------------------------------------------------
+
+Confirm that:
+
+CSV exports
+
+and
+
+paper-ready summary exports
+
+match exactly what is displayed on screen.
+
+Exports should never contain:
+
+- stale data
+- hidden previous selections
+- duplicated rows
+- mismatched node lemmas
+
+
+--------------------------------------------------
+PART 5 — Interpretation Consistency
+--------------------------------------------------
+
+Review the generated summaries.
+
+Ensure they remain:
+
+- descriptive
+- evidence-based
+- academically modest
+- free from unsupported interpretation
+
+Do NOT generate conclusions beyond what the computed data support.
+
+
+--------------------------------------------------
+PART 6 — UI Consistency
+--------------------------------------------------
+
+Check that:
+
+- section ordering is consistent
+- panel titles are consistent
+- terminology is used consistently
+
+Examples:
+
+Always use:
+
+Node Lemma
+
+not
+
+Target Word
+Anchor
+Query
+
+Similarly:
+
+Constellation
+Cluster
+Configuration
+Behaviour
+Diachronic Change
+
+should be used consistently throughout.
+
+
+--------------------------------------------------
+PART 7 — Performance Check
+--------------------------------------------------
+
+Confirm that switching between node lemmas:
+
+- updates efficiently
+- does not noticeably degrade performance
+- does not create duplicate renders
+- does not leave stale visualisations visible
+
+
+--------------------------------------------------
+Safety Constraints
+
+The agent must NOT:
+
+- redesign the dashboard
+- add new functionality
+- rewrite Analysis.tsx
+- refactor utility modules
+- alter algorithms
+
+Only make targeted corrections if genuine inconsistencies are discovered during validation.
+
+
+Expected Result
+
+After Step 27:
+
+The Discursive Concept tab behaves as a coherent analytical pipeline.
+
+Every panel:
+
+- updates correctly
+- uses consistent terminology
+- reflects the currently selected node lemma
+- produces matching summaries and exports
+
+The Discursive tab can be considered analytically stable.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. App compiles without errors.
+2. Multiple node lemmas have been tested.
+3. All analytical panels update consistently.
+4. Filter behaviour is internally consistent.
+5. Empty states are handled correctly.
+6. Summary exports match displayed results.
+7. Terminology is consistent throughout.
+8. No analytical logic has changed.
+9. No new features have been added.
+10. The Discursive Concept tab is considered ready for publication-quality use.
+
+STOP AFTER STEP 27

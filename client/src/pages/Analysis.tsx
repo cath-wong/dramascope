@@ -294,7 +294,6 @@ const DiscursiveTab = () => {
   const [coTermFilter, setCoTermFilter] = useState<"All" | "Core">("All");
 
   // Analysis word mode (All vs Content only)
-  const [analysisWordMode, setAnalysisWordMode] = useState<"all" | "content">("all");
 
   const getTimeSlice = (s: any) => (timeMode === "year" ? s.year_est || s.year_mid || s.year_min || "Unknown" : s.decade || s.decade_num || "Unknown");
 
@@ -781,7 +780,7 @@ const DiscursiveTab = () => {
       if (parts.length >= 4) {
         const allTerms = parts;
         const coTerms = allTerms.filter(t => t !== nodeLemma);
-        const filteredCoTerms = coTerms.filter(t => analysisWordMode === "all" || !FUNCTION_WORDS.has(t));
+        const filteredCoTerms = coTerms.filter(t => !contentWordOnly || !FUNCTION_WORDS.has(t));
         filteredCoTerms.forEach(term => {
           coTermMap.set(term, (coTermMap.get(term) || 0) + 1);
         });
@@ -790,7 +789,7 @@ const DiscursiveTab = () => {
     const sorted = Array.from(coTermMap.entries()).sort((a, b) => b[1] - a[1]);
     const limit = coTermLimit === 10 ? 10 : coTermLimit === 20 ? 20 : sorted.length;
     return sorted.slice(0, limit);
-  }, [corePeripheralData, coTermFilter, coTermLimit, analysisWordMode, nodeLemma]);
+  }, [corePeripheralData, coTermFilter, coTermLimit, contentWordOnly, nodeLemma]);
 
   const coTermPairs = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -799,7 +798,7 @@ const DiscursiveTab = () => {
     filtered.forEach(row => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
-        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (!contentWordOnly || !FUNCTION_WORDS.has(t)));
         for (let i = 0; i < filteredCoTerms.length; i++) {
           for (let j = i + 1; j < filteredCoTerms.length; j++) {
             const pair = [filteredCoTerms[i], filteredCoTerms[j]].sort().join("|");
@@ -810,7 +809,7 @@ const DiscursiveTab = () => {
     });
     const sorted = Array.from(pairMap.entries()).sort((a, b) => b[1] - a[1]);
     return sorted.slice(0, 15);
-  }, [corePeripheralData, coTermFilter, analysisWordMode, nodeLemma]);
+  }, [corePeripheralData, coTermFilter, contentWordOnly, nodeLemma]);
 
   const coTermSubclusters = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return [];
@@ -821,7 +820,7 @@ const DiscursiveTab = () => {
     filtered.forEach(row => {
       const parts = row.quadKey.split("|");
       if (parts.length >= 4) {
-        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+        const filteredCoTerms = parts.filter(t => t !== nodeLemma && (!contentWordOnly || !FUNCTION_WORDS.has(t)));
         for (let i = 0; i < filteredCoTerms.length; i++) {
           for (let j = i + 1; j < filteredCoTerms.length; j++) {
             const pair = [filteredCoTerms[i], filteredCoTerms[j]].sort().join("|");
@@ -877,7 +876,7 @@ const DiscursiveTab = () => {
     
     clusters.sort((a, b) => b.terms.length - a.terms.length || b.edges - a.edges);
     return clusters;
-  }, [corePeripheralData, coTermFilter, analysisWordMode, nodeLemma]);
+  }, [corePeripheralData, coTermFilter, contentWordOnly, nodeLemma]);
 
   const clusterAnchorsData = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0 || coTermSubclusters.length === 0) return [];
@@ -894,7 +893,7 @@ const DiscursiveTab = () => {
       filtered.forEach(quad => {
         const parts = quad.quadKey.split("|");
         if (parts.length >= 4) {
-          const coTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+          const coTerms = parts.filter(t => t !== nodeLemma && (!contentWordOnly || !FUNCTION_WORDS.has(t)));
           
           let hasClusterTerm = false;
           coTerms.forEach(term => {
@@ -921,7 +920,7 @@ const DiscursiveTab = () => {
         termCount: cluster.terms.length
       };
     });
-  }, [corePeripheralData, coTermSubclusters, coTermFilter, analysisWordMode, nodeLemma]);
+  }, [corePeripheralData, coTermSubclusters, coTermFilter, contentWordOnly, nodeLemma]);
 
   const quadStructuralCentrality = useMemo(() => {
     if (!corePeripheralData || corePeripheralData.length === 0) return new Map<string, number>();
@@ -997,7 +996,7 @@ const DiscursiveTab = () => {
     corePeripheralData.forEach(quad => {
       const parts = quad.quadKey.split("|");
       if (parts.length >= 4) {
-        const coTerms = parts.filter(t => t !== nodeLemma && (analysisWordMode === "all" || !FUNCTION_WORDS.has(t)));
+        const coTerms = parts.filter(t => t !== nodeLemma && (!contentWordOnly || !FUNCTION_WORDS.has(t)));
         
         const subclustersTouched = new Set<number>();
         const mappedTerms: string[] = [];
@@ -1042,7 +1041,7 @@ const DiscursiveTab = () => {
     });
     
     return participationList;
-  }, [corePeripheralData, coTermSubclusters, analysisWordMode, nodeLemma]);
+  }, [corePeripheralData, coTermSubclusters, contentWordOnly, nodeLemma]);
 
   const inventoryColumns = [
     { key: "node", label: "Node (L0)" },
@@ -1096,7 +1095,7 @@ const DiscursiveTab = () => {
       total_nodes: n,
       total_links: l,
       density_pattern: density,
-      total_quads: corePeripheralData.length
+      total_quads: corePeripheralData?.length || 0
     };
   }, [recurringCoTerms, sankeyData, nodeLemma, corePeripheralData]);
 
@@ -1521,8 +1520,8 @@ const DiscursiveTab = () => {
           <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
-              <Button variant={analysisWordMode === "all" ? "default" : "ghost"} size="sm" onClick={() => setAnalysisWordMode("all")} className="h-7 text-[9px] px-3">All Words</Button>
-              <Button variant={analysisWordMode === "content" ? "default" : "ghost"} size="sm" onClick={() => setAnalysisWordMode("content")} className="h-7 text-[9px] px-3">Content Only</Button>
+              <Button variant={!contentWordOnly ? "default" : "ghost"} size="sm" onClick={() => setContentWordOnly(false)} className="h-7 text-[9px] px-3">All Words</Button>
+              <Button variant={contentWordOnly ? "default" : "ghost"} size="sm" onClick={() => setContentWordOnly(true)} className="h-7 text-[9px] px-3">Content Only</Button>
             </div>
             <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
               <Button variant={coTermFilter === "All" ? "default" : "ghost"} size="sm" onClick={() => setCoTermFilter("All")} className="h-7 text-[9px] px-3">All</Button>
