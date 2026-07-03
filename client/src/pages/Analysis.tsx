@@ -1272,7 +1272,7 @@ const DiscursiveTab = () => {
         <CardContent className="pt-6">
           {sankeyAnalysisMode === "time-slice" && results?.quadInstancesAll.filter(q => q.slice === selectedSankeySlice).length === 0 ? (
             <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
-              No quad windows in this slice.
+              No sufficient quad evidence is available for the current time slice.
             </div>
           ) : sankeyData && sankeyData.links.length > 0 ? (
             <div className="h-[400px] w-full">
@@ -1295,7 +1295,7 @@ const DiscursiveTab = () => {
             </div>
           ) : (
             <div className="h-40 border-2 border-dashed rounded-xl flex items-center justify-center text-[10px] text-muted-foreground italic">
-              {contentWordOnly ? "No content-word Sankey data. Try switching to All Words." : "Not enough data to render Sankey at this threshold."}
+              {contentWordOnly ? "No sufficient quad evidence is available for the current selection. Try switching to All Words." : "No sufficient quad evidence is available at this Sankey threshold."}
             </div>
           )}
 
@@ -1316,6 +1316,7 @@ const DiscursiveTab = () => {
                   { key: "layer_target", label: "Layer T", align: "center" }
                 ]} 
                 filename={`sankey_edges_${nodeLemma}_${sankeyAnalysisMode}_${sankeyAnalysisMode === "time-slice" ? selectedSankeySlice : "all"}_${corpusScope}.csv`}
+                scrollable
               />
             </CollapsibleContent>
           </Collapsible>
@@ -1404,10 +1405,10 @@ const DiscursiveTab = () => {
                   ))}
                 </div>
               ) : (
-                <ResultsTable data={topQuadsFiltered} columns={[{ key: "quadKey", label: "Quad" }, { key: "count", label: "Freq", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} filename="slice_quads.csv" />
+                <ResultsTable data={topQuadsFiltered} columns={[{ key: "quadKey", label: "Quad" }, { key: "count", label: "Freq", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.quadKey, metric: item.count }])} filename="slice_quads.csv" scrollable />
               )
             ) : (
-              <div className="text-[10px] text-muted-foreground italic">No content-word quads in this slice. Try switching to All Words.</div>
+              <div className="text-[10px] text-muted-foreground italic">No sufficient quad evidence is available for the current selection. Try switching to All Words.</div>
             )}
           </CardContent>
         </Card>
@@ -1439,7 +1440,7 @@ const DiscursiveTab = () => {
 
       <div className="pt-4 pb-1 border-b border-muted/30 mb-2">
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">B · Cluster / Configuration Profile</h2>
-        <p className="text-[9px] text-muted-foreground/70 mt-0.5">Configuration of recurring co-terms and thematic grouping within the constellation.</p>
+        <p className="text-[9px] text-muted-foreground/70 mt-0.5">Configuration of recurring co-lemmas and thematic grouping within the constellation.</p>
       </div>
 
       {clusterAnchorsData.length > 0 && (
@@ -1506,10 +1507,10 @@ const DiscursiveTab = () => {
                 </div>
               ));
               })()}
-              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-terms are displayed. Anchor scores show quads containing each term.</div>
+              <div className="text-[8px] text-muted-foreground italic pt-2 border-t">Only subclusters with 3+ co-lemmas are displayed. Anchor scores show quads containing each term.</div>
             </div>
           ) : (
-            <div className="text-[10px] text-muted-foreground italic">No subclusters found.</div>
+            <div className="text-[10px] text-muted-foreground italic">No sufficient subcluster evidence is available for the current selection.</div>
           )}
         </CardContent>
       </Card>
@@ -1517,7 +1518,7 @@ const DiscursiveTab = () => {
       <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-hidden">
         <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold">Recurring Co-Terms</CardTitle>
+          <CardTitle className="text-sm font-bold">Recurring Co-Lemmas</CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex bg-muted p-0.5 rounded-md border shadow-inner">
               <Button variant={!contentWordOnly ? "default" : "ghost"} size="sm" onClick={() => setContentWordOnly(false)} className="h-7 text-[9px] px-3">All Words</Button>
@@ -1552,7 +1553,7 @@ const DiscursiveTab = () => {
               ))}
             </div>
           ) : (
-            <div className="text-[10px] text-muted-foreground italic">No co-terms available.</div>
+            <div className="text-[10px] text-muted-foreground italic">No sufficient co-lemma evidence is available for the current selection.</div>
           )}
         </CardContent>
         </CollapsibleContent>
@@ -1561,12 +1562,14 @@ const DiscursiveTab = () => {
 
       <Collapsible defaultOpen={false}>
       <Card className="shadow-none border-muted/60 overflow-hidden">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="bg-muted/5 border-b cursor-pointer hover:bg-muted/10 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold">Top Co-Term Pairings</CardTitle>
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-          </CardHeader>
-        </CollapsibleTrigger>
+        <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold">Top Co-Lemma Pairings</CardTitle>
+          <div className="flex items-center gap-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><ChevronDown className="h-3 w-3" /></Button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
         <CollapsibleContent>
         <CardContent className="p-4">
           {coTermPairs.length > 0 ? (
@@ -1582,7 +1585,7 @@ const DiscursiveTab = () => {
               })}
             </div>
           ) : (
-            <div className="text-[10px] text-muted-foreground italic">No co-term pairs available.</div>
+            <div className="text-[10px] text-muted-foreground italic">No sufficient co-lemma pairing evidence is available for the current selection.</div>
           )}
         </CardContent>
         </CollapsibleContent>
@@ -1643,7 +1646,7 @@ const DiscursiveTab = () => {
             });
             const displayedRows = participationRowLimit ? filteredRows.slice(0, participationRowLimit) : filteredRows;
             if (filteredRows.length === 0) {
-              return <div className="p-4 text-[10px] text-muted-foreground italic">No quads match the current participation filter.</div>;
+              return <div className="p-4 text-[10px] text-muted-foreground italic">No sufficient participation evidence is available for the current filter selection.</div>;
             }
             const total = displayedRows.length;
             const intraCount = displayedRows.filter(r => r.participationType === "Intra-subcluster").length;
@@ -1670,15 +1673,15 @@ const DiscursiveTab = () => {
                   <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-300 mr-0.5" />Fringe: <strong>{fringeCount}</strong> <span className="text-muted-foreground">({pct(fringeCount)})</span></span>
                   <Button variant="ghost" size="sm" className="h-5 text-[9px] ml-auto" onClick={handleExport}><Download className="h-3 w-3 mr-1" />Export CSV</Button>
                 </div>
-              <div className="overflow-y-auto max-h-[400px]">
+              <div className="overflow-y-auto max-h-[450px]">
               <table className="w-full border-collapse text-[10px]">
                 <thead>
                   <tr className="bg-muted/20 border-b sticky top-0 z-10">
                     <th className="p-2 text-left font-bold border-r bg-muted/20">Quad</th>
                     <th className="p-2 text-center font-bold border-r bg-muted/20">Participation Type</th>
                     <th className="p-2 text-center font-bold border-r bg-muted/20">Subclusters Touched</th>
-                    <th className="p-2 text-left font-bold border-r bg-muted/20">Mapped Co-terms</th>
-                    <th className="p-2 text-left font-bold bg-muted/20">Unmapped Co-terms</th>
+                    <th className="p-2 text-left font-bold border-r bg-muted/20">Mapped Co-lemmas</th>
+                    <th className="p-2 text-left font-bold bg-muted/20">Unmapped Co-lemmas</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1767,7 +1770,7 @@ const DiscursiveTab = () => {
                   );
                 })()}
               </div>
-              <div className="overflow-y-auto max-h-[420px]">
+              <div className="overflow-y-auto max-h-[450px]">
               <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-muted/20 border-b sticky top-0 z-10">
@@ -1855,7 +1858,7 @@ const DiscursiveTab = () => {
             </div>
             </>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No core/peripheral quad data available under current settings.</div>
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No sufficient core/peripheral quad evidence is available for the current selection.</div>
           )}
         </CardContent>
       </Card>
@@ -1922,18 +1925,19 @@ const DiscursiveTab = () => {
             <Download className="h-3 w-3 mr-1" /> Export Flow
           </Button>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto custom-scrollbar">
+        <CardContent className="p-0">
           {temporalFlowData && temporalFlowData.length > 0 ? (
+            <div className="overflow-y-auto overflow-x-auto max-h-[450px] custom-scrollbar">
             <table className="w-full border-collapse text-[10px]">
               <thead>
-                <tr className="bg-muted/20 border-b">
-                  <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r">Quad</th>
+                <tr className="bg-muted/20 border-b sticky top-0 z-10">
+                  <th className="sticky left-0 bg-muted/20 z-20 p-2 text-left font-bold border-r">Quad</th>
                   {results?.sortedSlices.map(s => (
-                    <th key={s} className="p-2 text-center font-bold border-r">{s}</th>
+                    <th key={s} className="p-2 text-center font-bold border-r bg-muted/20">{s}</th>
                   ))}
-                  <th className="p-2 text-right font-bold border-r">Total</th>
-                  <th className="p-2 text-center font-bold border-r">First Seen</th>
-                  <th className="p-2 text-center font-bold">Last Seen</th>
+                  <th className="p-2 text-right font-bold border-r bg-muted/20">Total</th>
+                  <th className="p-2 text-center font-bold border-r bg-muted/20">First Seen</th>
+                  <th className="p-2 text-center font-bold bg-muted/20">Last Seen</th>
                 </tr>
               </thead>
               <tbody>
@@ -1954,8 +1958,9 @@ const DiscursiveTab = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No temporal flow data available under current settings.</div>
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No sufficient temporal flow evidence is available for the current selection.</div>
           )}
         </CardContent>
       </Card>
@@ -2039,7 +2044,7 @@ const DiscursiveTab = () => {
               </div>
             </>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No comparison constellation available under current settings.</div>
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No sufficient comparison constellation evidence is available for the current selection.</div>
           )}
         </CardContent>
         </CollapsibleContent>
@@ -2088,13 +2093,13 @@ const DiscursiveTab = () => {
         <CollapsibleContent>
         <CardContent className="pt-4">
           {matrixData && matrixData.valid.length >= 2 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-y-auto overflow-x-auto max-h-[450px]">
               <table className="w-full border-collapse text-[9px]">
                 <thead>
-                  <tr>
-                    <th className="sticky left-0 bg-background z-10 p-2 text-left font-bold border-r border-b">&nbsp;</th>
+                  <tr className="sticky top-0 z-10">
+                    <th className="sticky left-0 top-0 bg-background z-20 p-2 text-left font-bold border-r border-b">&nbsp;</th>
                     {matrixData.nodes.map(n => (
-                      <th key={n} className="p-2 text-center font-bold border-r border-b h-16">
+                      <th key={n} className="p-2 text-center font-bold border-r border-b h-16 bg-background">
                         <div className="transform -rotate-45 origin-center whitespace-nowrap text-[8px]">{n}</div>
                       </th>
                     ))}
@@ -2119,7 +2124,7 @@ const DiscursiveTab = () => {
               </table>
             </div>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No constellation matrix available under current settings.</div>
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No sufficient constellation matrix evidence is available for the current selection.</div>
           )}
         </CardContent>
         </CollapsibleContent>
@@ -2190,7 +2195,7 @@ const DiscursiveTab = () => {
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No clusters available under current settings.</div>
+            <div className="p-8 text-center text-[10px] text-muted-foreground italic">No sufficient cluster evidence is available for the current selection.</div>
           )}
         </CardContent>
         </CollapsibleContent>
@@ -2236,7 +2241,7 @@ const DiscursiveTab = () => {
               </Button>
             ))
           ) : (
-            <div className="text-[10px] text-muted-foreground italic">No content-word lemmas. Try switching to All Words.</div>
+            <div className="text-[10px] text-muted-foreground italic">No sufficient node lemma evidence is available for the current selection. Try switching to All Words.</div>
           )}
         </CardContent>
       </Card>

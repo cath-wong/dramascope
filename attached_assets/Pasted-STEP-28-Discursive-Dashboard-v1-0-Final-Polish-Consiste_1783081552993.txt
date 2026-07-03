@@ -1,0 +1,264 @@
+STEP 28 — Discursive Dashboard v1.0 Final Polish (Consistency & Usability)
+
+Goal
+
+Complete the final consistency and usability polish for the Discursive Concept Dashboard.
+
+This is the final implementation step before freezing Discursive Dashboard v1.0.
+
+This step introduces NO new analytical methods, metrics, visualisations, or interpretations.
+
+The purpose is to make the dashboard feel internally consistent, easier to navigate, and aligned with the established methodological terminology.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- quad extraction
+- stoplists
+- tokenisation
+- lemmatisation
+- Sankey construction
+- constellation generation
+- clustering logic
+- participation logic
+- similarity calculations
+- temporal calculations
+- summary generation
+- export functionality
+- CSV structure
+- paper-ready summaries
+
+Do NOT add:
+
+- new panels
+- new metrics
+- new filters
+- new charts
+- new analytical methods
+
+Only perform UI consistency, terminology alignment, and usability improvements.
+
+
+Scope
+
+Apply ONLY to the Discursive Concept tab.
+
+Do NOT modify the Lexical or Semantic tabs.
+
+
+--------------------------------------------------
+PART 1 — Terminology Alignment Audit
+--------------------------------------------------
+
+Review all visible UI labels and ensure terminology is used consistently throughout the Discursive dashboard.
+
+Use the established methodological vocabulary wherever applicable.
+
+Examples:
+
+✓ Node Lemma
+✓ Quad
+✓ Co-lemma
+✓ Constellation
+✓ Cluster
+✓ Subcluster
+✓ Configuration
+✓ Concept Behaviour
+✓ Diachronic Change
+
+Replace inconsistent wording where appropriate.
+
+Example:
+
+Co-Term
+↓
+
+Co-Lemma
+
+Only change wording where it improves consistency with the established methodology.
+
+Do NOT invent new terminology or rename established methodological concepts.
+
+
+--------------------------------------------------
+PART 2 — Consistent Collapsible Behaviour
+--------------------------------------------------
+
+Apply one consistent rule across the Discursive dashboard.
+
+Recommended behaviour:
+
+• Section headings (A–D) remain permanently visible.
+
+• Analytical panels within each section are collapsible.
+
+• Primary analytical panels remain expanded by default.
+
+• Supporting evidence panels may be collapsed by default.
+
+Maintain consistent collapse controls throughout.
+
+
+--------------------------------------------------
+PART 3 — Table Consistency
+--------------------------------------------------
+
+Standardise behaviour across all long tables.
+
+Where appropriate:
+
+• fixed-height container
+
+• internal vertical scrolling
+
+• sticky/frozen header
+
+• consistent table height
+
+Avoid situations where one table scrolls while another expands indefinitely.
+
+Do NOT alter table contents.
+
+
+--------------------------------------------------
+PART 4 — Card Header Consistency
+--------------------------------------------------
+
+Standardise card headers across the Discursive dashboard.
+
+Where applicable:
+
+Title
+
+↓
+
+Controls
+
+↓
+
+Export
+
+↓
+
+Collapse
+
+should appear in a consistent arrangement.
+
+Do not change functionality.
+
+Only improve visual consistency.
+
+
+--------------------------------------------------
+PART 5 — Empty-State Messages
+--------------------------------------------------
+
+Where a panel has insufficient data,
+
+display a clear, academically neutral message.
+
+Example:
+
+"No sufficient quad evidence is available for the current selection."
+
+Avoid blank panels or abrupt disappearance of content.
+
+
+--------------------------------------------------
+PART 6 — Section Spacing
+--------------------------------------------------
+
+Review spacing between:
+
+• section headings
+
+• summary cards
+
+• analytical panels
+
+• supporting evidence panels
+
+Maintain a consistent visual rhythm throughout the page.
+
+Do not redesign the layout.
+
+
+--------------------------------------------------
+PART 7 — UI Stability
+--------------------------------------------------
+
+Confirm that:
+
+• sticky navigation bars continue functioning correctly
+
+• Active Node Lemma remains visible
+
+• floating controls remain stable
+
+• no layout shifts occur when collapsing or expanding panels
+
+• scrolling remains smooth
+
+
+--------------------------------------------------
+Safety Constraints
+
+The agent must NOT:
+
+- redesign the dashboard
+- reorder analytical sections
+- move panels between sections
+- rewrite Analysis.tsx
+- refactor utility modules
+- alter algorithms
+- introduce new analyses
+
+Only perform targeted consistency and usability improvements.
+
+
+Expected Result
+
+After Step 28:
+
+• terminology is consistent across the dashboard
+
+• collapsible behaviour follows one clear rule
+
+• long tables behave consistently
+
+• card headers follow a common layout
+
+• empty states are handled consistently
+
+• spacing and navigation feel polished
+
+• no analytical outputs have changed
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+
+2. No analytical logic has changed.
+
+3. Terminology is consistent throughout.
+
+4. Collapsible behaviour is consistent.
+
+5. Sticky table headers behave consistently.
+
+6. Long tables use consistent scrolling behaviour.
+
+7. Empty-state messages appear where appropriate.
+
+8. Card headers are visually consistent.
+
+9. Floating navigation controls remain stable.
+
+10. Discursive Dashboard v1.0 is ready to be frozen as the stable implementation.
+
+STOP AFTER STEP 28
