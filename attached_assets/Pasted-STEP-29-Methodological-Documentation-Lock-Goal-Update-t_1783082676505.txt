@@ -1,0 +1,275 @@
+STEP 29 — Methodological Documentation Lock
+
+Goal
+
+Update the methodological documentation to accurately reflect the final implementation of Discursive Dashboard v1.0.
+
+This step does NOT modify any analytical logic or UI.
+
+Its sole purpose is to ensure that the project's documentation provides an accurate, complete, and reproducible description of the implemented methodology.
+
+This documentation will serve as the authoritative reference for future publications and further development.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- application code
+- UI
+- analytical algorithms
+- exports
+- calculations
+- thresholds
+
+Only update documentation.
+
+
+Scope
+
+Update the existing documentation files.
+
+In particular:
+
+• Method.md (or equivalent methodological documentation)
+
+• Formula.md (or equivalent mathematical/formula documentation)
+
+If sections already exist, update them rather than creating duplicate descriptions.
+
+
+--------------------------------------------------
+PART 1 — Method Documentation
+--------------------------------------------------
+
+Review and update the methodological documentation to reflect the implemented workflow.
+
+Document, where applicable:
+
+1. Corpus preprocessing
+
+- tokenisation
+- lemmatisation
+- stopword handling
+- discursive stoplist
+- Content Words Only filtering
+
+2. Quad extraction
+
+Describe:
+
+- node lemma
+- co-lemma selection
+- quad construction
+- contextual window
+- frequency counting
+
+3. Constellation construction
+
+Explain:
+
+- aggregation of quads
+- constellation definition
+- node-centred modelling
+- relationship between quads and constellations
+
+4. Configuration analysis
+
+Describe:
+
+- recurring co-lemmas
+- co-lemma pairings
+- subcluster detection
+- configuration summary
+
+5. Concept behaviour analysis
+
+Describe:
+
+- quad participation
+- core
+- mid-zone
+- peripheral
+- structural density
+- backbone
+- temporal behaviour
+
+6. Diachronic analysis
+
+Describe:
+
+- temporal concept flow
+- diachronic stability
+- similarity
+- constellation comparison
+
+7. Paper-ready summaries
+
+Document:
+
+- summary generation
+- CSV exports
+- interpretation summaries
+
+All descriptions should reflect the implemented workflow rather than hypothetical future functionality.
+
+
+--------------------------------------------------
+PART 2 — Formula Documentation
+--------------------------------------------------
+
+Review Formula.md.
+
+Ensure every implemented metric is documented.
+
+Where applicable include:
+
+• quad definition
+
+• constellation
+
+• co-lemma pair graph
+
+• subcluster construction
+
+• structural density
+
+• backbone score
+
+• participation
+
+• temporal persistence
+
+• emergence
+
+• similarity
+
+• Jaccard similarity
+
+Include mathematical notation where appropriate.
+
+Keep notation consistent with the implementation.
+
+
+--------------------------------------------------
+PART 3 — Terminology Alignment
+--------------------------------------------------
+
+Ensure documentation uses the same terminology as the Discursive Dashboard.
+
+Examples:
+
+✓ Node Lemma
+
+✓ Co-lemma
+
+✓ Quad
+
+✓ Constellation
+
+✓ Cluster
+
+✓ Subcluster
+
+✓ Configuration
+
+✓ Concept Behaviour
+
+✓ Diachronic Change
+
+Avoid inconsistent terminology.
+
+Documentation and UI should describe the same methodological concepts.
+
+
+--------------------------------------------------
+PART 4 — Version Documentation
+--------------------------------------------------
+
+Add a version note.
+
+Example:
+
+Discursive Dashboard v1.0
+
+Status:
+
+Methodologically frozen after completion of Phase IIA.
+
+Future updates should be limited to:
+
+• bug fixes
+
+• UI improvements
+
+• support for additional corpora
+
+Any future methodological extensions should increment the analytical version.
+
+
+--------------------------------------------------
+PART 5 — Reproducibility
+--------------------------------------------------
+
+Ensure the documentation is sufficiently detailed that another researcher could understand:
+
+• what is computed
+
+• in what order
+
+• how outputs are derived
+
+without needing to inspect the application source code.
+
+Do NOT attempt to explain implementation details that are only relevant to software engineering.
+
+Focus on the analytical methodology.
+
+
+--------------------------------------------------
+Safety Constraints
+
+The agent must NOT:
+
+- modify application code
+- modify UI
+- rename variables
+- refactor algorithms
+
+Only update documentation.
+
+
+Expected Result
+
+After Step 29:
+
+• Method.md accurately documents Discursive Dashboard v1.0.
+
+• Formula.md accurately documents all implemented analytical measures.
+
+• Terminology is fully aligned between the dashboard and the documentation.
+
+• The methodology is reproducible from the documentation alone.
+
+• Discursive Dashboard v1.0 is fully documented and ready to support academic publication.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. No application code has changed.
+
+2. Method documentation reflects the implemented workflow.
+
+3. Formula documentation matches the implemented calculations.
+
+4. Terminology matches the Discursive Dashboard.
+
+5. Documentation is internally consistent.
+
+6. Version information has been added.
+
+7. Documentation is sufficient for methodological reproducibility.
+
+STOP AFTER STEP 29
