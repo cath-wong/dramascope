@@ -157,12 +157,90 @@ const LexicalTab = () => {
 };
 
 // --- Semantic Tab ---
+const EXPRESSION_NGRAM_LENGTHS = [2, 3, 4, 5];
+
 const SemanticTab = () => {
+  const { speeches } = useData();
   const ui = useUI();
+  const { corpusScope, selectedPlayTitle } = ui;
   const [nodeLemma, setNodeLemma] = useState("");
   const [minCooc, setMinCooc] = useState(2);
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
+
+  const [expressionScope, setExpressionScope] = useState<"node" | "corpus">("node");
+  const [minExpressionFreq, setMinExpressionFreq] = useState(2);
+  const expressionCache = useRef<Map<string, any>>(new Map());
+
+  const expressionResults = useMemo(() => {
+    if (!speeches || speeches.length === 0) return null;
+
+    const filtered = speeches.filter(s => {
+      if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
+      return true;
+    });
+
+    const processedNode = expressionScope === "node"
+      ? (processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase())
+      : "";
+
+    if (expressionScope === "node" && !nodeLemma.trim()) return { candidates: [], noNodeLemma: true };
+
+    const cacheKey = JSON.stringify({
+      scope: corpusScope,
+      play: selectedPlayTitle,
+      expressionScope,
+      node: processedNode,
+      stoplist: useStoplist,
+      lemmas: useLemmas,
+      minFreq: minExpressionFreq,
+      speechesLen: speeches.length,
+    });
+    if (expressionCache.current.has(cacheKey)) return expressionCache.current.get(cacheKey);
+
+    const ngramCounts = new Map<string, { n: number; count: number }>();
+
+    filtered.forEach(s => {
+      const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
+      EXPRESSION_NGRAM_LENGTHS.forEach(n => {
+        for (let i = 0; i + n <= tokens.length; i++) {
+          const gram = tokens.slice(i, i + n);
+          if (expressionScope === "node" && !gram.includes(processedNode)) continue;
+          const key = gram.join(" ");
+          if (!ngramCounts.has(key)) ngramCounts.set(key, { n, count: 0 });
+          ngramCounts.get(key)!.count += 1;
+        }
+      });
+    });
+
+    const candidates = Array.from(ngramCounts.entries())
+      .map(([expression, d]) => ({
+        expression,
+        n: d.n,
+        frequency: d.count,
+        scope: expressionScope === "node" ? "Node-centred" : "Corpus-wide",
+      }))
+      .filter(c => c.frequency >= minExpressionFreq)
+      .sort((a, b) => b.frequency - a.frequency)
+      .slice(0, 50);
+
+    const output = { candidates, noNodeLemma: false };
+    expressionCache.current.set(cacheKey, output);
+    return output;
+  }, [speeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq]);
+
+  const expressionSummary = useMemo(() => {
+    if (!expressionResults?.candidates?.length) return null;
+    const top = expressionResults.candidates[0];
+    return {
+      scope: expressionScope === "node" ? "Node-centred" : "Corpus-wide",
+      candidateCount: expressionResults.candidates.length,
+      topExpression: `"${top.expression}" (freq: ${top.frequency})`,
+      lengths: `${EXPRESSION_NGRAM_LENGTHS[0]}–${EXPRESSION_NGRAM_LENGTHS[EXPRESSION_NGRAM_LENGTHS.length - 1]} tokens`,
+    };
+  }, [expressionResults, expressionScope]);
+
+  const expressionExportFilename = `semantic_expression_snapshot_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
   return (
     <div className="space-y-6">
@@ -173,14 +251,37 @@ const SemanticTab = () => {
           <CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle>
           <CardDescription className="text-xs">Expression Layer — parameters shared across the sections below.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="sem-node-lemma" className="text-[10px] uppercase font-bold">Node Lemma</Label>
-            <Input id="sem-node-lemma" placeholder="e.g. love" value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-8 text-xs" data-testid="input-semantic-node-lemma" />
+            <Label className="text-[10px] uppercase font-bold">Expression Scope</Label>
+            <div className="flex rounded-md border overflow-hidden h-8">
+              <button
+                type="button"
+                onClick={() => setExpressionScope("node")}
+                className={`flex-1 text-xs font-medium transition-colors ${expressionScope === "node" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                data-testid="button-scope-node"
+              >
+                Node-centred
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpressionScope("corpus")}
+                className={`flex-1 text-xs font-medium border-l transition-colors ${expressionScope === "corpus" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                data-testid="button-scope-corpus"
+              >
+                Corpus-wide
+              </button>
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase font-bold">Min Co-occurrence: {minCooc}</Label>
-            <Input type="range" min="1" max="10" value={minCooc} onChange={e => setMinCooc(parseInt(e.target.value))} className="h-4" data-testid="input-semantic-min-cooc" />
+            <Label htmlFor="sem-node-lemma" className={`text-[10px] uppercase font-bold ${expressionScope === "corpus" ? "opacity-50" : ""}`}>
+              Node Lemma {expressionScope === "corpus" && "(not required)"}
+            </Label>
+            <Input id="sem-node-lemma" placeholder="e.g. love" value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className={`h-8 text-xs ${expressionScope === "corpus" ? "opacity-50" : ""}`} data-testid="input-semantic-node-lemma" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] uppercase font-bold">Min Expression Freq: {minExpressionFreq}</Label>
+            <Input type="range" min="1" max="10" value={minExpressionFreq} onChange={e => setMinExpressionFreq(parseInt(e.target.value))} className="h-4" data-testid="input-semantic-min-expression-freq" />
           </div>
           <div className="flex flex-col gap-2 justify-center">
             <div className="flex items-center space-x-2">
@@ -198,13 +299,55 @@ const SemanticTab = () => {
       <section className="space-y-3" data-testid="section-expression-snapshot">
         <div>
           <h3 className="text-sm font-bold">A. Expression Snapshot</h3>
-          <p className="text-xs text-muted-foreground">Overview of recurrent expressions associated with the selected node lemma.</p>
+          <p className="text-xs text-muted-foreground">Overview of recurrent expression candidates associated with the selected scope.</p>
         </div>
-        <Card className="shadow-none border-muted/60 border-dashed">
-          <CardContent className="pt-6 text-xs text-muted-foreground">
-            Expression-level outputs will appear here after n-gram and expression extraction are implemented.
-          </CardContent>
-        </Card>
+
+        {expressionScope === "node" && !nodeLemma.trim() ? (
+          <Card className="shadow-none border-muted/60 border-dashed">
+            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-expression-empty-no-node">
+              Enter a node lemma to view node-centred expression candidates.
+            </CardContent>
+          </Card>
+        ) : !expressionResults?.candidates?.length ? (
+          <Card className="shadow-none border-muted/60 border-dashed">
+            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-expression-empty-no-candidates">
+              No sufficient expression evidence is available for the current selection.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Card className="shadow-none border-muted/60">
+              <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Active Scope</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-scope">{expressionSummary?.scope}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Candidates</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-count">{expressionSummary?.candidateCount}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Top Expression</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-top">{expressionSummary?.topExpression}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">N-gram Lengths</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-lengths">{expressionSummary?.lengths}</div>
+                </div>
+              </CardContent>
+            </Card>
+            <ResultsTable
+              data={expressionResults.candidates}
+              columns={[
+                { key: "expression", label: "Expression" },
+                { key: "n", label: "N", sortable: true, align: "right" },
+                { key: "frequency", label: "Frequency", sortable: true, align: "right" },
+                { key: "scope", label: "Scope" },
+              ]}
+              filename={expressionExportFilename}
+            />
+          </>
+        )}
       </section>
 
       <section className="space-y-3" data-testid="section-expression-patterning">

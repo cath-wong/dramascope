@@ -1,0 +1,294 @@
+STEP 31 — Expression Snapshot with Scope Toggle
+
+Goal
+
+Implement the first real analysis in the Semantic tab: Expression Snapshot.
+
+This step introduces a transparent expression-candidate extraction layer with two analytical scopes:
+
+1. Node-centred expressions
+2. Corpus-wide expressions
+
+Both scopes must use the same underlying extraction logic:
+
+tokenise → generate contiguous n-grams → count → rank
+
+The only difference is scope:
+
+- Node-centred mode keeps only n-grams containing the selected node lemma.
+- Corpus-wide mode keeps all eligible n-grams.
+
+This step must NOT implement formulaicity, fossilisation, entrenchment, or diachronic change yet.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Discursive tab
+- Lexical tab
+- Data loading
+- preprocessing utilities
+- tokenisation utilities
+- lemmatisation utilities
+- stoplists
+- Sankey logic
+- quad extraction logic
+- Discursive Dashboard v1.0 logic
+
+Do NOT add:
+
+- formulaicity scoring
+- collocation association measures
+- MI / logDice
+- conventionalisation metrics
+- diachronic expression analysis
+- expression family clustering
+- semantic interpretation summaries
+
+This step is Expression Snapshot only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on the SemanticTab component.
+
+Do NOT touch LexicalTab or DiscursiveTab.
+
+
+Analytical Object
+
+Expression candidate
+
+Definition:
+
+A contiguous multi-word sequence extracted from the corpus and treated as a candidate expression when it recurs above the selected frequency threshold.
+
+At this stage, these are expression candidates, NOT confirmed formulaic expressions.
+
+
+Analytical Scopes
+
+Add an Expression Scope control with two options:
+
+1. Node-centred
+
+Description:
+Only expressions containing the selected node lemma are extracted.
+
+Example:
+For node lemma “lord”:
+- my lord
+- good my lord
+- lord jesus christ
+
+2. Corpus-wide
+
+Description:
+All recurring expressions are extracted, regardless of whether they contain the selected node lemma.
+
+Example:
+- father son holy ghost
+- by my faith
+- good my lord
+
+
+Implementation Steps
+
+1. Locate SemanticTab in:
+
+client/src/pages/Analysis.tsx
+
+2. Preserve the four-section Semantic dashboard shell from Step 30:
+
+A. Expression Snapshot
+B. Expression Patterning
+C. Conventionalisation
+D. Diachronic Expression Change
+
+3. Add state for expression scope:
+
+expressionScope:
+- "node"
+- "corpus"
+
+Default:
+"node"
+
+4. Add UI control in the Semantic parameter card:
+
+Expression Scope:
+- Node-centred
+- Corpus-wide
+
+Use existing Button or Select components consistently with the rest of the app.
+
+5. Preserve the existing Node Lemma input.
+
+6. In Node-centred mode:
+- Node Lemma input is active
+- extraction keeps only n-grams containing the node lemma
+
+7. In Corpus-wide mode:
+- Node Lemma input may remain visible but should be visually marked as not required
+- extraction does not filter by node lemma
+
+8. Add state for n-gram size range or simple n-gram selection.
+
+Recommended simple option for v1:
+- extract n-grams of length 2, 3, 4, and 5
+- show n-gram length in the table
+
+Do NOT overcomplicate this with multi-select controls yet.
+
+9. Add state for minimum frequency.
+
+Recommended default:
+minExpressionFreq = 2
+
+10. Implement expression candidate extraction inside SemanticTab using useMemo.
+
+Input data:
+Use the same dataset already available in SemanticTab, preferably speeches if that is already used.
+
+Processing:
+- use processTokens()
+- respect Stoplist toggle
+- respect Lemma toggle
+- generate contiguous n-grams of lengths 2–5
+- count n-gram frequencies
+
+11. In Node-centred mode:
+- normalise/process the node lemma consistently with the selected lemma setting
+- keep only n-grams where at least one token equals the processed node lemma
+
+12. In Corpus-wide mode:
+- keep all n-grams
+
+13. Filter expression candidates by minimum frequency.
+
+14. Sort candidates by frequency descending.
+
+15. Limit displayed rows to a reasonable number.
+
+Recommended:
+Top 50
+
+16. In Section A — Expression Snapshot, replace the placeholder with:
+
+- a compact summary block showing:
+  - active scope
+  - number of expression candidates
+  - top expression
+  - n-gram lengths included
+
+- a table of expression candidates with columns:
+  - expression
+  - n
+  - frequency
+  - scope
+
+17. Add CSV export for the Expression Snapshot table.
+
+Suggested filename:
+
+semantic_expression_snapshot_<scope>_<nodeLemma-or-corpus>.csv
+
+18. Keep Sections B, C, and D as placeholders for now.
+
+Do NOT implement their analysis yet.
+
+19. Add empty-state messages:
+- If Node-centred mode has no node lemma:
+  “Enter a node lemma to view node-centred expression candidates.”
+- If no candidates meet the threshold:
+  “No sufficient expression evidence is available for the current selection.”
+
+20. Ensure terminology uses:
+- Expression
+- Expression Candidate
+- Node Lemma
+- Corpus-wide
+- Node-centred
+
+Do NOT use:
+- formulaic expression
+- fossilised expression
+- entrenched expression
+
+at this stage, because those are later interpretive categories.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify LexicalTab
+- modify DiscursiveTab
+- modify utility files
+- add new algorithms outside SemanticTab
+- add formulaicity or conventionalisation scoring
+- change existing data structures
+- change global preprocessing behaviour
+- remove the Semantic four-section shell
+- touch Discursive Dashboard v1.0
+
+Only implement the Expression Snapshot analysis inside SemanticTab.
+
+
+Expected Result
+
+After Step 31:
+
+The Semantic tab should have a functioning Expression Snapshot section with:
+
+1. Expression Scope toggle:
+   - Node-centred
+   - Corpus-wide
+
+2. n-gram expression candidate extraction:
+   - contiguous n-grams
+   - lengths 2–5
+   - frequency counts
+
+3. Node-centred mode:
+   - displays recurring expressions containing the selected node lemma
+
+4. Corpus-wide mode:
+   - displays recurring expressions across the corpus
+
+5. Expression Snapshot table:
+   - expression
+   - n
+   - frequency
+   - scope
+
+6. CSV export for the displayed expression candidates
+
+7. Sections B, C, and D remain placeholders
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+2. Lexical tab is unchanged.
+3. Discursive tab is unchanged.
+4. Semantic tab still has four sections.
+5. Expression Scope toggle works.
+6. Node-centred mode filters expressions by node lemma.
+7. Corpus-wide mode shows expressions without requiring a node lemma.
+8. Expressions are contiguous n-grams of length 2–5.
+9. Stoplist and Lemma toggles are respected.
+10. Minimum frequency filtering works.
+11. CSV export works.
+12. No formulaicity, fossilisation, or conventionalisation logic has been added.
+13. Sections B, C, and D remain placeholders.
+
+STOP AFTER STEP 31
