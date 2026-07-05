@@ -1,0 +1,284 @@
+STEP 32 — Expression Patterning (Expression Families)
+
+Goal
+
+Implement the first structural analysis of the Semantic Dashboard.
+
+This step moves beyond listing individual expression candidates and begins identifying recurring expression families.
+
+The purpose is to reveal how multiple expressions share common structural patterns through lexical variation.
+
+This is still descriptive.
+
+Do NOT infer formulaicity, entrenchment, or fossilisation yet.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Discursive tab
+- Lexical tab
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- extraction logic introduced in Step 31
+
+Do NOT add:
+
+- collocation association measures
+- MI
+- logDice
+- formulaicity scoring
+- entrenchment
+- fossilisation
+- diachronic analysis
+
+This step analyses expression structure only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+Section B — Expression Patterning
+
+Do NOT modify Sections A, C, or D except where shared helper functions are genuinely required.
+
+
+Analytical Object
+
+Expression Family
+
+Definition:
+
+A set of recurring expressions sharing the same structural frame but differing by one or more lexical slots.
+
+
+Implementation Steps
+
+1.
+
+Reuse the expression candidates already generated in Step 31.
+
+Do NOT regenerate n-grams independently.
+
+Expression Patterning should build directly upon the existing candidate list.
+
+
+2.
+
+Construct simple expression families.
+
+For version 1:
+
+Expressions belong to the same family when they differ in exactly one token position.
+
+Examples:
+
+my love
+your love
+his love
+her love
+
+↓
+
+Family:
+
+[Possessive] love
+
+------------------------
+
+good my lord
+sweet my lord
+dear my lord
+
+↓
+
+Family:
+
+[Adjective] my lord
+
+------------------------
+
+lord jesus christ
+lord king henry
+
+↓
+
+Family:
+
+lord [X] [X]
+
+Use a simple wildcard representation such as:
+
+[X]
+
+
+3.
+
+For each family calculate:
+
+- family pattern
+- number of member expressions
+- total family frequency
+- most frequent member
+
+
+4.
+
+Sort families by:
+
+1. total family frequency
+
+then
+
+2. number of member expressions
+
+
+5.
+
+Display Section B using TWO complementary views.
+
+
+VIEW 1
+
+Top Expression Families
+
+Columns:
+
+- Family Pattern
+- Members
+- Total Frequency
+- Most Frequent Expression
+
+
+VIEW 2
+
+Family Members
+
+Selecting a family reveals:
+
+- every member expression
+- frequency
+- percentage within family
+
+Use an expandable row or drill-down card.
+
+Do NOT navigate away from the page.
+
+
+6.
+
+Add a simple horizontal frequency bar to the Family table.
+
+Reuse the visual style introduced in Step 31A.
+
+
+7.
+
+Add CSV export.
+
+Export:
+
+- family
+- member count
+- total frequency
+- representative expression
+
+
+8.
+
+Add summary block.
+
+Include:
+
+- total families
+- average family size
+- largest family
+- most frequent family
+
+
+9.
+
+Add empty-state message:
+
+"No recurring expression families were identified for the current selection."
+
+
+10.
+
+Terminology.
+
+Use:
+
+Expression Family
+
+Family Pattern
+
+Member Expression
+
+Avoid:
+
+Cluster
+
+Constellation
+
+Configuration
+
+These belong to the Discursive tab.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- modify LexicalTab
+- modify DiscursiveTab
+- alter expression extraction
+- add formulaicity
+- add conventionalisation metrics
+- add new preprocessing
+- change existing exports from Step 31
+
+Only implement Section B.
+
+
+Expected Result
+
+After Step 32:
+
+Section B becomes the first structural analysis of the Semantic Dashboard.
+
+Researchers can:
+
+• identify recurring expression families
+
+• inspect member expressions
+
+• compare family sizes
+
+• compare structural variation
+
+without yet making interpretive claims about conventionalisation.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles.
+2. Sections A, C, D remain intact.
+3. Expression extraction is reused.
+4. Expression families are built from existing candidates.
+5. Drill-down works.
+6. CSV export works.
+7. No formulaicity or diachronic logic has been introduced.
+8. Discursive Dashboard remains unchanged.
+
+STOP AFTER STEP 32
