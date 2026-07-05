@@ -1,0 +1,247 @@
+STEP 31B — Expression Snapshot Research Usability Refinement
+
+Goal
+
+Fine-tune the Semantic tab’s Expression Snapshot so researchers can inspect more than the default Top 50 and compare expressions of different lengths more fairly.
+
+This step refines display controls and summary statistics only.
+
+It must NOT introduce new semantic methods.
+
+The underlying extraction logic remains:
+
+tokenise → generate contiguous n-grams → count → rank
+
+with scope determining whether candidates are node-centred or corpus-wide.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Discursive tab
+- Lexical tab
+- data loading
+- preprocessing utilities
+- tokenisation utilities
+- lemmatisation utilities
+- stoplists
+- Sankey logic
+- quad extraction logic
+- Discursive Dashboard v1.0
+
+Do NOT add:
+
+- formulaicity scoring
+- fossilisation logic
+- entrenchment logic
+- collocation association measures
+- MI / logDice
+- expression clustering
+- diachronic expression analysis
+
+This is a usability refinement for Expression Snapshot only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on the SemanticTab component and the co-located ExpressionSnapshotTable helper introduced in Step 31A.
+
+Do NOT touch LexicalTab or DiscursiveTab.
+
+
+Implementation Steps
+
+1. Add a “Show” control for the Expression Snapshot table.
+
+Options:
+
+- Top 20
+- Top 50
+- Top 100
+- All
+
+Default:
+
+Top 50
+
+This controls how many expression candidates are displayed.
+
+
+2. Add an “Expression Length” display filter.
+
+Options:
+
+- All lengths
+- 2-grams
+- 3-grams
+- 4-grams
+- 5-grams
+
+Default:
+
+All lengths
+
+This is a display filter over the extracted candidates.
+
+It should NOT change the extraction logic.
+
+
+3. Preserve the existing N-gram Length extraction control.
+
+Important distinction:
+
+- N-gram Length control = what gets extracted
+- Expression Length filter = what gets displayed
+
+Example:
+
+If N-gram Length is “2–5 tokens” and Expression Length is “4-grams”,
+extract 2–5 grams but display only 4-grams.
+
+
+4. Update the Expression Snapshot summary block.
+
+Replace “Length Distribution” with:
+
+Candidate Distribution
+
+This should be calculated from all candidates meeting the active extraction settings and minimum frequency threshold, BEFORE display cap is applied.
+
+It should NOT be based only on the currently displayed Top 50.
+
+Example:
+
+Candidate Distribution:
+2-grams: 187 · 3-grams: 83 · 4-grams: 26 · 5-grams: 11
+
+
+5. Update the “Showing” summary.
+
+It should reflect:
+
+- display cap
+- expression length display filter
+- total matching candidates
+
+Examples:
+
+Top 50 of 241 candidates
+
+Top 20 of 83 3-gram candidates
+
+All 26 4-gram candidates
+
+
+6. Ensure the table displays candidates after applying:
+
+- expression length display filter
+- show limit
+- existing search
+- existing sort
+
+Keep behaviour intuitive and stable.
+
+
+7. Update CSV export behaviour.
+
+CSV export should export the currently displayed view, respecting:
+
+- active scope
+- extraction n-gram length setting
+- expression length display filter
+- show limit
+- search if search is already part of the table display
+
+Do NOT export stale or hidden rows.
+
+
+8. Ensure the table still includes:
+
+- Expression
+- Length
+- Frequency with visual bar
+- Scope
+
+
+9. Do NOT change Sections B, C, and D.
+
+They remain placeholders.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify LexicalTab
+- modify DiscursiveTab
+- modify utility files
+- change global preprocessing
+- add formulaicity/conventionalisation logic
+- remove existing Step 31 or 31A functionality
+- alter the meaning of Node-centred or Corpus-wide scope
+- change extraction beyond respecting the existing N-gram Length control
+
+Only refine display controls, summary statistics, and export behaviour for Expression Snapshot.
+
+
+Expected Result
+
+After Step 31B:
+
+The Semantic tab’s Expression Snapshot should support:
+
+1. Expression Scope:
+   - Node-centred
+   - Corpus-wide
+
+2. Extraction N-gram Length:
+   - 2–5 tokens
+   - 2 only
+   - 3 only
+   - 4 only
+   - 5 only
+
+3. Display Expression Length filter:
+   - All lengths
+   - 2-grams
+   - 3-grams
+   - 4-grams
+   - 5-grams
+
+4. Show limit:
+   - Top 20
+   - Top 50
+   - Top 100
+   - All
+
+5. Candidate Distribution calculated from all matching candidates, not only displayed rows
+
+6. Table view and CSV export matching the current displayed view
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+2. Lexical tab is unchanged.
+3. Discursive tab is unchanged.
+4. Semantic tab still has four sections.
+5. Expression Scope toggle still works.
+6. N-gram Length extraction control still works.
+7. Expression Length display filter works.
+8. Show limit works.
+9. Candidate Distribution is calculated from all matching candidates.
+10. “Showing” summary updates correctly.
+11. CSV export matches the displayed table view.
+12. Frequency bars still render correctly.
+13. No formulaicity, fossilisation, conventionalisation, or diachronic logic has been added.
+14. Sections B, C, and D remain placeholders.
+
+STOP AFTER STEP 31B

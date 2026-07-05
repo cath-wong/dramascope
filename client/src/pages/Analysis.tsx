@@ -174,7 +174,7 @@ interface ExpressionCandidate {
   scope: string;
 }
 
-const ExpressionSnapshotTable = ({ data, maxFrequency, filename }: { data: ExpressionCandidate[]; maxFrequency: number; filename: string }) => {
+const ExpressionSnapshotTable = ({ data, filename }: { data: ExpressionCandidate[]; filename: string }) => {
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: keyof ExpressionCandidate; direction: "asc" | "desc" }>({ key: "frequency", direction: "desc" });
   const { toast } = useToast();
@@ -195,6 +195,8 @@ const ExpressionSnapshotTable = ({ data, maxFrequency, filename }: { data: Expre
     });
     return processed;
   }, [data, search, sortConfig]);
+
+  const maxFrequency = useMemo(() => filteredData.reduce((max, row) => Math.max(max, row.frequency), 1), [filteredData]);
 
   const handleSort = (key: keyof ExpressionCandidate) => {
     setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
@@ -290,6 +292,8 @@ const SemanticTab = () => {
   const [expressionScope, setExpressionScope] = useState<"node" | "corpus">("node");
   const [ngramLengthSetting, setNgramLengthSetting] = useState<"2-5" | "2" | "3" | "4" | "5">("2-5");
   const [minExpressionFreq, setMinExpressionFreq] = useState(2);
+  const [expressionLengthFilter, setExpressionLengthFilter] = useState<"all" | "2" | "3" | "4" | "5">("all");
+  const [showLimit, setShowLimit] = useState<"20" | "50" | "100" | "all">("50");
   const expressionCache = useRef<Map<string, any>>(new Map());
 
   const activeNgramLengths = useMemo(() => {
@@ -308,7 +312,7 @@ const SemanticTab = () => {
       ? (processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase())
       : "";
 
-    if (expressionScope === "node" && !nodeLemma.trim()) return { candidates: [], totalCount: 0, noNodeLemma: true };
+    if (expressionScope === "node" && !nodeLemma.trim()) return { allCandidates: [], noNodeLemma: true };
 
     const cacheKey = JSON.stringify({
       scope: corpusScope,
@@ -348,28 +352,41 @@ const SemanticTab = () => {
       .filter(c => c.frequency >= minExpressionFreq)
       .sort((a, b) => b.frequency - a.frequency);
 
-    const candidates = allCandidates.slice(0, 50);
-
-    const output = { candidates, totalCount: allCandidates.length, noNodeLemma: false };
+    const output = { allCandidates, noNodeLemma: false };
     expressionCache.current.set(cacheKey, output);
     return output;
   }, [speeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting]);
 
+  const matchingCandidates = useMemo(() => {
+    const all = expressionResults?.allCandidates || [];
+    if (expressionLengthFilter === "all") return all;
+    const n = parseInt(expressionLengthFilter);
+    return all.filter((c: ExpressionCandidate) => c.n === n);
+  }, [expressionResults, expressionLengthFilter]);
+
+  const displayedCandidates = useMemo(() => {
+    if (showLimit === "all") return matchingCandidates;
+    return matchingCandidates.slice(0, parseInt(showLimit));
+  }, [matchingCandidates, showLimit]);
+
   const expressionSummary = useMemo(() => {
-    if (!expressionResults?.candidates?.length) return null;
-    const top = expressionResults.candidates[0];
+    if (!expressionResults?.allCandidates?.length) return null;
+    const top = matchingCandidates[0];
     const lengthCounts: Record<number, number> = { 2: 0, 3: 0, 4: 0, 5: 0 };
-    expressionResults.candidates.forEach((c: any) => {
+    expressionResults.allCandidates.forEach((c: ExpressionCandidate) => {
       if (lengthCounts[c.n] !== undefined) lengthCounts[c.n] += 1;
     });
+    const lengthLabel = expressionLengthFilter === "all" ? "candidates" : `${expressionLengthFilter}-gram candidates`;
+    const showing = showLimit === "all"
+      ? `All ${matchingCandidates.length} ${lengthLabel}`
+      : `Top ${displayedCandidates.length} of ${matchingCandidates.length} ${lengthLabel}`;
     return {
       scope: expressionScope === "node" ? "Node-centred" : "Corpus-wide",
-      showing: `Top ${expressionResults.candidates.length} of ${expressionResults.totalCount} candidates`,
-      topExpression: `"${top.expression}" (freq: ${top.frequency})`,
-      lengthDistribution: `2-grams: ${lengthCounts[2]} · 3-grams: ${lengthCounts[3]} · 4-grams: ${lengthCounts[4]} · 5-grams: ${lengthCounts[5]}`,
-      maxFrequency: top.frequency,
+      showing,
+      topExpression: top ? `"${top.expression}" (freq: ${top.frequency})` : "—",
+      candidateDistribution: `2-grams: ${lengthCounts[2]} · 3-grams: ${lengthCounts[3]} · 4-grams: ${lengthCounts[4]} · 5-grams: ${lengthCounts[5]}`,
     };
-  }, [expressionResults, expressionScope]);
+  }, [expressionResults, expressionScope, expressionLengthFilter, showLimit, matchingCandidates, displayedCandidates]);
 
   const expressionExportFilename = `semantic_expression_snapshot_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
@@ -452,7 +469,7 @@ const SemanticTab = () => {
               Enter a node lemma to view node-centred expression candidates.
             </CardContent>
           </Card>
-        ) : !expressionResults?.candidates?.length ? (
+        ) : !expressionResults?.allCandidates?.length ? (
           <Card className="shadow-none border-muted/60 border-dashed">
             <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-expression-empty-no-candidates">
               No sufficient expression evidence is available for the current selection.
@@ -475,14 +492,44 @@ const SemanticTab = () => {
                   <div className="font-semibold" data-testid="text-expression-summary-top">{expressionSummary?.topExpression}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Length Distribution</div>
-                  <div className="font-semibold" data-testid="text-expression-summary-lengths">{expressionSummary?.lengthDistribution}</div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Candidate Distribution</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-lengths">{expressionSummary?.candidateDistribution}</div>
                 </div>
               </CardContent>
             </Card>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="sem-expression-length-filter" className="text-[10px] uppercase font-bold">Expression Length</Label>
+                <Select value={expressionLengthFilter} onValueChange={v => setExpressionLengthFilter(v as typeof expressionLengthFilter)}>
+                  <SelectTrigger id="sem-expression-length-filter" className="h-8 text-xs w-40" data-testid="select-expression-length-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All lengths</SelectItem>
+                    <SelectItem value="2" className="text-xs">2-grams</SelectItem>
+                    <SelectItem value="3" className="text-xs">3-grams</SelectItem>
+                    <SelectItem value="4" className="text-xs">4-grams</SelectItem>
+                    <SelectItem value="5" className="text-xs">5-grams</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sem-show-limit" className="text-[10px] uppercase font-bold">Show</Label>
+                <Select value={showLimit} onValueChange={v => setShowLimit(v as typeof showLimit)}>
+                  <SelectTrigger id="sem-show-limit" className="h-8 text-xs w-32" data-testid="select-show-limit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20" className="text-xs">Top 20</SelectItem>
+                    <SelectItem value="50" className="text-xs">Top 50</SelectItem>
+                    <SelectItem value="100" className="text-xs">Top 100</SelectItem>
+                    <SelectItem value="all" className="text-xs">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <ExpressionSnapshotTable
-              data={expressionResults.candidates}
-              maxFrequency={expressionSummary?.maxFrequency || 1}
+              data={displayedCandidates}
               filename={expressionExportFilename}
             />
           </>
