@@ -11,10 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard, ArrowUpDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { exportToCsv } from "@/utils/exportCsv";
+import { useToast } from "@/hooks/use-toast";
 import { 
   BarChart, 
   Bar, 
@@ -158,6 +159,124 @@ const LexicalTab = () => {
 
 // --- Semantic Tab ---
 const EXPRESSION_NGRAM_LENGTHS = [2, 3, 4, 5];
+const EXPRESSION_NGRAM_LENGTH_OPTIONS: { value: "2-5" | "2" | "3" | "4" | "5"; label: string }[] = [
+  { value: "2-5", label: "2–5 tokens (Recommended)" },
+  { value: "2", label: "Bigrams only" },
+  { value: "3", label: "Trigrams only" },
+  { value: "4", label: "Four-grams only" },
+  { value: "5", label: "Five-grams only" },
+];
+
+interface ExpressionCandidate {
+  expression: string;
+  n: number;
+  frequency: number;
+  scope: string;
+}
+
+const ExpressionSnapshotTable = ({ data, maxFrequency, filename }: { data: ExpressionCandidate[]; maxFrequency: number; filename: string }) => {
+  const [search, setSearch] = useState("");
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ExpressionCandidate; direction: "asc" | "desc" }>({ key: "frequency", direction: "desc" });
+  const { toast } = useToast();
+
+  const filteredData = useMemo(() => {
+    let processed = [...data];
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      processed = processed.filter(row => String(row.expression).toLowerCase().includes(lowerSearch));
+    }
+    processed.sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortConfig.direction === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+    return processed;
+  }, [data, search, sortConfig]);
+
+  const handleSort = (key: keyof ExpressionCandidate) => {
+    setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
+  };
+
+  const copyToClipboard = () => {
+    const header = ["Expression", "Length", "Frequency", "Scope"].join("\t");
+    const rows = filteredData.map(row => [row.expression, row.n, row.frequency, row.scope].join("\t")).join("\n");
+    navigator.clipboard.writeText(`${header}\n${rows}`);
+    toast({ title: "Copied to clipboard", description: `Copied ${filteredData.length} rows.` });
+  };
+
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const exportFilename = `${filename.replace(".csv", "")}_${timestamp}.csv`;
+    const rows = filteredData.map(row => ({ expression: row.expression, n: row.n, frequency: row.frequency, scope: row.scope }));
+    exportToCsv(exportFilename, rows);
+  };
+
+  const sortIndicator = (key: keyof ExpressionCandidate) => (
+    <button onClick={() => handleSort(key)} className="inline-flex items-center gap-1 hover:text-foreground" data-testid={`button-sort-${key}`}>
+      {key === "n" ? "Length" : key === "expression" ? "Expression" : key === "frequency" ? "Frequency" : "Scope"}
+      <ArrowUpDown className="h-2.5 w-2.5" />
+    </button>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search expressions..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 text-xs pl-8"
+            data-testid="input-expression-search"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="icon" onClick={copyToClipboard} className="h-8 w-8" title="Copy as TSV" data-testid="button-copy-expressions"><Clipboard className="h-3.5 w-3.5" /></Button>
+          <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV" data-testid="button-export-expressions"><Download className="h-3.5 w-3.5" /></Button>
+        </div>
+      </div>
+      <div className="rounded-md border bg-background overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="h-8 text-[10px] bg-muted/50">{sortIndicator("expression")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/50 text-right">{sortIndicator("n")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/50 text-right">{sortIndicator("frequency")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/50">{sortIndicator("scope")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredData.map((row, i) => {
+              const barPct = maxFrequency > 0 ? Math.max(4, Math.round((row.frequency / maxFrequency) * 100)) : 0;
+              return (
+                <TableRow key={i} className="h-8" data-testid={`row-expression-${i}`}>
+                  <TableCell className="py-1 text-[10px]" data-testid={`text-expression-${i}`}>{row.expression}</TableCell>
+                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-length-${i}`}>{row.n}</TableCell>
+                  <TableCell className="py-1 text-[10px]" data-testid={`text-frequency-${i}`}>
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+                      </div>
+                      <span className="tabular-nums w-6 text-right">{row.frequency}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-1 text-[10px]" data-testid={`text-scope-${i}`}>{row.scope}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="text-[10px] text-muted-foreground px-1" data-testid="text-expression-table-count">
+        Showing {filteredData.length} of {data.length} results
+      </div>
+    </div>
+  );
+};
 
 const SemanticTab = () => {
   const { speeches } = useData();
@@ -169,8 +288,13 @@ const SemanticTab = () => {
   const [useLemmas, setUseLemmas] = useState(true);
 
   const [expressionScope, setExpressionScope] = useState<"node" | "corpus">("node");
+  const [ngramLengthSetting, setNgramLengthSetting] = useState<"2-5" | "2" | "3" | "4" | "5">("2-5");
   const [minExpressionFreq, setMinExpressionFreq] = useState(2);
   const expressionCache = useRef<Map<string, any>>(new Map());
+
+  const activeNgramLengths = useMemo(() => {
+    return ngramLengthSetting === "2-5" ? EXPRESSION_NGRAM_LENGTHS : [parseInt(ngramLengthSetting)];
+  }, [ngramLengthSetting]);
 
   const expressionResults = useMemo(() => {
     if (!speeches || speeches.length === 0) return null;
@@ -184,7 +308,7 @@ const SemanticTab = () => {
       ? (processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase())
       : "";
 
-    if (expressionScope === "node" && !nodeLemma.trim()) return { candidates: [], noNodeLemma: true };
+    if (expressionScope === "node" && !nodeLemma.trim()) return { candidates: [], totalCount: 0, noNodeLemma: true };
 
     const cacheKey = JSON.stringify({
       scope: corpusScope,
@@ -194,6 +318,7 @@ const SemanticTab = () => {
       stoplist: useStoplist,
       lemmas: useLemmas,
       minFreq: minExpressionFreq,
+      ngramLengthSetting,
       speechesLen: speeches.length,
     });
     if (expressionCache.current.has(cacheKey)) return expressionCache.current.get(cacheKey);
@@ -202,7 +327,7 @@ const SemanticTab = () => {
 
     filtered.forEach(s => {
       const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
-      EXPRESSION_NGRAM_LENGTHS.forEach(n => {
+      activeNgramLengths.forEach(n => {
         for (let i = 0; i + n <= tokens.length; i++) {
           const gram = tokens.slice(i, i + n);
           if (expressionScope === "node" && !gram.includes(processedNode)) continue;
@@ -213,7 +338,7 @@ const SemanticTab = () => {
       });
     });
 
-    const candidates = Array.from(ngramCounts.entries())
+    const allCandidates = Array.from(ngramCounts.entries())
       .map(([expression, d]) => ({
         expression,
         n: d.n,
@@ -221,22 +346,28 @@ const SemanticTab = () => {
         scope: expressionScope === "node" ? "Node-centred" : "Corpus-wide",
       }))
       .filter(c => c.frequency >= minExpressionFreq)
-      .sort((a, b) => b.frequency - a.frequency)
-      .slice(0, 50);
+      .sort((a, b) => b.frequency - a.frequency);
 
-    const output = { candidates, noNodeLemma: false };
+    const candidates = allCandidates.slice(0, 50);
+
+    const output = { candidates, totalCount: allCandidates.length, noNodeLemma: false };
     expressionCache.current.set(cacheKey, output);
     return output;
-  }, [speeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq]);
+  }, [speeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting]);
 
   const expressionSummary = useMemo(() => {
     if (!expressionResults?.candidates?.length) return null;
     const top = expressionResults.candidates[0];
+    const lengthCounts: Record<number, number> = { 2: 0, 3: 0, 4: 0, 5: 0 };
+    expressionResults.candidates.forEach((c: any) => {
+      if (lengthCounts[c.n] !== undefined) lengthCounts[c.n] += 1;
+    });
     return {
       scope: expressionScope === "node" ? "Node-centred" : "Corpus-wide",
-      candidateCount: expressionResults.candidates.length,
+      showing: `Top ${expressionResults.candidates.length} of ${expressionResults.totalCount} candidates`,
       topExpression: `"${top.expression}" (freq: ${top.frequency})`,
-      lengths: `${EXPRESSION_NGRAM_LENGTHS[0]}–${EXPRESSION_NGRAM_LENGTHS[EXPRESSION_NGRAM_LENGTHS.length - 1]} tokens`,
+      lengthDistribution: `2-grams: ${lengthCounts[2]} · 3-grams: ${lengthCounts[3]} · 4-grams: ${lengthCounts[4]} · 5-grams: ${lengthCounts[5]}`,
+      maxFrequency: top.frequency,
     };
   }, [expressionResults, expressionScope]);
 
@@ -248,10 +379,10 @@ const SemanticTab = () => {
 
       <Card className="shadow-none border-muted/60">
         <CardHeader className="pb-3 bg-muted/5 border-b">
-          <CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle>
-          <CardDescription className="text-xs">Expression Layer — parameters shared across the sections below.</CardDescription>
+          <CardTitle className="text-sm font-semibold">Expression Controls</CardTitle>
+          <CardDescription className="text-xs">Expression Layer — controls shared across semantic sections.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="space-y-1.5">
             <Label className="text-[10px] uppercase font-bold">Expression Scope</Label>
             <div className="flex rounded-md border overflow-hidden h-8">
@@ -278,6 +409,19 @@ const SemanticTab = () => {
               Node Lemma {expressionScope === "corpus" && "(not required)"}
             </Label>
             <Input id="sem-node-lemma" placeholder="e.g. love" value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className={`h-8 text-xs ${expressionScope === "corpus" ? "opacity-50" : ""}`} data-testid="input-semantic-node-lemma" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sem-ngram-length" className="text-[10px] uppercase font-bold">N-gram Length</Label>
+            <Select value={ngramLengthSetting} onValueChange={v => setNgramLengthSetting(v as typeof ngramLengthSetting)}>
+              <SelectTrigger id="sem-ngram-length" className="h-8 text-xs" data-testid="select-ngram-length">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPRESSION_NGRAM_LENGTH_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] uppercase font-bold">Min Expression Freq: {minExpressionFreq}</Label>
@@ -323,27 +467,22 @@ const SemanticTab = () => {
                   <div className="font-semibold" data-testid="text-expression-summary-scope">{expressionSummary?.scope}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Candidates</div>
-                  <div className="font-semibold" data-testid="text-expression-summary-count">{expressionSummary?.candidateCount}</div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Showing</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-showing">{expressionSummary?.showing}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Top Expression</div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent Expression</div>
                   <div className="font-semibold" data-testid="text-expression-summary-top">{expressionSummary?.topExpression}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">N-gram Lengths</div>
-                  <div className="font-semibold" data-testid="text-expression-summary-lengths">{expressionSummary?.lengths}</div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Length Distribution</div>
+                  <div className="font-semibold" data-testid="text-expression-summary-lengths">{expressionSummary?.lengthDistribution}</div>
                 </div>
               </CardContent>
             </Card>
-            <ResultsTable
+            <ExpressionSnapshotTable
               data={expressionResults.candidates}
-              columns={[
-                { key: "expression", label: "Expression" },
-                { key: "n", label: "N", sortable: true, align: "right" },
-                { key: "frequency", label: "Frequency", sortable: true, align: "right" },
-                { key: "scope", label: "Scope" },
-              ]}
+              maxFrequency={expressionSummary?.maxFrequency || 1}
               filename={expressionExportFilename}
             />
           </>

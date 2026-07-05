@@ -1,0 +1,236 @@
+STEP 31A — Expression Snapshot Refinement
+
+Goal
+
+Refine the Semantic tab’s Expression Snapshot so it is more usable, more transparent, and more visually informative.
+
+This step improves the presentation and controls of the existing Step 31 expression-candidate extraction.
+
+It must NOT introduce new semantic methods.
+
+The extraction logic should remain the same:
+
+tokenise → generate contiguous n-grams → count → rank
+
+with scope determining whether candidates are node-centred or corpus-wide.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Discursive tab
+- Lexical tab
+- data loading
+- preprocessing utilities
+- tokenisation utilities
+- lemmatisation utilities
+- stoplists
+- Sankey logic
+- quad extraction logic
+- Discursive Dashboard v1.0
+
+Do NOT add:
+
+- formulaicity scoring
+- fossilisation logic
+- entrenchment logic
+- collocation association measures
+- MI / logDice
+- expression clustering
+- diachronic expression analysis
+
+This is a refinement of the Expression Snapshot only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on the SemanticTab component.
+
+Do NOT touch LexicalTab or DiscursiveTab.
+
+
+Implementation Steps
+
+1. Rename the top parameter card title from:
+
+Semantic Parameters
+
+to:
+
+Expression Controls
+
+2. Update the parameter card description to:
+
+Expression Layer — controls shared across semantic sections.
+
+3. Add an N-gram Length control.
+
+Use a simple Select or segmented control with the following options:
+
+- 2–5 tokens (Recommended)
+- Bigrams only
+- Trigrams only
+- Four-grams only
+- Five-grams only
+
+Recommended internal values:
+
+- "2-5"
+- "2"
+- "3"
+- "4"
+- "5"
+
+Default:
+
+"2-5"
+
+4. Update expression extraction so it respects the selected n-gram length setting:
+
+- "2-5" → generate 2, 3, 4, and 5-grams
+- "2" → generate only bigrams
+- "3" → generate only trigrams
+- "4" → generate only four-grams
+- "5" → generate only five-grams
+
+Do NOT change any other extraction logic.
+
+5. Improve the Expression Snapshot summary block.
+
+Replace the current summary fields with:
+
+- Active Scope
+- Showing
+- Most Frequent Expression
+- Length Distribution
+
+Recommended wording:
+
+Active Scope:
+Node-centred / Corpus-wide
+
+Showing:
+Top 50 of X candidates
+
+Most Frequent Expression:
+“my love” (freq: 163)
+
+Length Distribution:
+2-grams: X · 3-grams: Y · 4-grams: Z · 5-grams: W
+
+6. Ensure “Showing” distinguishes between:
+
+- total candidates meeting threshold
+- displayed candidates after top-50 cap
+
+Example:
+
+Top 50 of 263 candidates
+
+7. Rename the table column:
+
+N
+
+to:
+
+Length
+
+8. Add a simple visual frequency bar to the Frequency column.
+
+Requirements:
+
+- frequency number must remain visible
+- bar should be proportional to the highest frequency in the currently displayed table
+- keep this visually subtle
+- do NOT add a new charting library
+- use simple div / CSS classes only
+
+Example visual structure:
+
+Frequency:
+[bar] 163
+
+9. Preserve search, sorting, and CSV export behaviour.
+
+10. Ensure CSV export still includes the same essential fields:
+
+- expression
+- length / n
+- frequency
+- scope
+
+Do not break existing export.
+
+11. Keep Sections B, C, and D as placeholders.
+
+Do NOT add new content to those sections.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify LexicalTab
+- modify DiscursiveTab
+- modify utility files
+- change global preprocessing
+- add new semantic algorithms
+- change expression extraction beyond respecting n-gram length control
+- remove Expression Scope toggle
+- remove Node Lemma input
+- remove Stoplist or Lemma toggles
+
+Only refine the existing Expression Snapshot controls, summary, and table display.
+
+
+Expected Result
+
+After Step 31A:
+
+The Semantic tab should show:
+
+1. Expression Controls instead of Semantic Parameters
+2. Expression Scope toggle
+3. Node Lemma input
+4. N-gram Length control
+5. Minimum Expression Frequency control
+6. Stoplist and Lemma toggles
+7. Improved Expression Snapshot summary:
+   - Active Scope
+   - Showing Top 50 of X candidates
+   - Most Frequent Expression
+   - Length Distribution
+8. Expression Snapshot table with:
+   - Expression
+   - Length
+   - Frequency with visual bar
+   - Scope
+9. Node-centred and Corpus-wide modes still work
+10. Sections B, C, and D remain placeholders
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+2. Lexical tab is unchanged.
+3. Discursive tab is unchanged.
+4. Semantic tab still has four sections.
+5. Expression Scope toggle still works.
+6. N-gram Length control works.
+7. Node-centred mode still filters expressions by node lemma.
+8. Corpus-wide mode still shows expressions without requiring node lemma.
+9. Minimum frequency still filters candidates.
+10. Stoplist and Lemma toggles still affect extraction.
+11. Frequency bars render correctly and proportionally.
+12. CSV export still works.
+13. No formulaicity, fossilisation, conventionalisation, or diachronic logic has been added.
+
+STOP AFTER STEP 31A
