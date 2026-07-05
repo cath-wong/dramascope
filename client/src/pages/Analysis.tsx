@@ -158,71 +158,90 @@ const LexicalTab = () => {
 
 // --- Semantic Tab ---
 const SemanticTab = () => {
-  const { speeches } = useData();
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker } = ui;
-  const [targetTerm, setTargetTerm] = useState("");
+  const [nodeLemma, setNodeLemma] = useState("");
   const [minCooc, setMinCooc] = useState(2);
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
-  const [pinned, setPinned] = useState<any[]>([]);
-  const computationCache = useRef<Map<string, any>>(new Map());
-
-  const results = useMemo(() => {
-    if (!targetTerm) return null;
-    const filtered = speeches.filter(s => {
-      if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
-      if (selectedGenre && s.genre !== selectedGenre) return false;
-      if (selectedSpeaker && s.speaker !== selectedSpeaker) return false;
-      return true;
-    });
-    const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, target: targetTerm, stoplist: useStoplist, lemmas: useLemmas });
-    if (computationCache.current.has(cacheKey)) return computationCache.current.get(cacheKey);
-
-    const q = processTokens(targetTerm, { useStoplist: false, useLemmas })[0] || targetTerm.toLowerCase();
-    const globalCounts = new Map<string, number>();
-    let totalTokens = 0;
-    const speechTokens = filtered.map(s => {
-      const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
-      tokens.forEach(t => { globalCounts.set(t, (globalCounts.get(t) || 0) + 1); totalTokens++; });
-      return { ...s, tokens };
-    });
-    const qFreq = globalCounts.get(q) || 0;
-    if (qFreq === 0) return { error: `Term "${q}" not found.` };
-
-    const coocCounts = new Map<string, number>();
-    speechTokens.forEach(s => {
-      s.tokens.forEach((t, i) => {
-        if (t === q) {
-          const win = s.tokens.slice(Math.max(0, i - 10), Math.min(s.tokens.length, i + 11));
-          win.forEach((col, j) => { if (col !== q) coocCounts.set(col, (coocCounts.get(col) || 0) + 1); });
-        }
-      });
-    });
-
-    const associationList = Array.from(coocCounts.entries()).map(([term, count]) => {
-      const termFreq = globalCounts.get(term) || 1;
-      const pmi = Math.log2((count/totalTokens)/((qFreq/totalTokens)*(termFreq/totalTokens)));
-      return { term, count, score: parseFloat(pmi.toFixed(3)) };
-    }).filter(a => a.count >= minCooc).sort((a, b) => b.score - a.score).slice(0, topN);
-
-    const output = { associationList };
-    computationCache.current.set(cacheKey, output);
-    return output;
-  }, [speeches, targetTerm, corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, useStoplist, useLemmas, minCooc]);
 
   return (
     <div className="space-y-6">
       <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw (norm)" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
-      <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
-      <Card className="shadow-none border-muted/60"><CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle></CardHeader>
-      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Target Term</Label><Input placeholder="Term..." value={targetTerm} onChange={e => setTargetTerm(e.target.value)} className="h-8 text-xs"/></div>
-        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Min Co-occurrence: {minCooc}</Label><Input type="range" min="1" max="10" value={minCooc} onChange={e => setMinCooc(parseInt(e.target.value))} className="h-4"/></div>
-      </CardContent></Card>
-      {results?.associationList && (
-        <ResultsTable data={results.associationList} columns={[{ key: "term", label: "Term" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "score", label: "PMI Score", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.term, metric: item.score }])} filename="semantic_associations.csv" />
-      )}
+
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="pb-3 bg-muted/5 border-b">
+          <CardTitle className="text-sm font-semibold">Semantic Parameters</CardTitle>
+          <CardDescription className="text-xs">Expression Layer — parameters shared across the sections below.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="sem-node-lemma" className="text-[10px] uppercase font-bold">Node Lemma</Label>
+            <Input id="sem-node-lemma" placeholder="e.g. love" value={nodeLemma} onChange={e => setNodeLemma(e.target.value)} className="h-8 text-xs" data-testid="input-semantic-node-lemma" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] uppercase font-bold">Min Co-occurrence: {minCooc}</Label>
+            <Input type="range" min="1" max="10" value={minCooc} onChange={e => setMinCooc(parseInt(e.target.value))} className="h-4" data-testid="input-semantic-min-cooc" />
+          </div>
+          <div className="flex flex-col gap-2 justify-center">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="sem-stoplist" checked={useStoplist} onCheckedChange={v => setUseStoplist(!!v)} data-testid="checkbox-semantic-stoplist" />
+              <Label htmlFor="sem-stoplist" className="text-xs">Stoplist</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="sem-lemmas" checked={useLemmas} onCheckedChange={v => setUseLemmas(!!v)} data-testid="checkbox-semantic-lemmas" />
+              <Label htmlFor="sem-lemmas" className="text-xs">Lemmas</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3" data-testid="section-expression-snapshot">
+        <div>
+          <h3 className="text-sm font-bold">A. Expression Snapshot</h3>
+          <p className="text-xs text-muted-foreground">Overview of recurrent expressions associated with the selected node lemma.</p>
+        </div>
+        <Card className="shadow-none border-muted/60 border-dashed">
+          <CardContent className="pt-6 text-xs text-muted-foreground">
+            Expression-level outputs will appear here after n-gram and expression extraction are implemented.
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3" data-testid="section-expression-patterning">
+        <div>
+          <h3 className="text-sm font-bold">B. Expression Patterning</h3>
+          <p className="text-xs text-muted-foreground">Examines how recurrent expressions are structured, varied, and grouped.</p>
+        </div>
+        <Card className="shadow-none border-muted/60 border-dashed">
+          <CardContent className="pt-6 text-xs text-muted-foreground">
+            Collocation and phrase-patterning outputs will appear here.
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3" data-testid="section-conventionalisation">
+        <div>
+          <h3 className="text-sm font-bold">C. Conventionalisation</h3>
+          <p className="text-xs text-muted-foreground">Assesses the stability, recurrence, and possible entrenchment of expressions.</p>
+        </div>
+        <Card className="shadow-none border-muted/60 border-dashed">
+          <CardContent className="pt-6 text-xs text-muted-foreground">
+            Formulaicity and conventionalisation indicators will appear here.
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3" data-testid="section-diachronic-expression-change">
+        <div>
+          <h3 className="text-sm font-bold">D. Diachronic Expression Change</h3>
+          <p className="text-xs text-muted-foreground">Tracks how expressions emerge, persist, diversify, or disappear across time.</p>
+        </div>
+        <Card className="shadow-none border-muted/60 border-dashed">
+          <CardContent className="pt-6 text-xs text-muted-foreground">
+            Diachronic expression trends will appear here.
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 };

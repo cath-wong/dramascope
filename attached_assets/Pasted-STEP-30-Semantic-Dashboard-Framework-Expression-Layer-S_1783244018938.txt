@@ -1,0 +1,217 @@
+STEP 30 — Semantic Dashboard Framework (Expression Layer Shell)
+
+Goal
+
+Create the structural framework for the Semantic tab as the Expression Layer of the app.
+
+This step introduces NO substantive semantic analysis yet.
+
+The purpose is to replace the current placeholder / incomplete Semantic tab with a clean four-section dashboard shell that will later support expression-level analysis.
+
+The Semantic tab should be organised around recurrent expressions, formulaic language, and conventionalisation.
+
+This step is layout and framing only.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Discursive tab
+- Lexical tab
+- Data loading
+- preprocessing utilities
+- tokenisation
+- lemmatisation
+- stoplists
+- Sankey logic
+- quad extraction
+- existing Discursive Dashboard v1.0 logic
+
+Do NOT add:
+
+- new algorithms
+- new metrics
+- n-gram extraction logic
+- collocation scoring
+- formulaicity scoring
+- diachronic calculations
+
+Only create the Semantic dashboard framework.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on the SemanticTab component.
+
+Do NOT touch LexicalTab or DiscursiveTab.
+
+
+Analytical Framing
+
+The Semantic tab should be framed as the Expression Layer.
+
+Its central object is:
+
+Expression
+
+Its guiding question is:
+
+How do recurrent lexical patterns become conventionalised into stable expressions?
+
+The tab should be organised into four sections:
+
+A. Expression Snapshot
+B. Expression Patterning
+C. Conventionalisation
+D. Diachronic Expression Change
+
+
+Implementation Steps
+
+1. Locate the existing SemanticTab component in Analysis.tsx.
+
+2. Preserve any existing basic state that is still useful, such as:
+   - target term / node lemma input
+   - stoplist toggle
+   - lemma toggle
+   - minimum co-occurrence if already present
+
+3. Replace the current Semantic tab layout with a four-section shell.
+
+4. Add the following four section headings and short descriptions:
+
+
+SECTION A — Expression Snapshot
+
+Title:
+A. Expression Snapshot
+
+Description:
+Overview of recurrent expressions associated with the selected node lemma.
+
+Placeholder content:
+“Expression-level outputs will appear here after n-gram and expression extraction are implemented.”
+
+
+SECTION B — Expression Patterning
+
+Title:
+B. Expression Patterning
+
+Description:
+Examines how recurrent expressions are structured, varied, and grouped.
+
+Placeholder content:
+“Collocation and phrase-patterning outputs will appear here.”
+
+
+SECTION C — Conventionalisation
+
+Title:
+C. Conventionalisation
+
+Description:
+Assesses the stability, recurrence, and possible entrenchment of expressions.
+
+Placeholder content:
+“Formulaicity and conventionalisation indicators will appear here.”
+
+
+SECTION D — Diachronic Expression Change
+
+Title:
+D. Diachronic Expression Change
+
+Description:
+Tracks how expressions emerge, persist, diversify, or disappear across time.
+
+Placeholder content:
+“Diachronic expression trends will appear here.”
+
+
+5. Use existing UI components where possible:
+   - Card
+   - CardHeader
+   - CardTitle
+   - CardDescription
+   - CardContent
+   - Input
+   - Checkbox
+   - Label
+
+6. At the top of the Semantic tab, add or preserve a compact parameter card with:
+   - Node Lemma / Target Lemma input
+   - Stoplist toggle if already present
+   - Lemma toggle if already present
+
+7. Use “Node Lemma” or “Target Lemma” consistently.
+   Prefer:
+   “Node Lemma”
+
+8. Do NOT implement real outputs yet.
+   Placeholder cards are acceptable in this step.
+
+9. Do NOT delete imports unless they become clearly unused and the app fails to compile.
+
+10. Keep styling broadly consistent with the Discursive tab:
+   - section headings
+   - short descriptions
+   - cards
+   - spacing
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify LexicalTab
+- modify DiscursiveTab
+- modify utility files
+- add new analysis logic
+- add new exports
+- add new charts
+- change existing data structures
+- change hook ordering in other tabs
+- remove Discursive Dashboard v1.0 features
+
+Only edit the SemanticTab component enough to create the section framework.
+
+
+Expected Result
+
+After Step 30:
+
+The Semantic tab should display a clean Expression Layer dashboard shell with:
+
+1. a compact parameter area
+2. four clearly labelled sections:
+   - Expression Snapshot
+   - Expression Patterning
+   - Conventionalisation
+   - Diachronic Expression Change
+3. placeholder cards for future semantic/expression-level outputs
+
+The tab should no longer feel like an unfinished random association table.
+It should clearly indicate the intended analytical structure of the Semantic Dashboard.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+2. Lexical tab is unchanged.
+3. Discursive tab is unchanged.
+4. Semantic tab shows the four new sections.
+5. No new semantic calculations were added.
+6. No existing Discursive Dashboard v1.0 logic was touched.
+7. Terminology uses “Expression” and “Node Lemma” consistently.
+8. Placeholder content is clear and non-misleading.
+
+STOP AFTER STEP 30
