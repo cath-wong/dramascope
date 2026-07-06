@@ -1,0 +1,301 @@
+STEP 32A — Expression Patterning Usability Refinement
+
+Goal
+
+Refine Section B (Expression Patterning) so it is practical for research on large corpora.
+
+This step improves navigation, sorting, scrolling, and layout consistency only.
+
+It must NOT change the underlying Expression Family algorithm introduced in Step 32.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- Section A (Expression Snapshot)
+- Sections C or D
+- expression extraction
+- expression family construction
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+
+Do NOT add:
+
+- formulaicity
+- conventionalisation metrics
+- clustering algorithms
+- collocation measures
+- diachronic logic
+
+This is a usability refinement only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+Section B — Expression Patterning
+
+
+Implementation Steps
+
+1.
+
+Make the entire Expression Patterning card collapsible.
+
+Default:
+
+Expanded.
+
+Use the same collapsible behaviour already established throughout the Discursive Dashboard.
+
+Maintain consistent chevron placement and styling.
+
+---
+
+2.
+
+Limit table height.
+
+Both panes should become independently scrollable.
+
+Recommended:
+
+Family table:
+
+max-height:
+450px
+
+Family Members table:
+
+max-height:
+450px
+
+Both tables should have:
+
+• sticky headers
+• independent vertical scrolling
+
+The page itself should no longer become excessively long.
+
+---
+
+3.
+
+Add sorting.
+
+Allow sorting by:
+
+Family Pattern
+
+Members
+
+Total Frequency
+
+Most Frequent Expression
+
+Reuse existing table sorting behaviour where possible.
+
+---
+
+4.
+
+Add display limit control.
+
+Exactly like Section A.
+
+Options:
+
+Top 20
+
+Top 50
+
+Top 100
+
+All
+
+Default:
+
+Top 50
+
+This affects only the Family table.
+
+---
+
+5.
+
+Selection persistence.
+
+If the user:
+
+• changes sort order
+
+• changes display limit
+
+• searches
+
+retain the selected family whenever it still exists in the displayed results.
+
+Only clear the selection if the chosen family is no longer present.
+
+---
+
+6.
+
+Search.
+
+Add a search box above the Family table.
+
+Search should match:
+
+• Family Pattern
+
+• Most Frequent Expression
+
+Search should update instantly.
+
+---
+
+7.
+
+CSV export.
+
+CSV should export the currently displayed Family table only, respecting:
+
+• search
+
+• display limit
+
+• sorting
+
+---
+
+8.
+
+Improve layout.
+
+Maintain two-column layout:
+
+LEFT
+
+Top Expression Families
+
+RIGHT
+
+Family Members
+
+Ensure both cards remain aligned vertically regardless of differing content lengths.
+
+---
+
+9.
+
+Improve empty states.
+
+If no family selected:
+
+Use:
+
+"Select an expression family to inspect its member expressions."
+
+If no families found:
+
+"No recurring expression families were identified for the current selection."
+
+---
+
+10.
+
+Minor wording improvements.
+
+Rename:
+
+Members
+
+to
+
+Member Expressions
+
+Rename:
+
+Most Frequent Expression
+
+to
+
+Representative Expression
+
+because it serves as the family's representative, not merely the highest-frequency item.
+
+Leave all analytical terminology otherwise unchanged.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rebuild the family algorithm
+- modify expression extraction
+- alter Section A
+- alter Sections C or D
+- change preprocessing
+- introduce new analytical metrics
+- modify Discursive Dashboard
+
+Only improve usability and interaction.
+
+
+Expected Result
+
+After Step 32A:
+
+Expression Patterning should support:
+
+✓ collapsible section
+
+✓ sticky table headers
+
+✓ bounded scrolling
+
+✓ sortable family table
+
+✓ search
+
+✓ Top 20 / 50 / 100 / All
+
+✓ persistent family selection
+
+✓ CSV export of current view
+
+✓ cleaner two-column research layout
+
+without changing any analytical calculations.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. App compiles without errors.
+2. Family construction is unchanged.
+3. Section A is unchanged.
+4. Sections C and D remain placeholders.
+5. Expression Patterning is collapsible.
+6. Both tables scroll independently.
+7. Sticky headers work.
+8. Sorting works.
+9. Search works.
+10. Top 20 / 50 / 100 / All works.
+11. Selection persists where appropriate.
+12. CSV export respects current view.
+13. Discursive tab is unchanged.
+
+STOP AFTER STEP 32A.

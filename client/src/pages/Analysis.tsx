@@ -335,23 +335,71 @@ const buildExpressionFamilies = (candidates: ExpressionCandidate[]): ExpressionF
   return families;
 };
 
-const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+type FamilySortKey = "pattern" | "memberCount" | "totalFrequency" | "mostFrequentMember";
 
-  const maxTotalFrequency = useMemo(() => families.reduce((max, f) => Math.max(max, f.totalFrequency), 1), [families]);
-  const selected = families[selectedIndex] || families[0] || null;
+const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
+  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortConfig, setSortConfig] = useState<{ key: FamilySortKey; direction: "asc" | "desc" }>({ key: "totalFrequency", direction: "desc" });
+  const [showLimit, setShowLimit] = useState<"20" | "50" | "100" | "all">("50");
+
+  const filteredFamilies = useMemo(() => {
+    let processed = [...families];
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      processed = processed.filter(f => f.pattern.toLowerCase().includes(lowerSearch) || f.mostFrequentMember.toLowerCase().includes(lowerSearch));
+    }
+    processed.sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortConfig.direction === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+    return processed;
+  }, [families, search, sortConfig]);
+
+  const displayedFamilies = useMemo(() => {
+    if (showLimit === "all") return filteredFamilies;
+    return filteredFamilies.slice(0, parseInt(showLimit));
+  }, [filteredFamilies, showLimit]);
+
+  useEffect(() => {
+    if (!displayedFamilies.length) {
+      if (selectedPattern !== null) setSelectedPattern(null);
+      return;
+    }
+    if (!selectedPattern || !displayedFamilies.some(f => f.pattern === selectedPattern)) {
+      setSelectedPattern(displayedFamilies[0].pattern);
+    }
+  }, [displayedFamilies, selectedPattern]);
+
+  const maxTotalFrequency = useMemo(() => displayedFamilies.reduce((max, f) => Math.max(max, f.totalFrequency), 1), [displayedFamilies]);
+  const selected = displayedFamilies.find(f => f.pattern === selectedPattern) || null;
+
+  const handleSort = (key: FamilySortKey) => {
+    setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
+  };
 
   const handleExport = () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const exportFilename = `${filename.replace(".csv", "")}_${timestamp}.csv`;
-    const rows = families.map(f => ({
+    const rows = displayedFamilies.map(f => ({
       family: f.pattern,
-      member_count: f.memberCount,
+      member_expressions: f.memberCount,
       total_frequency: f.totalFrequency,
       representative_expression: f.mostFrequentMember,
     }));
     exportToCsv(exportFilename, rows);
   };
+
+  const sortIndicator = (key: FamilySortKey, label: string, align: "left" | "right" = "left") => (
+    <button onClick={() => handleSort(key)} className={`inline-flex items-center gap-1 hover:text-foreground ${align === "right" ? "flex-row-reverse w-full justify-start" : ""}`} data-testid={`button-sort-family-${key}`}>
+      {label}
+      <ArrowUpDown className="h-2.5 w-2.5" />
+    </button>
+  );
 
   if (!families.length) {
     return (
@@ -365,28 +413,52 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV" data-testid="button-export-families"><Download className="h-3.5 w-3.5" /></Button>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-sm min-w-[180px]">
+          <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search families..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 text-xs pl-8"
+            data-testid="input-family-search"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="family-show-limit" className="text-[10px] uppercase font-bold text-muted-foreground">Show</Label>
+          <Select value={showLimit} onValueChange={v => setShowLimit(v as typeof showLimit)}>
+            <SelectTrigger id="family-show-limit" className="h-8 text-xs w-28" data-testid="select-family-show-limit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20" className="text-xs">Top 20</SelectItem>
+              <SelectItem value="50" className="text-xs">Top 50</SelectItem>
+              <SelectItem value="100" className="text-xs">Top 100</SelectItem>
+              <SelectItem value="all" className="text-xs">All</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV" data-testid="button-export-families"><Download className="h-3.5 w-3.5" /></Button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-md border bg-background overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "450px" }}>
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10">
               <TableRow>
-                <TableHead className="h-8 text-[10px] bg-muted/50">Family Pattern</TableHead>
-                <TableHead className="h-8 text-[10px] bg-muted/50 text-right">Members</TableHead>
-                <TableHead className="h-8 text-[10px] bg-muted/50 text-right">Total Frequency</TableHead>
-                <TableHead className="h-8 text-[10px] bg-muted/50">Most Frequent Expression</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicator("pattern", "Family Pattern")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicator("memberCount", "Member Expressions", "right")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicator("totalFrequency", "Total Frequency", "right")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicator("mostFrequentMember", "Representative Expression")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {families.map((f, i) => {
+              {displayedFamilies.map((f, i) => {
                 const barPct = maxTotalFrequency > 0 ? Math.max(4, Math.round((f.totalFrequency / maxTotalFrequency) * 100)) : 0;
                 return (
                   <TableRow
                     key={f.pattern}
-                    onClick={() => setSelectedIndex(i)}
-                    className={`h-8 cursor-pointer ${i === selectedIndex ? "bg-muted/60" : ""}`}
+                    onClick={() => setSelectedPattern(f.pattern)}
+                    className={`h-8 cursor-pointer ${f.pattern === selectedPattern ? "bg-muted/60" : ""}`}
                     data-testid={`row-family-${i}`}
                   >
                     <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-family-pattern-${i}`}>{f.pattern}</TableCell>
@@ -406,34 +478,47 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
             </TableBody>
           </Table>
         </div>
-        <Card className="shadow-none border-muted/60" data-testid="card-family-members">
+        <Card className="shadow-none border-muted/60 h-full flex flex-col" data-testid="card-family-members">
           <CardHeader className="pb-3 bg-muted/5 border-b">
-            <CardTitle className="text-xs font-semibold" data-testid="text-family-members-title">Family Members — {selected?.pattern}</CardTitle>
-            <CardDescription className="text-[10px]">Member expressions within the selected family, with frequency share.</CardDescription>
+            <CardTitle className="text-xs font-semibold" data-testid="text-family-members-title">
+              {selected ? `Family Members — ${selected.pattern}` : "Family Members"}
+            </CardTitle>
+            <CardDescription className="text-[10px]">
+              {selected ? "Member expressions within the selected family, with frequency share." : "Select an expression family to inspect its member expressions."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="rounded-md border bg-background overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="h-8 text-[10px] bg-muted/50">Member Expression</TableHead>
-                    <TableHead className="h-8 text-[10px] bg-muted/50 text-right">Frequency</TableHead>
-                    <TableHead className="h-8 text-[10px] bg-muted/50 text-right">% of Family</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selected?.members.map((m, i) => (
-                    <TableRow key={m.expression} className="h-8" data-testid={`row-family-member-${i}`}>
-                      <TableCell className="py-1 text-[10px]" data-testid={`text-family-member-expression-${i}`}>{m.expression}</TableCell>
-                      <TableCell className="py-1 text-[10px] text-right" data-testid={`text-family-member-frequency-${i}`}>{m.frequency}</TableCell>
-                      <TableCell className="py-1 text-[10px] text-right" data-testid={`text-family-member-pct-${i}`}>{selected.totalFrequency > 0 ? ((m.frequency / selected.totalFrequency) * 100).toFixed(1) : "0.0"}%</TableCell>
+            {selected ? (
+              <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "450px" }}>
+                <Table>
+                  <TableHeader className="sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Member Expression</TableHead>
+                      <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Frequency</TableHead>
+                      <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">% of Family</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {selected.members.map((m, i) => (
+                      <TableRow key={m.expression} className="h-8" data-testid={`row-family-member-${i}`}>
+                        <TableCell className="py-1 text-[10px]" data-testid={`text-family-member-expression-${i}`}>{m.expression}</TableCell>
+                        <TableCell className="py-1 text-[10px] text-right" data-testid={`text-family-member-frequency-${i}`}>{m.frequency}</TableCell>
+                        <TableCell className="py-1 text-[10px] text-right" data-testid={`text-family-member-pct-${i}`}>{selected.totalFrequency > 0 ? ((m.frequency / selected.totalFrequency) * 100).toFixed(1) : "0.0"}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground py-6 text-center" data-testid="text-family-members-empty">
+                Select an expression family to inspect its member expressions.
+              </div>
+            )}
           </CardContent>
         </Card>
+      </div>
+      <div className="text-[10px] text-muted-foreground px-1" data-testid="text-family-table-count">
+        Showing {displayedFamilies.length} of {filteredFamilies.length} families{search ? ` (filtered from ${families.length})` : ""}
       </div>
     </div>
   );
@@ -716,49 +801,61 @@ const SemanticTab = () => {
         )}
       </section>
 
-      <section className="space-y-3" data-testid="section-expression-patterning">
-        <div>
-          <h3 className="text-sm font-bold">B. Expression Patterning</h3>
-          <p className="text-xs text-muted-foreground">Identifies Expression Families — recurring expressions sharing a common structural frame with one or more varying slots.</p>
-        </div>
-
-        {expressionScope === "node" && !nodeLemma.trim() ? (
-          <Card className="shadow-none border-muted/60 border-dashed">
-            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-family-empty-no-node">
-              Enter a node lemma to view node-centred expression families.
-            </CardContent>
-          </Card>
-        ) : !expressionFamilies.length ? (
-          <Card className="shadow-none border-muted/60 border-dashed">
-            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-family-empty">
-              No recurring expression families were identified for the current selection.
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <Card className="shadow-none border-muted/60">
-              <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Total Families</div>
-                  <div className="font-semibold" data-testid="text-family-summary-total">{familySummary?.totalFamilies}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Average Family Size</div>
-                  <div className="font-semibold" data-testid="text-family-summary-avg-size">{familySummary?.avgSize}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Largest Family</div>
-                  <div className="font-semibold" data-testid="text-family-summary-largest">{familySummary?.largestFamily}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent Family</div>
-                  <div className="font-semibold" data-testid="text-family-summary-top">{familySummary?.mostFrequentFamily}</div>
-                </div>
+      <section data-testid="section-expression-patterning">
+        <Collapsible defaultOpen={true}>
+          <Card className="shadow-none border-muted/60 overflow-hidden">
+            <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-bold">B. Expression Patterning</CardTitle>
+                <CardDescription className="text-xs">Identifies Expression Families — recurring expressions sharing a common structural frame with one or more varying slots.</CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid="button-toggle-expression-patterning"><ChevronDown className="h-3 w-3" /></Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-4 space-y-3">
+                {expressionScope === "node" && !nodeLemma.trim() ? (
+                  <Card className="shadow-none border-muted/60 border-dashed">
+                    <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-family-empty-no-node">
+                      Enter a node lemma to view node-centred expression families.
+                    </CardContent>
+                  </Card>
+                ) : !expressionFamilies.length ? (
+                  <Card className="shadow-none border-muted/60 border-dashed">
+                    <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-family-empty">
+                      No recurring expression families were identified for the current selection.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    <Card className="shadow-none border-muted/60">
+                      <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Total Families</div>
+                          <div className="font-semibold" data-testid="text-family-summary-total">{familySummary?.totalFamilies}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Average Family Size</div>
+                          <div className="font-semibold" data-testid="text-family-summary-avg-size">{familySummary?.avgSize}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Largest Family</div>
+                          <div className="font-semibold" data-testid="text-family-summary-largest">{familySummary?.largestFamily}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent Family</div>
+                          <div className="font-semibold" data-testid="text-family-summary-top">{familySummary?.mostFrequentFamily}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <ExpressionFamilyPanel families={expressionFamilies} filename={expressionFamilyExportFilename} />
+                  </>
+                )}
               </CardContent>
-            </Card>
-            <ExpressionFamilyPanel families={expressionFamilies} filename={expressionFamilyExportFilename} />
-          </>
-        )}
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </section>
 
       <section className="space-y-3" data-testid="section-conventionalisation">
