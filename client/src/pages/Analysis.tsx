@@ -527,19 +527,32 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
 interface ConventionalisationRow {
   pattern: string;
   indicator: number;
+  band: "High" | "Moderate" | "Low";
   familyFrequency: number;
   representativeDominance: number;
   familySize: number;
   lexicalDiversity: number;
   avgMemberFrequency: number;
   representativeExpression: string;
+  freqComponent: number;
+  dominanceComponent: number;
+  avgFreqComponent: number;
 }
 
 type ConvSortKey = "indicator" | "familyFrequency" | "representativeDominance" | "familySize" | "pattern" | "representativeExpression";
 
+const getConvBand = (indicator: number): "High" | "Moderate" | "Low" =>
+  indicator >= 70 ? "High" : indicator >= 40 ? "Moderate" : "Low";
+
+const CONV_BAND_CLASS: Record<string, string> = {
+  High: "text-emerald-600 dark:text-emerald-400",
+  Moderate: "text-amber-600 dark:text-amber-400",
+  Low: "text-muted-foreground",
+};
+
 const buildConventionalisationRows = (families: ExpressionFamily[]): ConventionalisationRow[] => {
   if (!families.length) return [];
-  const rows: Omit<ConventionalisationRow, "indicator">[] = families.map(f => ({
+  const raw = families.map(f => ({
     pattern: f.pattern,
     familyFrequency: f.totalFrequency,
     representativeDominance: f.totalFrequency > 0 ? (f.members[0].frequency / f.totalFrequency) * 100 : 0,
@@ -548,20 +561,35 @@ const buildConventionalisationRows = (families: ExpressionFamily[]): Conventiona
     avgMemberFrequency: f.memberCount > 0 ? f.totalFrequency / f.memberCount : 0,
     representativeExpression: f.mostFrequentMember,
   }));
-  const maxFreq = Math.max(...rows.map(r => r.familyFrequency), 1);
-  const maxAvgFreq = Math.max(...rows.map(r => r.avgMemberFrequency), 1);
-  return rows.map(r => {
-    const normFreq = (r.familyFrequency / maxFreq) * 100;
-    const normAvg = (r.avgMemberFrequency / maxAvgFreq) * 100;
-    const indicator = Math.round((normFreq + r.representativeDominance + normAvg) / 3);
-    return { ...r, indicator };
+  const maxFreq = Math.max(...raw.map(r => r.familyFrequency), 1);
+  const maxAvgFreq = Math.max(...raw.map(r => r.avgMemberFrequency), 1);
+  return raw.map(r => {
+    const freqComponent = (r.familyFrequency / maxFreq) * 100;
+    const dominanceComponent = r.representativeDominance;
+    const avgFreqComponent = (r.avgMemberFrequency / maxAvgFreq) * 100;
+    const indicator = Math.round((freqComponent + dominanceComponent + avgFreqComponent) / 3);
+    const band = getConvBand(indicator);
+    return { ...r, indicator, band, freqComponent, dominanceComponent, avgFreqComponent };
   }).sort((a, b) => b.indicator - a.indicator);
 };
+
+const ConvBreakdownBar = ({ label, value, testId }: { label: string; value: number; testId: string }) => (
+  <div className="space-y-0.5">
+    <div className="flex items-center justify-between text-[10px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="tabular-nums font-medium" data-testid={testId}>{value.toFixed(1)}</span>
+    </div>
+    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="h-full bg-primary/50 rounded-full transition-all" style={{ width: `${Math.max(2, value)}%` }} />
+    </div>
+  </div>
+);
 
 const ConventionalisationPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: ConvSortKey; direction: "asc" | "desc" }>({ key: "indicator", direction: "desc" });
+  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
 
   const rows = useMemo(() => buildConventionalisationRows(families), [families]);
 
@@ -582,7 +610,15 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
     return processed;
   }, [rows, search, sortConfig]);
 
+  useEffect(() => {
+    if (!filteredRows.length) { setSelectedPattern(null); return; }
+    if (!selectedPattern || !filteredRows.some(r => r.pattern === selectedPattern)) {
+      setSelectedPattern(filteredRows[0].pattern);
+    }
+  }, [filteredRows, selectedPattern]);
+
   const maxIndicator = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.indicator), 1), [filteredRows]);
+  const selectedRow = filteredRows.find(r => r.pattern === selectedPattern) || null;
 
   const handleSort = (key: ConvSortKey) => {
     setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
@@ -593,22 +629,26 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
     const rows_export = filteredRows.map(r => ({
       family: r.pattern,
       conventionalisation_indicator: r.indicator,
+      indicator_band: r.band,
       family_frequency: r.familyFrequency,
       family_size: r.familySize,
       representative_dominance_pct: r.representativeDominance.toFixed(1),
       representative_expression: r.representativeExpression,
+      frequency_component: r.freqComponent.toFixed(1),
+      dominance_component: r.dominanceComponent.toFixed(1),
+      avg_member_freq_component: r.avgFreqComponent.toFixed(1),
     }));
     exportToCsv(`${filename.replace(".csv", "")}_${timestamp}.csv`, rows_export);
   };
 
   const copyToClipboard = () => {
-    const header = ["Family Pattern", "Indicator", "Family Frequency", "Rep. Dominance %", "Family Size", "Representative Expression"].join("\t");
-    const tsv = filteredRows.map(r => [r.pattern, r.indicator, r.familyFrequency, r.representativeDominance.toFixed(1), r.familySize, r.representativeExpression].join("\t")).join("\n");
+    const header = ["Family Pattern", "Indicator", "Band", "Family Frequency", "Rep. Dominance %", "Family Size", "Representative Expression"].join("\t");
+    const tsv = filteredRows.map(r => [r.pattern, r.indicator, r.band, r.familyFrequency, r.representativeDominance.toFixed(1), r.familySize, r.representativeExpression].join("\t")).join("\n");
     navigator.clipboard.writeText(`${header}\n${tsv}`);
     toast({ title: "Copied to clipboard", description: `Copied ${filteredRows.length} rows.` });
   };
 
-  const sortIndicatorBtn = (key: ConvSortKey, label: string) => (
+  const sortBtn = (key: ConvSortKey, label: string) => (
     <button onClick={() => handleSort(key)} className="inline-flex items-center gap-1 hover:text-foreground" data-testid={`button-sort-conv-${key}`}>
       {label}<ArrowUpDown className="h-2.5 w-2.5" />
     </button>
@@ -632,28 +672,36 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
   return (
     <div className="space-y-4">
       <Card className="shadow-none border-muted/60">
-        <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-          <div>
-            <div className="text-[10px] uppercase font-bold text-muted-foreground">Top Candidate</div>
-            <div className="font-semibold truncate" data-testid="text-conv-top-candidate" title={topCandidate.pattern}>{topCandidate.pattern}</div>
-            <div className="text-[10px] text-muted-foreground">Indicator: {topCandidate.indicator}</div>
+        <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+          <div className="md:col-span-1">
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Top Conventionalisation Candidate</div>
+            <div className="font-mono font-semibold truncate mt-0.5" data-testid="text-conv-top-candidate" title={topCandidate.pattern}>{topCandidate.pattern}</div>
+            <div className={`text-[10px] font-semibold mt-0.5 ${CONV_BAND_CLASS[topCandidate.band]}`}>{topCandidate.band} · {topCandidate.indicator}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">Representative: {topCandidate.representativeExpression}</div>
           </div>
           <div>
             <div className="text-[10px] uppercase font-bold text-muted-foreground">Average Indicator</div>
-            <div className="font-semibold" data-testid="text-conv-avg-indicator">{avgIndicator}</div>
+            <div className="font-semibold mt-0.5" data-testid="text-conv-avg-indicator">{avgIndicator}</div>
           </div>
           <div>
             <div className="text-[10px] uppercase font-bold text-muted-foreground">Highest Dominance</div>
-            <div className="font-semibold truncate" data-testid="text-conv-highest-dominance" title={highestDominance.pattern}>{highestDominance.pattern}</div>
+            <div className="font-semibold truncate mt-0.5" data-testid="text-conv-highest-dominance" title={highestDominance.pattern}>{highestDominance.pattern}</div>
             <div className="text-[10px] text-muted-foreground">{highestDominance.representativeDominance.toFixed(1)}%</div>
           </div>
           <div>
             <div className="text-[10px] uppercase font-bold text-muted-foreground">Largest Family</div>
-            <div className="font-semibold truncate" data-testid="text-conv-largest-family" title={largestFamily.pattern}>{largestFamily.pattern}</div>
+            <div className="font-semibold truncate mt-0.5" data-testid="text-conv-largest-family" title={largestFamily.pattern}>{largestFamily.pattern}</div>
             <div className="text-[10px] text-muted-foreground">{largestFamily.familySize} members</div>
           </div>
         </CardContent>
       </Card>
+
+      <Alert className="border-muted/40 bg-muted/10 py-2">
+        <Info className="h-3 w-3" />
+        <AlertDescription className="text-[10px] text-muted-foreground">
+          <span className="font-semibold">High, Moderate, and Low labels</span> are descriptive bands for comparison within the current result set. They do not classify expressions as definitively formulaic or entrenched.
+        </AlertDescription>
+      </Alert>
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="relative flex-1 max-w-sm min-w-[180px]">
@@ -672,42 +720,85 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
         </div>
       </div>
 
-      <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "500px" }}>
-        <Table>
-          <TableHeader className="sticky top-0 z-10">
-            <TableRow>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("pattern", "Family Pattern")}</TableHead>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("indicator", "Indicator")}</TableHead>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("familyFrequency", "Family Frequency")}</TableHead>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("representativeDominance", "Rep. Dominance")}</TableHead>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("familySize", "Family Size")}</TableHead>
-              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("representativeExpression", "Representative Expression")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRows.map((r, i) => {
-              const barPct = maxIndicator > 0 ? Math.max(4, Math.round((r.indicator / maxIndicator) * 100)) : 0;
-              return (
-                <TableRow key={r.pattern} className="h-8" data-testid={`row-conv-${i}`}>
-                  <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-conv-pattern-${i}`}>{r.pattern}</TableCell>
-                  <TableCell className="py-1 text-[10px]" data-testid={`text-conv-indicator-${i}`}>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[80px]">
-                        <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "450px" }}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("pattern", "Family Pattern")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("indicator", "Indicator")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortBtn("familyFrequency", "Family Freq.")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortBtn("representativeDominance", "Rep. Dom.")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortBtn("familySize", "Size")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("representativeExpression", "Rep. Expression")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRows.map((r, i) => {
+                const barPct = maxIndicator > 0 ? Math.max(4, Math.round((r.indicator / maxIndicator) * 100)) : 0;
+                const isSelected = r.pattern === selectedPattern;
+                return (
+                  <TableRow
+                    key={r.pattern}
+                    className={`h-8 cursor-pointer ${isSelected ? "bg-muted/60" : ""}`}
+                    onClick={() => setSelectedPattern(r.pattern)}
+                    data-testid={`row-conv-${i}`}
+                  >
+                    <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-conv-pattern-${i}`}>{r.pattern}</TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-conv-indicator-${i}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[9px] font-semibold w-14 shrink-0 ${CONV_BAND_CLASS[r.band]}`} data-testid={`text-conv-band-${i}`}>{r.band} · {r.indicator}</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[60px]">
+                          <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+                        </div>
                       </div>
-                      <span className="tabular-nums w-6 text-right">{r.indicator}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-frequency-${i}`}>{r.familyFrequency}</TableCell>
-                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-dominance-${i}`}>{r.representativeDominance.toFixed(1)}%</TableCell>
-                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-size-${i}`}>{r.familySize}</TableCell>
-                  <TableCell className="py-1 text-[10px]" data-testid={`text-conv-rep-${i}`}>{r.representativeExpression}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-frequency-${i}`}>{r.familyFrequency}</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-dominance-${i}`}>{r.representativeDominance.toFixed(1)}%</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-size-${i}`}>{r.familySize}</TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-conv-rep-${i}`}>{r.representativeExpression}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        <Card className="shadow-none border-muted/60" data-testid="card-conv-evidence">
+          <CardHeader className="pb-3 bg-muted/5 border-b">
+            <CardTitle className="text-xs font-semibold" data-testid="text-conv-evidence-title">Selected Candidate Evidence</CardTitle>
+            <CardDescription className="text-[10px]">Indicator breakdown for the selected expression family.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {selectedRow ? (
+              <div className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <div className="font-mono text-[10px] font-semibold" data-testid="text-conv-evidence-pattern">{selectedRow.pattern}</div>
+                  <div className={`text-[10px] font-semibold ${CONV_BAND_CLASS[selectedRow.band]}`} data-testid="text-conv-evidence-band">{selectedRow.band} · {selectedRow.indicator}</div>
+                  <div className="text-[10px] text-muted-foreground">Representative: {selectedRow.representativeExpression}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-muted-foreground border-t pt-3">
+                  <div>Family Frequency <span className="font-semibold text-foreground">{selectedRow.familyFrequency}</span></div>
+                  <div>Family Size <span className="font-semibold text-foreground">{selectedRow.familySize}</span></div>
+                  <div>Rep. Dominance <span className="font-semibold text-foreground">{selectedRow.representativeDominance.toFixed(1)}%</span></div>
+                  <div>Avg. Member Freq. <span className="font-semibold text-foreground">{selectedRow.avgMemberFrequency.toFixed(1)}</span></div>
+                </div>
+                <div className="space-y-2 border-t pt-3">
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground">Indicator Breakdown</div>
+                  <ConvBreakdownBar label="Frequency contribution" value={selectedRow.freqComponent} testId="text-conv-evidence-freq-component" />
+                  <ConvBreakdownBar label="Dominance contribution" value={selectedRow.dominanceComponent} testId="text-conv-evidence-dom-component" />
+                  <ConvBreakdownBar label="Avg. member freq. contribution" value={selectedRow.avgFreqComponent} testId="text-conv-evidence-avg-component" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground py-4 text-center" data-testid="text-conv-evidence-empty">
+                Select a candidate from the table to inspect its evidence.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-conv-table-count">
         Showing {filteredRows.length}{search ? ` of ${rows.length}` : ""} families
       </div>

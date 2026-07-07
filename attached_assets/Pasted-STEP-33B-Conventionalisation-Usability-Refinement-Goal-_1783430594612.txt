@@ -1,0 +1,253 @@
+STEP 33B — Conventionalisation Usability Refinement
+
+Goal
+
+Improve the readability and interpretability of Section C — Conventionalisation Indicators.
+
+This step must NOT introduce new metrics or change the existing Conventionalisation Indicator calculation.
+
+The purpose is to make the existing indicator more transparent, easier to interpret, and easier to inspect.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- Section A — Expression Snapshot
+- Section B — Expression Patterning
+- Section D — Diachronic Expression Change
+- expression extraction
+- expression family construction
+- conventionalisation indicator formula
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- CSV/export structure
+
+Do NOT add:
+
+- new metrics
+- formulaicity classification
+- fossilisation logic
+- entrenchment logic
+- diachronic analysis
+- MI / logDice
+- statistical association measures
+
+This is a usability and interpretation refinement only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+Section C — Conventionalisation Indicators
+
+and its co-located helper component if one exists.
+
+
+Implementation Steps
+
+1. Preserve the existing Conventionalisation Indicator calculation exactly.
+
+Do NOT change how the 0–100 score is computed.
+
+
+2. Add interpretive bands for the existing indicator.
+
+Use labels:
+
+- High
+- Moderate
+- Low
+
+Suggested thresholds:
+
+- High: indicator >= 70
+- Moderate: indicator >= 40 and < 70
+- Low: indicator < 40
+
+Display the label alongside the numeric score.
+
+Example:
+
+High · 82.4
+
+
+3. Add a short note explaining the bands.
+
+Suggested wording:
+
+“High, Moderate, and Low labels are descriptive bands for comparison within the current result set. They do not classify expressions as definitively formulaic or entrenched.”
+
+
+4. Improve the summary cards.
+
+Keep the existing summary cards, but make the “Top Conventionalisation Candidate” more informative.
+
+It should show:
+
+- family pattern
+- indicator score
+- band label
+- representative expression
+
+Example:
+
+good my [X]
+High · 82.4
+Representative: good my lord
+
+
+5. Add an indicator breakdown for the selected or top-ranked family.
+
+Use the existing components already used to calculate the indicator.
+
+Show:
+
+- Frequency contribution
+- Representative dominance contribution
+- Average member frequency contribution
+
+Each contribution should be displayed with:
+
+- label
+- small horizontal bar
+- numeric value
+
+Do NOT change the calculation.
+
+Only expose the already-calculated components if available.
+
+If component values are not currently stored, add them to the row object during the same calculation without changing the final formula.
+
+
+6. Add row selection / drill-down if not already present.
+
+Clicking a row in the indicator table should display a “Selected Candidate Evidence” panel showing:
+
+- family pattern
+- representative expression
+- indicator score and band
+- family frequency
+- family size
+- representative dominance
+- average member frequency
+- indicator breakdown bars
+
+If a row is already selectable, refine the existing selection rather than rebuilding it.
+
+
+7. Preserve the main indicator table.
+
+Keep columns:
+
+- Family Pattern
+- Indicator
+- Family Frequency
+- Representative Dominance
+- Family Size
+- Representative Expression
+
+But update the Indicator cell to show:
+
+- band label
+- numeric score
+- subtle bar
+
+
+8. Keep sorting and search behaviour unchanged.
+
+If sorting by Indicator exists, it should still sort numerically by the score.
+
+
+9. Preserve CSV export.
+
+Do NOT change the existing CSV columns unless the current implementation already supports adding non-breaking fields.
+
+If adding fields is safe, optional additional export fields may include:
+
+- indicator_band
+- frequency_component
+- dominance_component
+- average_member_frequency_component
+
+But do NOT break existing export behaviour.
+
+
+10. Keep terminology modest.
+
+Use:
+
+- Conventionalisation Indicator
+- Candidate
+- Evidence
+- Structural Stability
+- Representative Dominance
+
+Avoid:
+
+- fossilised
+- entrenched
+- formulaic expression
+
+unless clearly negated or qualified in explanatory text.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify Sections A, B, or D
+- modify LexicalTab
+- modify DiscursiveTab
+- alter indicator calculation
+- alter expression family construction
+- add new semantic algorithms
+- add diachronic logic
+- change global preprocessing
+- remove existing table/export/search/sort functionality
+
+Only improve interpretability of Section C.
+
+
+Expected Result
+
+After Step 33B:
+
+Section C should help researchers understand:
+
+1. which expression families rank highest
+2. whether their indicator is comparatively High, Moderate, or Low
+3. why a candidate ranks highly
+4. what evidence supports the indicator
+
+without making definitive claims about formulaicity, fossilisation, or entrenchment.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. App compiles without errors.
+2. Sections A, B, and D are unchanged.
+3. Lexical and Discursive tabs are unchanged.
+4. Conventionalisation Indicator values are unchanged.
+5. Indicator bands appear.
+6. Explanation of bands appears.
+7. Top candidate summary is more informative.
+8. Indicator breakdown appears.
+9. Row drill-down / selected evidence panel works.
+10. Sorting and search still work.
+11. CSV export still works.
+12. No diachronic, formulaicity, fossilisation, or entrenchment logic has been added.
+
+STOP AFTER STEP 33B
