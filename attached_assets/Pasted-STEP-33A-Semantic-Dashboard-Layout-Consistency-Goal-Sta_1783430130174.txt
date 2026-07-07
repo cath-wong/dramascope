@@ -1,0 +1,201 @@
+STEP 33A — Semantic Dashboard Layout Consistency
+
+Goal
+
+Standardise the visual hierarchy of the Semantic Dashboard so Sections A–D follow the same structural pattern.
+
+This step fixes layout consistency only.
+
+It must NOT change any analytical logic, extraction logic, calculations, exports, filtering, sorting, or interpretation.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- expression extraction
+- expression family construction
+- conventionalisation indicator calculations
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- CSV/export logic
+- search/sort/filter behaviour
+
+Do NOT add:
+
+- new analyses
+- new metrics
+- new charts
+- new controls
+- new interpretation summaries
+
+This is a layout consistency step only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+SemanticTab layout, especially Sections B and C.
+
+Do NOT touch LexicalTab or DiscursiveTab.
+
+
+Current Issue
+
+Sections A and D use this structure:
+
+Section title
+Section description
+White content card
+
+But Sections B and C currently place the section title and description inside the white collapsible card.
+
+This creates visual misalignment and makes Sections B and C appear hierarchically different from Sections A and D.
+
+
+Required Layout Pattern
+
+All four Semantic sections should follow the same structure:
+
+1. Section title
+2. Short section description
+3. Content card below
+
+Specifically:
+
+A. Expression Snapshot
+Description
+[White content card]
+
+B. Expression Patterning
+Description
+[White content card / collapsible content]
+
+C. Conventionalisation Indicators
+Description
+[White content card / collapsible content]
+
+D. Diachronic Expression Change
+Description
+[White content card]
+
+Use the same spacing and visual rhythm across all four sections.
+
+
+Implementation Steps
+
+1. Locate Sections B and C inside SemanticTab.
+
+2. Move the Section B title and description outside the collapsible Card.
+
+Section title:
+
+B. Expression Patterning
+
+Description:
+
+Examines how recurrent expressions are structured, varied, and grouped.
+
+3. Move the Section C title and description outside the collapsible Card.
+
+Section title:
+
+C. Conventionalisation Indicators
+
+Description:
+
+Assesses observable indicators of structural stability in expression families.
+
+4. Preserve collapsible behaviour for Sections B and C.
+
+The collapsible white card should remain collapsible.
+
+Only the title/description should move outside the card.
+
+5. Keep the collapse/expand chevron in the white card header.
+
+Do NOT remove collapse functionality.
+
+6. After moving the title/description outside the cards, the card header may use shorter internal labels if needed:
+
+For B card header:
+
+Expression Families
+
+For C card header:
+
+Indicator Table
+
+But only change these if needed for clarity.
+
+7. Do NOT change Section A or Section D unless absolutely necessary for alignment.
+
+8. Do NOT move panels between sections.
+
+9. Do NOT alter any content inside the tables, summaries, exports, or controls.
+
+10. Ensure all four sections align vertically with the same left margin and spacing.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- refactor SemanticTab
+- change any computed data
+- modify expression extraction
+- modify expression family logic
+- modify conventionalisation indicator logic
+- modify CSV exports
+- touch LexicalTab
+- touch DiscursiveTab
+
+Only move headings/descriptions and adjust card headers/spacing for layout consistency.
+
+
+Expected Result
+
+After Step 33A:
+
+The Semantic Dashboard should visually read as a coherent four-section analytical dashboard:
+
+A. Expression Snapshot
+
+B. Expression Patterning
+
+C. Conventionalisation Indicators
+
+D. Diachronic Expression Change
+
+All section headings and descriptions should align consistently outside their content cards.
+
+Sections B and C should remain collapsible, but their section titles should no longer be embedded inside the white card.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without errors.
+2. Lexical tab is unchanged.
+3. Discursive tab is unchanged.
+4. Sections A–D now share the same heading/description/card structure.
+5. Sections B and C remain collapsible.
+6. No analytical calculations changed.
+7. Expression Snapshot still works.
+8. Expression Patterning still works.
+9. Conventionalisation Indicators still work.
+10. CSV exports still work.
+11. Search/sort/filter behaviour is unchanged.
+
+STOP AFTER STEP 33A

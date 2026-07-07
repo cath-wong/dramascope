@@ -994,14 +994,15 @@ const SemanticTab = () => {
         )}
       </section>
 
-      <section data-testid="section-expression-patterning">
+      <section className="space-y-3" data-testid="section-expression-patterning">
+        <div>
+          <h3 className="text-sm font-bold">B. Expression Patterning</h3>
+          <p className="text-xs text-muted-foreground">Examines how recurrent expressions are structured, varied, and grouped.</p>
+        </div>
         <Collapsible defaultOpen={true}>
           <Card className="shadow-none border-muted/60 overflow-hidden">
             <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-sm font-bold">B. Expression Patterning</CardTitle>
-                <CardDescription className="text-xs">Identifies Expression Families — recurring expressions sharing a common structural frame with one or more varying slots.</CardDescription>
-              </div>
+              <CardTitle className="text-sm font-semibold">Expression Families</CardTitle>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid="button-toggle-expression-patterning"><ChevronDown className="h-3 w-3" /></Button>
               </CollapsibleTrigger>
@@ -1051,14 +1052,15 @@ const SemanticTab = () => {
         </Collapsible>
       </section>
 
-      <section data-testid="section-conventionalisation">
+      <section className="space-y-3" data-testid="section-conventionalisation">
+        <div>
+          <h3 className="text-sm font-bold">C. Conventionalisation Indicators</h3>
+          <p className="text-xs text-muted-foreground">Assesses observable indicators of structural stability in expression families.</p>
+        </div>
         <Collapsible defaultOpen={true}>
           <Card className="shadow-none border-muted/60 overflow-hidden">
             <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-sm font-bold">C. Conventionalisation</CardTitle>
-                <CardDescription className="text-xs">Evaluates expression families using corpus-derived indicators of structural stability and recurrence.</CardDescription>
-              </div>
+              <CardTitle className="text-sm font-semibold">Indicator Table</CardTitle>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid="button-toggle-conventionalisation"><ChevronDown className="h-3 w-3" /></Button>
               </CollapsibleTrigger>
