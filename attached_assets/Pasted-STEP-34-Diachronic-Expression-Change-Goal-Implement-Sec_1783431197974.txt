@@ -1,0 +1,305 @@
+STEP 34 — Diachronic Expression Change
+
+Goal
+
+Implement Section D of the Semantic Dashboard: Diachronic Expression Change.
+
+This step tracks how expression candidates and expression families behave across time slices.
+
+It must remain descriptive.
+
+Do NOT make claims that expressions are formulaic, fossilised, entrenched, or semantically changed.
+
+This section should answer:
+
+How do expression candidates and expression families emerge, persist, decline, or fluctuate across time?
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- Section A — Expression Snapshot
+- Section B — Expression Patterning
+- Section C — Conventionalisation Indicators
+- expression extraction logic from Step 31
+- expression family construction from Step 32
+- conventionalisation indicator calculation from Step 33
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- CSV/export logic outside Section D
+
+Do NOT add:
+
+- formulaicity scoring
+- fossilisation logic
+- entrenchment logic
+- MI / logDice
+- statistical association measures
+- new clustering algorithms
+
+This step is diachronic tracking only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+Section D — Diachronic Expression Change
+
+and any small co-located helper functions needed for Section D.
+
+
+Data Source
+
+Use the same corpus data already used in the Semantic tab.
+
+Use the existing time-slice logic where available.
+
+Prefer the same time slicing convention already used elsewhere in Analysis.tsx:
+
+- year mode
+- decade mode
+- getTimeSlice-style helper if already available
+
+Do NOT invent a new time model.
+
+
+Analytical Objects
+
+Section D should support two views:
+
+1. Expression Candidates
+
+Tracks individual expression candidates across time.
+
+2. Expression Families
+
+Tracks expression families across time.
+
+Add a simple view toggle:
+
+Diachronic Object:
+- Expression Candidates
+- Expression Families
+
+Default:
+Expression Candidates
+
+
+Implementation Steps
+
+1. Reuse the existing expression extraction settings:
+
+- Expression Scope
+- Node Lemma
+- N-gram Length
+- Minimum Expression Frequency
+- Stoplist
+- Lemmas
+
+Do NOT create a separate extraction system.
+
+2. For each speech / record:
+
+- process tokens using existing processTokens()
+- generate expression candidates using the same n-gram length logic
+- apply the same scope logic:
+  - Node-centred mode: keep n-grams containing node lemma
+  - Corpus-wide mode: keep all eligible n-grams
+- assign each expression occurrence to a time slice
+
+3. Aggregate expression candidate frequencies by time slice.
+
+Output fields should include:
+
+- expression
+- n / length
+- total frequency
+- first seen
+- last seen
+- slices present
+- temporal behaviour
+
+4. Define temporal behaviour descriptively.
+
+Suggested categories:
+
+- Persistent
+- Emerging
+- Declining
+- Intermittent
+- Transient
+
+Use simple transparent rules.
+
+Example rules:
+
+Persistent:
+appears in 3 or more slices and spans at least half of the available timeline
+
+Emerging:
+first appears after the first third of the timeline and continues into later slices
+
+Declining:
+appears early but not in the final third of the timeline
+
+Intermittent:
+appears in non-contiguous slices
+
+Transient:
+appears in only one slice
+
+Keep the rules simple and documented in the UI.
+
+5. For Expression Families view:
+
+- reuse or reconstruct family patterns from expression candidates per slice
+- aggregate family frequencies by slice
+- calculate:
+  - family pattern
+  - total frequency
+  - first seen
+  - last seen
+  - slices present
+  - temporal behaviour
+
+Do NOT change the family construction method.
+
+6. Add a summary block for Section D.
+
+Show:
+
+- active diachronic object
+- number of tracked items
+- most persistent item
+- most frequent item
+- dominant temporal behaviour
+
+7. Add a line chart or compact temporal trend table.
+
+Preferred minimal implementation:
+
+- table first
+- optional simple line chart only if easy with existing Recharts imports
+
+Do NOT introduce new charting libraries.
+
+8. Add main table.
+
+For Expression Candidates view:
+
+Columns:
+
+- Expression
+- Length
+- Total Frequency
+- First Seen
+- Last Seen
+- Slices Present
+- Temporal Behaviour
+
+For Expression Families view:
+
+Columns:
+
+- Family Pattern
+- Total Frequency
+- First Seen
+- Last Seen
+- Slices Present
+- Temporal Behaviour
+
+9. Add row selection / drill-down.
+
+Selecting a row should show its frequency by time slice.
+
+Use a compact table:
+
+Slice | Frequency
+
+Optional:
+small bar by frequency using existing CSS-only bar style.
+
+10. Add CSV export.
+
+For Expression Candidates view:
+
+semantic_expression_change_candidates_<scope>_<nodeLemma-or-corpus>.csv
+
+For Expression Families view:
+
+semantic_expression_change_families_<scope>_<nodeLemma-or-corpus>.csv
+
+CSV should export the currently displayed main table.
+
+11. Add empty-state message:
+
+“No sufficient diachronic expression evidence is available for the current selection.”
+
+12. Add a short explanatory note.
+
+Suggested wording:
+
+“Temporal behaviour categories describe how often an expression or expression family appears across available time slices. They are descriptive indicators and should not be read as definitive evidence of semantic change.”
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify LexicalTab
+- modify DiscursiveTab
+- modify Sections A, B, or C
+- change expression extraction semantics
+- change family construction semantics
+- change conventionalisation calculations
+- add new external libraries
+- alter global time-slice behaviour
+- make interpretive claims beyond descriptive temporal labels
+
+Only implement Section D.
+
+
+Expected Result
+
+After Step 34:
+
+Section D should provide a descriptive diachronic view of expression candidates and expression families.
+
+Researchers should be able to:
+
+1. switch between candidate-level and family-level diachronic tracking
+2. identify expressions/families that are persistent, emerging, declining, intermittent, or transient
+3. inspect frequency by time slice
+4. export the diachronic table as CSV
+
+without changing earlier Semantic sections or the Discursive Dashboard.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. App compiles without errors.
+2. Sections A, B, and C remain unchanged.
+3. Lexical and Discursive tabs are unchanged.
+4. Diachronic Object toggle works.
+5. Candidate-level diachronic table works.
+6. Family-level diachronic table works.
+7. Row drill-down shows slice frequencies.
+8. Temporal behaviour labels appear.
+9. CSV export works.
+10. No formulaicity, fossilisation, or entrenchment logic has been added.
+11. No new charting libraries have been added.
+
+STOP AFTER STEP 34

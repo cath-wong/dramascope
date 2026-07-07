@@ -806,10 +806,388 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
   );
 };
 
+// --- Diachronic Expression Change ---
+
+type TemporalBehaviour = "Persistent" | "Emerging" | "Declining" | "Intermittent" | "Transient";
+
+interface DiacRow {
+  key: string;
+  n?: number;
+  totalFrequency: number;
+  firstSeen: string;
+  lastSeen: string;
+  slicesPresent: number;
+  temporalBehaviour: TemporalBehaviour;
+  sliceFreqs: Record<string, number>;
+}
+
+type DiacSortKey = "key" | "totalFrequency" | "firstSeen" | "lastSeen" | "slicesPresent" | "temporalBehaviour";
+
+const DIAC_BEHAVIOUR_CLASS: Record<string, string> = {
+  Persistent: "text-emerald-600 dark:text-emerald-400",
+  Emerging: "text-blue-600 dark:text-blue-400",
+  Declining: "text-orange-600 dark:text-orange-400",
+  Intermittent: "text-amber-600 dark:text-amber-400",
+  Transient: "text-muted-foreground",
+};
+
+const getDiacBehaviour = (presentSlices: string[], allSlices: string[]): TemporalBehaviour => {
+  const total = allSlices.length;
+  if (total === 0 || presentSlices.length === 0) return "Transient";
+  if (presentSlices.length === 1) return "Transient";
+  const firstIdx = allSlices.indexOf(presentSlices[0]);
+  const lastIdx = allSlices.indexOf(presentSlices[presentSlices.length - 1]);
+  const span = lastIdx - firstIdx;
+  const count = presentSlices.length;
+  const isContiguous = presentSlices.every((s, i) => {
+    if (i === 0) return true;
+    return allSlices.indexOf(s) === allSlices.indexOf(presentSlices[i - 1]) + 1;
+  });
+  if (count >= 3 && span >= total / 2) return "Persistent";
+  if (firstIdx > total / 3 && lastIdx >= (total * 2) / 3) return "Emerging";
+  if (firstIdx <= total / 3 && lastIdx < (total * 2) / 3) return "Declining";
+  if (!isContiguous) return "Intermittent";
+  return "Intermittent";
+};
+
+const DiachronicExpressionPanel = ({
+  speeches, expressionScope, nodeLemma, useStoplist, useLemmas, activeNgramLengths,
+  minExpressionFreq, expressionFamilies, timeMode, candidateFilename, familyFilename,
+}: {
+  speeches: any[];
+  expressionScope: "node" | "corpus";
+  nodeLemma: string;
+  useStoplist: boolean;
+  useLemmas: boolean;
+  activeNgramLengths: number[];
+  minExpressionFreq: number;
+  expressionFamilies: ExpressionFamily[];
+  timeMode: string;
+  candidateFilename: string;
+  familyFilename: string;
+}) => {
+  const [diacObject, setDiacObject] = useState<"candidates" | "families">("candidates");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: DiacSortKey; direction: "asc" | "desc" }>({ key: "totalFrequency", direction: "desc" });
+  const [search, setSearch] = useState("");
+
+  const processedNode = useMemo(() => {
+    if (expressionScope !== "node" || !nodeLemma.trim()) return "";
+    return processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase();
+  }, [expressionScope, nodeLemma, useLemmas]);
+
+  const allSlices = useMemo(() => {
+    const sliceSet = new Set<string>();
+    speeches.forEach(s => {
+      const raw = timeMode === "year" ? (s.year_est || s.year_mid || s.year_min) : (s.decade || s.decade_num);
+      if (raw != null && raw !== "") sliceSet.add(formatTimeValue(raw));
+    });
+    return Array.from(sliceSet).sort();
+  }, [speeches, timeMode]);
+
+  const candidateRows = useMemo((): DiacRow[] => {
+    if (!speeches.length) return [];
+    if (expressionScope === "node" && !nodeLemma.trim()) return [];
+    const exprMap = new Map<string, { n: number; slices: Map<string, number> }>();
+    speeches.forEach(s => {
+      const raw = timeMode === "year" ? (s.year_est || s.year_mid || s.year_min) : (s.decade || s.decade_num);
+      if (raw == null || raw === "") return;
+      const slice = formatTimeValue(raw);
+      const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
+      activeNgramLengths.forEach(n => {
+        for (let i = 0; i + n <= tokens.length; i++) {
+          const gram = tokens.slice(i, i + n);
+          if (expressionScope === "node" && !gram.includes(processedNode)) continue;
+          const key = gram.join(" ");
+          if (!exprMap.has(key)) exprMap.set(key, { n, slices: new Map() });
+          const entry = exprMap.get(key)!;
+          entry.slices.set(slice, (entry.slices.get(slice) || 0) + 1);
+        }
+      });
+    });
+    const rows: DiacRow[] = [];
+    exprMap.forEach((entry, expression) => {
+      const totalFrequency = Array.from(entry.slices.values()).reduce((s, v) => s + v, 0);
+      if (totalFrequency < minExpressionFreq) return;
+      const presentSlices = Array.from(entry.slices.keys()).sort();
+      const sliceFreqs: Record<string, number> = {};
+      entry.slices.forEach((v, k) => { sliceFreqs[k] = v; });
+      rows.push({
+        key: expression, n: entry.n, totalFrequency,
+        firstSeen: presentSlices[0] || "—",
+        lastSeen: presentSlices[presentSlices.length - 1] || "—",
+        slicesPresent: presentSlices.length,
+        temporalBehaviour: getDiacBehaviour(presentSlices, allSlices),
+        sliceFreqs,
+      });
+    });
+    return rows.sort((a, b) => b.totalFrequency - a.totalFrequency);
+  }, [speeches, expressionScope, nodeLemma, processedNode, useStoplist, useLemmas, activeNgramLengths, minExpressionFreq, timeMode, allSlices]);
+
+  const familyRows = useMemo((): DiacRow[] => {
+    if (!expressionFamilies.length || !candidateRows.length) return [];
+    const exprLookup = new Map<string, Record<string, number>>();
+    candidateRows.forEach(r => exprLookup.set(r.key, r.sliceFreqs));
+    return expressionFamilies.map(family => {
+      const familySliceMap = new Map<string, number>();
+      family.members.forEach(m => {
+        const sf = exprLookup.get(m.expression);
+        if (!sf) return;
+        Object.entries(sf).forEach(([slice, count]) => {
+          familySliceMap.set(slice, (familySliceMap.get(slice) || 0) + count);
+        });
+      });
+      const totalFrequency = Array.from(familySliceMap.values()).reduce((s, v) => s + v, 0);
+      const presentSlices = Array.from(familySliceMap.keys()).sort();
+      const sliceFreqs: Record<string, number> = {};
+      familySliceMap.forEach((v, k) => { sliceFreqs[k] = v; });
+      return {
+        key: family.pattern, totalFrequency,
+        firstSeen: presentSlices[0] || "—",
+        lastSeen: presentSlices[presentSlices.length - 1] || "—",
+        slicesPresent: presentSlices.length,
+        temporalBehaviour: getDiacBehaviour(presentSlices, allSlices),
+        sliceFreqs,
+      };
+    }).filter(r => r.totalFrequency > 0).sort((a, b) => b.totalFrequency - a.totalFrequency);
+  }, [expressionFamilies, candidateRows, allSlices]);
+
+  const activeRows = diacObject === "candidates" ? candidateRows : familyRows;
+
+  const filteredRows = useMemo(() => {
+    let processed = [...activeRows];
+    if (search) {
+      const ls = search.toLowerCase();
+      processed = processed.filter(r => r.key.toLowerCase().includes(ls));
+    }
+    processed.sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortConfig.direction === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+    return processed;
+  }, [activeRows, search, sortConfig]);
+
+  useEffect(() => {
+    if (!filteredRows.length) { setSelectedKey(null); return; }
+    if (!selectedKey || !filteredRows.some(r => r.key === selectedKey)) {
+      setSelectedKey(filteredRows[0].key);
+    }
+  }, [filteredRows, selectedKey]);
+
+  const selectedRow = filteredRows.find(r => r.key === selectedKey) || null;
+  const maxFreq = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.totalFrequency), 1), [filteredRows]);
+
+  const mostPersistent = useMemo(() => [...activeRows].sort((a, b) => b.slicesPresent - a.slicesPresent)[0] || null, [activeRows]);
+  const mostFrequent = activeRows[0] || null;
+  const dominantBehaviour = useMemo(() => {
+    if (!activeRows.length) return "—";
+    const counts: Record<string, number> = {};
+    activeRows.forEach(r => { counts[r.temporalBehaviour] = (counts[r.temporalBehaviour] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+  }, [activeRows]);
+
+  const handleSort = (key: DiacSortKey) => {
+    setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
+  };
+
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = diacObject === "candidates" ? candidateFilename : familyFilename;
+    const rows_export = filteredRows.map(r => ({
+      [diacObject === "candidates" ? "expression" : "family_pattern"]: r.key,
+      ...(diacObject === "candidates" && r.n !== undefined ? { length: r.n } : {}),
+      total_frequency: r.totalFrequency,
+      first_seen: r.firstSeen,
+      last_seen: r.lastSeen,
+      slices_present: r.slicesPresent,
+      temporal_behaviour: r.temporalBehaviour,
+    }));
+    exportToCsv(`${filename.replace(".csv", "")}_${timestamp}.csv`, rows_export);
+  };
+
+  const sortBtn = (key: DiacSortKey, label: string) => (
+    <button onClick={() => handleSort(key)} className="inline-flex items-center gap-1 hover:text-foreground" data-testid={`button-sort-diac-${key}`}>
+      {label}<ArrowUpDown className="h-2.5 w-2.5" />
+    </button>
+  );
+
+  if (expressionScope === "node" && !nodeLemma.trim()) {
+    return (
+      <Card className="shadow-none border-muted/60 border-dashed">
+        <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-diac-empty-no-node">
+          Enter a node lemma to view node-centred diachronic expression evidence.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!candidateRows.length) {
+    return (
+      <Card className="shadow-none border-muted/60 border-dashed">
+        <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-diac-empty">
+          No sufficient diachronic expression evidence is available for the current selection.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="text-[10px] uppercase font-bold text-muted-foreground">Diachronic Object</div>
+        <div className="flex rounded-md border overflow-hidden h-7">
+          <button type="button" onClick={() => { setDiacObject("candidates"); setSelectedKey(null); }}
+            className={`px-3 text-xs font-medium transition-colors ${diacObject === "candidates" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            data-testid="button-diac-candidates">
+            Expression Candidates
+          </button>
+          <button type="button" onClick={() => { setDiacObject("families"); setSelectedKey(null); }}
+            className={`px-3 text-xs font-medium border-l transition-colors ${diacObject === "families" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            data-testid="button-diac-families">
+            Expression Families
+          </button>
+        </div>
+      </div>
+
+      <Card className="shadow-none border-muted/60">
+        <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Tracked {diacObject === "candidates" ? "Candidates" : "Families"}</div>
+            <div className="font-semibold" data-testid="text-diac-tracked-count">{activeRows.length}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Persistent</div>
+            <div className="font-mono font-semibold truncate" data-testid="text-diac-most-persistent" title={mostPersistent?.key}>{mostPersistent?.key || "—"}</div>
+            <div className="text-[10px] text-muted-foreground">{mostPersistent ? `${mostPersistent.slicesPresent} slices` : ""}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent</div>
+            <div className="font-mono font-semibold truncate" data-testid="text-diac-most-frequent" title={mostFrequent?.key}>{mostFrequent?.key || "—"}</div>
+            <div className="text-[10px] text-muted-foreground">{mostFrequent ? `freq: ${mostFrequent.totalFrequency}` : ""}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Dominant Behaviour</div>
+            <div className={`font-semibold ${DIAC_BEHAVIOUR_CLASS[dominantBehaviour] || ""}`} data-testid="text-diac-dominant-behaviour">{dominantBehaviour}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Alert className="border-muted/40 bg-muted/10 py-2">
+        <Info className="h-3 w-3" />
+        <AlertDescription className="text-[10px] text-muted-foreground">
+          <span className="font-semibold">Temporal behaviour categories</span> describe how often an expression or expression family appears across available time slices. They are descriptive indicators and should not be read as definitive evidence of semantic change.
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-sm min-w-[180px]">
+          <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 text-xs pl-8" data-testid="input-diac-search" />
+        </div>
+        <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV" data-testid="button-export-diac"><Download className="h-3.5 w-3.5" /></Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "450px" }}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("key", diacObject === "candidates" ? "Expression" : "Family Pattern")}</TableHead>
+                {diacObject === "candidates" && <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Len.</TableHead>}
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortBtn("totalFrequency", "Total Freq.")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("firstSeen", "First Seen")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("lastSeen", "Last Seen")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortBtn("slicesPresent", "Slices")}</TableHead>
+                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortBtn("temporalBehaviour", "Behaviour")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRows.map((r, i) => {
+                const barPct = maxFreq > 0 ? Math.max(4, Math.round((r.totalFrequency / maxFreq) * 100)) : 0;
+                const isSelected = r.key === selectedKey;
+                return (
+                  <TableRow key={r.key} className={`h-8 cursor-pointer ${isSelected ? "bg-muted/60" : ""}`}
+                    onClick={() => setSelectedKey(r.key)} data-testid={`row-diac-${i}`}>
+                    <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-diac-key-${i}`}>{r.key}</TableCell>
+                    {diacObject === "candidates" && <TableCell className="py-1 text-[10px] text-right">{r.n}</TableCell>}
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-diac-freq-${i}`}>
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[60px]">
+                          <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+                        </div>
+                        <span className="tabular-nums w-6 text-right">{r.totalFrequency}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-diac-first-${i}`}>{r.firstSeen}</TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-diac-last-${i}`}>{r.lastSeen}</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-diac-slices-${i}`}>{r.slicesPresent}</TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-diac-behaviour-${i}`}>
+                      <span className={DIAC_BEHAVIOUR_CLASS[r.temporalBehaviour] || ""}>{r.temporalBehaviour}</span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        <Card className="shadow-none border-muted/60" data-testid="card-diac-drilldown">
+          <CardHeader className="pb-3 bg-muted/5 border-b">
+            <CardTitle className="text-xs font-semibold" data-testid="text-diac-drilldown-title">Slice Frequency Breakdown</CardTitle>
+            <CardDescription className="text-[10px]">Frequency by time slice for the selected {diacObject === "candidates" ? "expression" : "family"}.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {selectedRow ? (
+              <div className="space-y-3">
+                <div className="space-y-0.5">
+                  <div className="font-mono text-[10px] font-semibold" data-testid="text-diac-drilldown-key">{selectedRow.key}</div>
+                  <div className={`text-[10px] font-semibold ${DIAC_BEHAVIOUR_CLASS[selectedRow.temporalBehaviour] || ""}`}>{selectedRow.temporalBehaviour}</div>
+                  <div className="text-[10px] text-muted-foreground">{selectedRow.slicesPresent} of {allSlices.length} slices · Total: {selectedRow.totalFrequency}</div>
+                </div>
+                <div className="border-t pt-3 space-y-1 overflow-y-auto" style={{ maxHeight: "300px" }}>
+                  <div className="grid grid-cols-3 text-[9px] uppercase font-bold text-muted-foreground pb-1">
+                    <span>Slice</span><span className="text-right">Freq.</span><span></span>
+                  </div>
+                  {allSlices.map(slice => {
+                    const freq = selectedRow.sliceFreqs[slice] || 0;
+                    const maxSliceFreq = Math.max(...allSlices.map(s => selectedRow.sliceFreqs[s] || 0), 1);
+                    const pct = Math.round((freq / maxSliceFreq) * 100);
+                    return (
+                      <div key={slice} className={`grid grid-cols-3 items-center text-[10px] ${freq === 0 ? "opacity-30" : ""}`} data-testid={`row-diac-slice-${slice}`}>
+                        <span className="tabular-nums">{slice}</span>
+                        <span className="tabular-nums text-right">{freq > 0 ? freq : "—"}</span>
+                        <div className="pl-2">
+                          {freq > 0 && <div className="h-1.5 rounded-full bg-primary/50" style={{ width: `${Math.max(4, pct)}%` }} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground py-4 text-center" data-testid="text-diac-drilldown-empty">
+                Select a row to view its slice frequency breakdown.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="text-[10px] text-muted-foreground px-1" data-testid="text-diac-table-count">
+        Showing {filteredRows.length}{search ? ` of ${activeRows.length}` : ""} {diacObject === "candidates" ? "candidates" : "families"} · {allSlices.length} time slices available
+      </div>
+    </div>
+  );
+};
+
 const SemanticTab = () => {
   const { speeches } = useData();
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle } = ui;
+  const { corpusScope, selectedPlayTitle, timeMode } = ui;
   const [nodeLemma, setNodeLemma] = useState("");
   const [minCooc, setMinCooc] = useState(2);
   const [useStoplist, setUseStoplist] = useState(true);
@@ -938,6 +1316,9 @@ const SemanticTab = () => {
   const expressionFamilyExportFilename = `semantic_expression_families_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
   const conventionalisationExportFilename = `semantic_conventionalisation_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
+
+  const diacCandidateFilename = `semantic_expression_change_candidates_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
+  const diacFamilyFilename = `semantic_expression_change_families_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
   return (
     <div className="space-y-6">
@@ -1185,11 +1566,33 @@ const SemanticTab = () => {
           <h3 className="text-sm font-bold">D. Diachronic Expression Change</h3>
           <p className="text-xs text-muted-foreground">Tracks how expressions emerge, persist, diversify, or disappear across time.</p>
         </div>
-        <Card className="shadow-none border-muted/60 border-dashed">
-          <CardContent className="pt-6 text-xs text-muted-foreground">
-            Diachronic expression trends will appear here.
-          </CardContent>
-        </Card>
+        <Collapsible defaultOpen={true}>
+          <Card className="shadow-none border-muted/60 overflow-hidden">
+            <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Temporal Tracking</CardTitle>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid="button-toggle-diachronic"><ChevronDown className="h-3 w-3" /></Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-4 space-y-4">
+                <DiachronicExpressionPanel
+                  speeches={speeches}
+                  expressionScope={expressionScope}
+                  nodeLemma={nodeLemma}
+                  useStoplist={useStoplist}
+                  useLemmas={useLemmas}
+                  activeNgramLengths={activeNgramLengths}
+                  minExpressionFreq={minExpressionFreq}
+                  expressionFamilies={expressionFamilies}
+                  timeMode={timeMode}
+                  candidateFilename={diacCandidateFilename}
+                  familyFilename={diacFamilyFilename}
+                />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </section>
     </div>
   );
