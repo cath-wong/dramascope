@@ -1,0 +1,407 @@
+STEP 33 — Conventionalisation Indicators
+
+Goal
+
+Implement the first interpretive layer of the Semantic Dashboard.
+
+This step evaluates expression candidates and expression families using transparent, corpus-derived indicators of conventionalisation.
+
+The dashboard must NOT claim that expressions are formulaic, fossilised, or entrenched.
+
+Instead, it should identify expressions and expression families that exhibit stronger or weaker evidence of conventionalisation.
+
+This section therefore provides evidence, not conclusions.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- Expression Snapshot (Section A)
+- Expression Patterning (Section B)
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- expression extraction
+- family construction
+
+Do NOT add:
+
+- MI
+- logDice
+- statistical association measures
+- machine learning
+- clustering
+- diachronic analysis
+
+This step is entirely synchronic.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+Section C — Conventionalisation
+
+
+Analytical Principle
+
+Section C should not classify expressions as "formulaic".
+
+Instead it evaluates several observable indicators.
+
+Interpretation remains with the researcher.
+
+
+Indicators
+
+Reuse the existing expression candidates and expression families.
+
+Do NOT regenerate expressions.
+
+For every expression family calculate:
+
+
+1.
+
+Family Frequency
+
+Already available.
+
+Definition:
+
+Total frequency of all member expressions.
+
+
+--------------------------------------------------
+
+
+2.
+
+Family Size
+
+Already available.
+
+Definition:
+
+Number of distinct member expressions.
+
+
+--------------------------------------------------
+
+
+3.
+
+Representative Dominance
+
+Definition:
+
+Percentage of total family frequency contributed by the representative expression.
+
+Example
+
+good my lord
+
+frequency = 80
+
+family total = 100
+
+dominance = 80%
+
+Higher dominance indicates greater structural stability.
+
+Do NOT describe this as entrenchment.
+
+
+--------------------------------------------------
+
+
+4.
+
+Average Member Frequency
+
+Definition:
+
+Family Frequency
+
+divided by
+
+Family Size
+
+Higher values indicate stronger recurrence across members.
+
+
+--------------------------------------------------
+
+
+5.
+
+Lexical Diversity
+
+Definition:
+
+Number of unique member expressions.
+
+This may equal Family Size initially.
+
+Include anyway because later versions may distinguish between types.
+
+
+--------------------------------------------------
+
+
+Summary Score
+
+Do NOT call this a Formulaicity Score.
+
+Call it:
+
+Conventionalisation Indicator
+
+Compute a simple transparent index.
+
+Suggested equally weighted components:
+
+- normalized family frequency
+- representative dominance
+- average member frequency
+
+Scale:
+
+0–100
+
+Do NOT over-engineer.
+
+The score is an exploratory indicator only.
+
+
+Presentation
+
+Section C should contain:
+
+
+1.
+
+Summary cards
+
+Show:
+
+Top Conventionalisation Candidate
+
+Average Indicator
+
+Highest Dominance
+
+Largest Family
+
+
+--------------------------------------------------
+
+
+2.
+
+Indicator Table
+
+Columns
+
+Family Pattern
+
+Indicator
+
+Family Frequency
+
+Representative Dominance
+
+Family Size
+
+Representative Expression
+
+
+--------------------------------------------------
+
+
+3.
+
+Sorting
+
+Default
+
+Highest Indicator first.
+
+
+--------------------------------------------------
+
+
+4.
+
+CSV export
+
+Export:
+
+family
+
+indicator
+
+family frequency
+
+family size
+
+dominance
+
+representative expression
+
+
+--------------------------------------------------
+
+
+5.
+
+Explanation panel
+
+At the top of Section C add a short note.
+
+Suggested wording:
+
+"The Conventionalisation Indicator combines several observable characteristics of an expression family to identify candidates exhibiting stronger evidence of structural stability. It is intended as an exploratory aid rather than a definitive measure of formulaicity."
+
+
+--------------------------------------------------
+
+
+6.
+
+Visualisation
+
+Reuse the subtle horizontal bar style introduced in earlier sections.
+
+Indicator column should contain
+
+bar + numeric value.
+
+Do NOT introduce a chart library.
+
+
+--------------------------------------------------
+
+
+7.
+
+Empty State
+
+"No sufficient expression families are available to calculate conventionalisation indicators."
+
+
+Terminology
+
+Always use
+
+Conventionalisation Indicator
+
+Candidate
+
+Structural Stability
+
+Representative Dominance
+
+Family Frequency
+
+Do NOT use
+
+Formulaic Expression
+
+Entrenched
+
+Fossilised
+
+Fixed Expression
+
+unless explicitly qualified elsewhere.
+
+
+Safety Constraints
+
+The agent must NOT
+
+- modify Sections A or B
+- modify Discursive Dashboard
+- change expression extraction
+- change family construction
+- introduce statistical association measures
+- introduce diachronic logic
+- introduce machine learning
+- rewrite Analysis.tsx
+
+Only implement Section C.
+
+
+Expected Result
+
+After Step 33
+
+Researchers can
+
+• compare expression families
+
+• identify stronger conventionalisation candidates
+
+• inspect why they receive higher indicators
+
+without claiming that the expressions are definitively formulaic.
+
+
+Validation Checklist
+
+Confirm
+
+1.
+
+App compiles.
+
+2.
+
+Sections A and B unchanged.
+
+3.
+
+Section C implemented.
+
+4.
+
+Indicator calculated from existing family data only.
+
+5.
+
+Explanation panel present.
+
+6.
+
+Indicator table sortable.
+
+7.
+
+CSV export works.
+
+8.
+
+Frequency bars render.
+
+9.
+
+Discursive Dashboard unchanged.
+
+10.
+
+No statistical association measures introduced.
+
+11.
+
+No diachronic analysis introduced.
+
+STOP AFTER STEP 33

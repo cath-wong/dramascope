@@ -524,6 +524,197 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
   );
 };
 
+interface ConventionalisationRow {
+  pattern: string;
+  indicator: number;
+  familyFrequency: number;
+  representativeDominance: number;
+  familySize: number;
+  lexicalDiversity: number;
+  avgMemberFrequency: number;
+  representativeExpression: string;
+}
+
+type ConvSortKey = "indicator" | "familyFrequency" | "representativeDominance" | "familySize" | "pattern" | "representativeExpression";
+
+const buildConventionalisationRows = (families: ExpressionFamily[]): ConventionalisationRow[] => {
+  if (!families.length) return [];
+  const rows: Omit<ConventionalisationRow, "indicator">[] = families.map(f => ({
+    pattern: f.pattern,
+    familyFrequency: f.totalFrequency,
+    representativeDominance: f.totalFrequency > 0 ? (f.members[0].frequency / f.totalFrequency) * 100 : 0,
+    familySize: f.memberCount,
+    lexicalDiversity: f.memberCount,
+    avgMemberFrequency: f.memberCount > 0 ? f.totalFrequency / f.memberCount : 0,
+    representativeExpression: f.mostFrequentMember,
+  }));
+  const maxFreq = Math.max(...rows.map(r => r.familyFrequency), 1);
+  const maxAvgFreq = Math.max(...rows.map(r => r.avgMemberFrequency), 1);
+  return rows.map(r => {
+    const normFreq = (r.familyFrequency / maxFreq) * 100;
+    const normAvg = (r.avgMemberFrequency / maxAvgFreq) * 100;
+    const indicator = Math.round((normFreq + r.representativeDominance + normAvg) / 3);
+    return { ...r, indicator };
+  }).sort((a, b) => b.indicator - a.indicator);
+};
+
+const ConventionalisationPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [sortConfig, setSortConfig] = useState<{ key: ConvSortKey; direction: "asc" | "desc" }>({ key: "indicator", direction: "desc" });
+
+  const rows = useMemo(() => buildConventionalisationRows(families), [families]);
+
+  const filteredRows = useMemo(() => {
+    let processed = [...rows];
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      processed = processed.filter(r => r.pattern.toLowerCase().includes(lowerSearch) || r.representativeExpression.toLowerCase().includes(lowerSearch));
+    }
+    processed.sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortConfig.direction === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+    return processed;
+  }, [rows, search, sortConfig]);
+
+  const maxIndicator = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.indicator), 1), [filteredRows]);
+
+  const handleSort = (key: ConvSortKey) => {
+    setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
+  };
+
+  const handleExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const rows_export = filteredRows.map(r => ({
+      family: r.pattern,
+      conventionalisation_indicator: r.indicator,
+      family_frequency: r.familyFrequency,
+      family_size: r.familySize,
+      representative_dominance_pct: r.representativeDominance.toFixed(1),
+      representative_expression: r.representativeExpression,
+    }));
+    exportToCsv(`${filename.replace(".csv", "")}_${timestamp}.csv`, rows_export);
+  };
+
+  const copyToClipboard = () => {
+    const header = ["Family Pattern", "Indicator", "Family Frequency", "Rep. Dominance %", "Family Size", "Representative Expression"].join("\t");
+    const tsv = filteredRows.map(r => [r.pattern, r.indicator, r.familyFrequency, r.representativeDominance.toFixed(1), r.familySize, r.representativeExpression].join("\t")).join("\n");
+    navigator.clipboard.writeText(`${header}\n${tsv}`);
+    toast({ title: "Copied to clipboard", description: `Copied ${filteredRows.length} rows.` });
+  };
+
+  const sortIndicatorBtn = (key: ConvSortKey, label: string) => (
+    <button onClick={() => handleSort(key)} className="inline-flex items-center gap-1 hover:text-foreground" data-testid={`button-sort-conv-${key}`}>
+      {label}<ArrowUpDown className="h-2.5 w-2.5" />
+    </button>
+  );
+
+  if (!rows.length) {
+    return (
+      <Card className="shadow-none border-muted/60 border-dashed">
+        <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-conv-empty">
+          No sufficient expression families are available to calculate conventionalisation indicators.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const topCandidate = rows[0];
+  const avgIndicator = rows.length ? (rows.reduce((s, r) => s + r.indicator, 0) / rows.length).toFixed(1) : "—";
+  const highestDominance = [...rows].sort((a, b) => b.representativeDominance - a.representativeDominance)[0];
+  const largestFamily = [...rows].sort((a, b) => b.familySize - a.familySize)[0];
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-none border-muted/60">
+        <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Top Candidate</div>
+            <div className="font-semibold truncate" data-testid="text-conv-top-candidate" title={topCandidate.pattern}>{topCandidate.pattern}</div>
+            <div className="text-[10px] text-muted-foreground">Indicator: {topCandidate.indicator}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Average Indicator</div>
+            <div className="font-semibold" data-testid="text-conv-avg-indicator">{avgIndicator}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Highest Dominance</div>
+            <div className="font-semibold truncate" data-testid="text-conv-highest-dominance" title={highestDominance.pattern}>{highestDominance.pattern}</div>
+            <div className="text-[10px] text-muted-foreground">{highestDominance.representativeDominance.toFixed(1)}%</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Largest Family</div>
+            <div className="font-semibold truncate" data-testid="text-conv-largest-family" title={largestFamily.pattern}>{largestFamily.pattern}</div>
+            <div className="text-[10px] text-muted-foreground">{largestFamily.familySize} members</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-sm min-w-[180px]">
+          <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search families..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 text-xs pl-8"
+            data-testid="input-conv-search"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="icon" onClick={copyToClipboard} className="h-8 w-8" title="Copy as TSV" data-testid="button-copy-conv"><Clipboard className="h-3.5 w-3.5" /></Button>
+          <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV" data-testid="button-export-conv"><Download className="h-3.5 w-3.5" /></Button>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "500px" }}>
+        <Table>
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("pattern", "Family Pattern")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("indicator", "Indicator")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("familyFrequency", "Family Frequency")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("representativeDominance", "Rep. Dominance")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">{sortIndicatorBtn("familySize", "Family Size")}</TableHead>
+              <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">{sortIndicatorBtn("representativeExpression", "Representative Expression")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRows.map((r, i) => {
+              const barPct = maxIndicator > 0 ? Math.max(4, Math.round((r.indicator / maxIndicator) * 100)) : 0;
+              return (
+                <TableRow key={r.pattern} className="h-8" data-testid={`row-conv-${i}`}>
+                  <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-conv-pattern-${i}`}>{r.pattern}</TableCell>
+                  <TableCell className="py-1 text-[10px]" data-testid={`text-conv-indicator-${i}`}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+                      </div>
+                      <span className="tabular-nums w-6 text-right">{r.indicator}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-frequency-${i}`}>{r.familyFrequency}</TableCell>
+                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-dominance-${i}`}>{r.representativeDominance.toFixed(1)}%</TableCell>
+                  <TableCell className="py-1 text-[10px] text-right" data-testid={`text-conv-size-${i}`}>{r.familySize}</TableCell>
+                  <TableCell className="py-1 text-[10px]" data-testid={`text-conv-rep-${i}`}>{r.representativeExpression}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="text-[10px] text-muted-foreground px-1" data-testid="text-conv-table-count">
+        Showing {filteredRows.length}{search ? ` of ${rows.length}` : ""} families
+      </div>
+    </div>
+  );
+};
+
 const SemanticTab = () => {
   const { speeches } = useData();
   const ui = useUI();
@@ -654,6 +845,8 @@ const SemanticTab = () => {
   }, [expressionFamilies]);
 
   const expressionFamilyExportFilename = `semantic_expression_families_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
+
+  const conventionalisationExportFilename = `semantic_conventionalisation_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
   return (
     <div className="space-y-6">
@@ -858,16 +1051,40 @@ const SemanticTab = () => {
         </Collapsible>
       </section>
 
-      <section className="space-y-3" data-testid="section-conventionalisation">
-        <div>
-          <h3 className="text-sm font-bold">C. Conventionalisation</h3>
-          <p className="text-xs text-muted-foreground">Assesses the stability, recurrence, and possible entrenchment of expressions.</p>
-        </div>
-        <Card className="shadow-none border-muted/60 border-dashed">
-          <CardContent className="pt-6 text-xs text-muted-foreground">
-            Formulaicity and conventionalisation indicators will appear here.
-          </CardContent>
-        </Card>
+      <section data-testid="section-conventionalisation">
+        <Collapsible defaultOpen={true}>
+          <Card className="shadow-none border-muted/60 overflow-hidden">
+            <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-bold">C. Conventionalisation</CardTitle>
+                <CardDescription className="text-xs">Evaluates expression families using corpus-derived indicators of structural stability and recurrence.</CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid="button-toggle-conventionalisation"><ChevronDown className="h-3 w-3" /></Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-4 space-y-4">
+                <Alert className="border-muted/60 bg-muted/10">
+                  <Info className="h-3.5 w-3.5" />
+                  <AlertDescription className="text-xs">
+                    The Conventionalisation Indicator combines several observable characteristics of an expression family to identify candidates exhibiting stronger evidence of structural stability. It is intended as an exploratory aid rather than a definitive measure of formulaicity.
+                  </AlertDescription>
+                </Alert>
+
+                {expressionScope === "node" && !nodeLemma.trim() ? (
+                  <Card className="shadow-none border-muted/60 border-dashed">
+                    <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-conv-empty-no-node">
+                      Enter a node lemma to view conventionalisation indicators.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ConventionalisationPanel families={expressionFamilies} filename={conventionalisationExportFilename} />
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </section>
 
       <section className="space-y-3" data-testid="section-diachronic-expression-change">
