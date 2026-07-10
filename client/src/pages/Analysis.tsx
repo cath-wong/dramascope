@@ -274,7 +274,7 @@ const ExpressionSnapshotTable = ({ data, filename }: { data: ExpressionCandidate
         </Table>
       </div>
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-expression-table-count">
-        Showing {filteredData.length} of {data.length} results
+        Showing {filteredData.length}{search ? ` of ${data.length}` : ""} results
       </div>
     </div>
   );
@@ -1189,7 +1189,6 @@ const SemanticTab = () => {
   const ui = useUI();
   const { corpusScope, selectedPlayTitle, timeMode } = ui;
   const [nodeLemma, setNodeLemma] = useState("");
-  const [minCooc, setMinCooc] = useState(2);
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
 
@@ -1199,6 +1198,14 @@ const SemanticTab = () => {
   const [expressionLengthFilter, setExpressionLengthFilter] = useState<"all" | "2" | "3" | "4" | "5">("all");
   const [showLimit, setShowLimit] = useState<"20" | "50" | "100" | "all">("50");
   const expressionCache = useRef<Map<string, any>>(new Map());
+
+  const filteredSpeeches = useMemo(() => {
+    if (!speeches) return [];
+    return speeches.filter(s => {
+      if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
+      return true;
+    });
+  }, [speeches, corpusScope, selectedPlayTitle]);
 
   const activeNgramLengths = useMemo(() => {
     return ngramLengthSetting === "2-5" ? EXPRESSION_NGRAM_LENGTHS : [parseInt(ngramLengthSetting)];
@@ -1577,7 +1584,7 @@ const SemanticTab = () => {
             <CollapsibleContent>
               <CardContent className="pt-4 space-y-4">
                 <DiachronicExpressionPanel
-                  speeches={speeches}
+                  speeches={filteredSpeeches}
                   expressionScope={expressionScope}
                   nodeLemma={nodeLemma}
                   useStoplist={useStoplist}

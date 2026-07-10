@@ -1,0 +1,323 @@
+STEP 35 — Semantic Dashboard QA and Consistency Validation
+
+Goal
+
+Perform a comprehensive quality assurance and consistency review of the Semantic Dashboard (Sections A–D).
+
+This step introduces NO new analytical features.
+
+The objective is to ensure that the Semantic Dashboard behaves consistently, predictably, and robustly before it is frozen as Semantic Dashboard v1.0.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- expression extraction
+- expression family construction
+- conventionalisation calculations
+- diachronic calculations
+
+Do NOT add:
+
+- new metrics
+- new visualisations
+- new algorithms
+- new exports
+- new terminology
+
+Only fix genuine bugs or inconsistencies discovered during validation.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+SemanticTab
+
+
+Validation Areas
+
+SECTION A — Expression Snapshot
+
+Verify:
+
+✓ Node-centred mode
+
+✓ Corpus-wide mode
+
+✓ Node Lemma input
+
+✓ N-gram Length selector
+
+✓ Minimum Frequency
+
+✓ Expression Length display filter
+
+✓ Top 20 / 50 / 100 / All
+
+✓ Search
+
+✓ Sorting
+
+✓ CSV export
+
+✓ Frequency bars
+
+✓ Summary cards
+
+✓ Empty states
+
+
+SECTION B — Expression Patterning
+
+Verify:
+
+✓ Expression family construction
+
+✓ Search
+
+✓ Sorting
+
+✓ Top 20 / 50 / 100 / All
+
+✓ Sticky headers
+
+✓ Scroll behaviour
+
+✓ Family selection persistence
+
+✓ Drill-down
+
+✓ CSV export
+
+✓ Summary cards
+
+✓ Empty states
+
+✓ Collapsible behaviour
+
+
+SECTION C — Conventionalisation Indicators
+
+Verify:
+
+✓ Indicator calculation unchanged
+
+✓ High / Moderate / Low bands
+
+✓ Explanation panel
+
+✓ Summary cards
+
+✓ Selected Candidate Evidence panel
+
+✓ Indicator breakdown bars
+
+✓ Sorting
+
+✓ Search
+
+✓ CSV export
+
+✓ Sticky headers
+
+✓ Scroll behaviour
+
+✓ Collapsible behaviour
+
+✓ Empty states
+
+
+SECTION D — Diachronic Expression Change
+
+Verify:
+
+✓ Expression Candidates mode
+
+✓ Expression Families mode
+
+✓ Temporal behaviour labels
+
+✓ Summary cards
+
+✓ Drill-down
+
+✓ CSV export
+
+✓ Sorting
+
+✓ Search
+
+✓ Sticky headers
+
+✓ Scroll behaviour
+
+✓ Collapsible behaviour
+
+✓ Empty states
+
+
+Cross-Section Validation
+
+Confirm that changing shared controls behaves consistently.
+
+Examples:
+
+Changing Node Lemma
+
+→ updates A, B, C, D consistently.
+
+Changing Scope
+
+→ updates A–D consistently.
+
+Changing N-gram Length
+
+→ updates A–D consistently.
+
+Changing Stoplist
+
+→ updates A–D consistently.
+
+Changing Lemma toggle
+
+→ updates A–D consistently.
+
+No section should retain stale data after another control changes.
+
+
+UI Consistency Audit
+
+Verify:
+
+✓ Section spacing
+
+✓ Section hierarchy
+
+✓ Heading typography
+
+✓ Card spacing
+
+✓ Card widths
+
+✓ Left alignment
+
+✓ Scroll behaviour
+
+✓ Sticky headers
+
+✓ Button styles
+
+✓ Select styles
+
+✓ Badge styles
+
+✓ Summary cards
+
+✓ Empty-state wording
+
+✓ Tooltip wording (if present)
+
+✓ Terminology consistency
+
+Confirm consistent usage of:
+
+Expression
+
+Expression Family
+
+Representative Expression
+
+Conventionalisation Indicator
+
+Temporal Behaviour
+
+Node Lemma
+
+Corpus-wide
+
+Node-centred
+
+Do not introduce alternative terminology.
+
+
+Performance Check
+
+Confirm:
+
+✓ No unnecessary recalculation loops
+
+✓ No obvious duplicate computations
+
+✓ No console warnings
+
+✓ No runtime errors
+
+✓ HMR remains clean
+
+✓ Large tables remain responsive
+
+
+Regression Check
+
+Confirm that Semantic Dashboard changes have not affected:
+
+Lexical tab
+
+Discursive tab
+
+CSV exports outside Semantic
+
+Shared preprocessing
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- redesign the UI
+- introduce new features
+- optimise algorithms unnecessarily
+- refactor unrelated code
+- modify Discursive Dashboard
+- modify Lexical Dashboard
+
+Only fix genuine inconsistencies or defects found during validation.
+
+
+Expected Result
+
+After Step 35:
+
+The Semantic Dashboard should be considered feature-complete for Version 1.0.
+
+All four sections should behave consistently.
+
+Shared controls should synchronise correctly.
+
+No regressions should exist.
+
+No new functionality should be introduced.
+
+
+Deliverable
+
+Provide a concise QA report including:
+
+1. Issues found
+2. Issues fixed
+3. Remaining known limitations (if any)
+4. Confirmation that Semantic Dashboard v1.0 is ready to freeze
+
+STOP AFTER STEP 35.
