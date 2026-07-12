@@ -174,7 +174,7 @@ interface ExpressionCandidate {
   scope: string;
 }
 
-const ExpressionSnapshotTable = ({ data, filename }: { data: ExpressionCandidate[]; filename: string }) => {
+const ExpressionSnapshotTable = ({ data, filename, selectedExpression, onSelect }: { data: ExpressionCandidate[]; filename: string; selectedExpression?: string | null; onSelect?: (expr: string | null) => void }) => {
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: keyof ExpressionCandidate; direction: "asc" | "desc" }>({ key: "frequency", direction: "desc" });
   const { toast } = useToast();
@@ -255,7 +255,7 @@ const ExpressionSnapshotTable = ({ data, filename }: { data: ExpressionCandidate
             {filteredData.map((row, i) => {
               const barPct = maxFrequency > 0 ? Math.max(4, Math.round((row.frequency / maxFrequency) * 100)) : 0;
               return (
-                <TableRow key={i} className="h-8" data-testid={`row-expression-${i}`}>
+                <TableRow key={i} className={`h-8 ${onSelect ? "cursor-pointer" : ""} ${row.expression === selectedExpression ? "bg-muted/60" : ""}`} onClick={() => onSelect?.(row.expression === selectedExpression ? null : row.expression)} data-testid={`row-expression-${i}`}>
                   <TableCell className="py-1 text-[10px]" data-testid={`text-expression-${i}`}>{row.expression}</TableCell>
                   <TableCell className="py-1 text-[10px] text-right" data-testid={`text-length-${i}`}>{row.n}</TableCell>
                   <TableCell className="py-1 text-[10px]" data-testid={`text-frequency-${i}`}>
@@ -337,7 +337,7 @@ const buildExpressionFamilies = (candidates: ExpressionCandidate[]): ExpressionF
 
 type FamilySortKey = "pattern" | "memberCount" | "totalFrequency" | "mostFrequentMember";
 
-const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
+const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string }) => {
   const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: FamilySortKey; direction: "asc" | "desc" }>({ key: "totalFrequency", direction: "desc" });
@@ -377,6 +377,11 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
 
   const maxTotalFrequency = useMemo(() => displayedFamilies.reduce((max, f) => Math.max(max, f.totalFrequency), 1), [displayedFamilies]);
   const selected = displayedFamilies.find(f => f.pattern === selectedPattern) || null;
+
+  const selectedMemberExpressions = useMemo(
+    () => selected ? selected.members.map(m => m.expression) : [],
+    [selected]
+  );
 
   const handleSort = (key: FamilySortKey) => {
     setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
@@ -517,6 +522,17 @@ const ExpressionFamilyPanel = ({ families, filename }: { families: ExpressionFam
           </CardContent>
         </Card>
       </div>
+      {selected && (
+        <CorpusEvidencePanel
+          speeches={speeches}
+          useStoplist={useStoplist}
+          useLemmas={useLemmas}
+          expressions={selectedMemberExpressions}
+          label={selected.pattern}
+          playDistFilename={evidencePlayFilename}
+          exprEvidenceFilename={evidenceExprFilename}
+        />
+      )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-family-table-count">
         Showing {displayedFamilies.length} of {filteredFamilies.length} families{search ? ` (filtered from ${families.length})` : ""}
       </div>
@@ -585,7 +601,7 @@ const ConvBreakdownBar = ({ label, value, testId }: { label: string; value: numb
   </div>
 );
 
-const ConventionalisationPanel = ({ families, filename }: { families: ExpressionFamily[]; filename: string }) => {
+const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: ConvSortKey; direction: "asc" | "desc" }>({ key: "indicator", direction: "desc" });
@@ -619,6 +635,12 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
 
   const maxIndicator = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.indicator), 1), [filteredRows]);
   const selectedRow = filteredRows.find(r => r.pattern === selectedPattern) || null;
+
+  const selectedFamilyMembers = useMemo(() => {
+    if (!selectedPattern) return [];
+    const fam = families.find(f => f.pattern === selectedPattern);
+    return fam ? fam.members.map(m => m.expression) : [];
+  }, [families, selectedPattern]);
 
   const handleSort = (key: ConvSortKey) => {
     setSortConfig(prev => prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "desc" });
@@ -799,6 +821,17 @@ const ConventionalisationPanel = ({ families, filename }: { families: Expression
         </Card>
       </div>
 
+      {selectedPattern && (
+        <CorpusEvidencePanel
+          speeches={speeches}
+          useStoplist={useStoplist}
+          useLemmas={useLemmas}
+          expressions={selectedFamilyMembers}
+          label={selectedPattern}
+          playDistFilename={evidencePlayFilename}
+          exprEvidenceFilename={evidenceExprFilename}
+        />
+      )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-conv-table-count">
         Showing {filteredRows.length}{search ? ` of ${rows.length}` : ""} families
       </div>
@@ -853,6 +886,7 @@ const getDiacBehaviour = (presentSlices: string[], allSlices: string[]): Tempora
 const DiachronicExpressionPanel = ({
   speeches, expressionScope, nodeLemma, useStoplist, useLemmas, activeNgramLengths,
   minExpressionFreq, expressionFamilies, timeMode, candidateFilename, familyFilename,
+  evidencePlayFilename, evidenceExprFilename,
 }: {
   speeches: any[];
   expressionScope: "node" | "corpus";
@@ -865,6 +899,8 @@ const DiachronicExpressionPanel = ({
   timeMode: string;
   candidateFilename: string;
   familyFilename: string;
+  evidencePlayFilename: string;
+  evidenceExprFilename: string;
 }) => {
   const [diacObject, setDiacObject] = useState<"candidates" | "families">("candidates");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -980,6 +1016,13 @@ const DiachronicExpressionPanel = ({
 
   const selectedRow = filteredRows.find(r => r.key === selectedKey) || null;
   const maxFreq = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.totalFrequency), 1), [filteredRows]);
+
+  const evidenceExpressions = useMemo(() => {
+    if (!selectedRow) return [];
+    if (diacObject === "candidates") return [selectedRow.key];
+    const fam = expressionFamilies.find(f => f.pattern === selectedRow.key);
+    return fam ? fam.members.map(m => m.expression) : [];
+  }, [selectedRow, diacObject, expressionFamilies]);
 
   const mostPersistent = useMemo(() => [...activeRows].sort((a, b) => b.slicesPresent - a.slicesPresent)[0] || null, [activeRows]);
   const mostFrequent = activeRows[0] || null;
@@ -1177,8 +1220,256 @@ const DiachronicExpressionPanel = ({
         </Card>
       </div>
 
+      {selectedRow && (
+        <CorpusEvidencePanel
+          speeches={speeches}
+          useStoplist={useStoplist}
+          useLemmas={useLemmas}
+          expressions={evidenceExpressions}
+          label={selectedRow.key}
+          playDistFilename={evidencePlayFilename}
+          exprEvidenceFilename={evidenceExprFilename}
+        />
+      )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-diac-table-count">
         Showing {filteredRows.length}{search ? ` of ${activeRows.length}` : ""} {diacObject === "candidates" ? "candidates" : "families"} · {allSlices.length} time slices available
+      </div>
+    </div>
+  );
+};
+
+// --- Corpus Evidence Panel ---
+const CorpusEvidencePanel = ({
+  speeches,
+  useStoplist,
+  useLemmas,
+  expressions,
+  label,
+  playDistFilename,
+  exprEvidenceFilename,
+}: {
+  speeches: any[];
+  useStoplist: boolean;
+  useLemmas: boolean;
+  expressions: string[];
+  label: string;
+  playDistFilename: string;
+  exprEvidenceFilename: string;
+}) => {
+  const [playSearch, setPlaySearch] = useState("");
+  const [exprSearch, setExprSearch] = useState("");
+  const [playShowLimit, setPlayShowLimit] = useState<"20" | "50" | "all">("20");
+
+  const evidenceData = useMemo(() => {
+    if (!expressions.length || !speeches.length) return null;
+    const exprTokenArrays = expressions.map(e => e.split(" "));
+    const playMap = new Map<string, { count: number; distinct: Set<string> }>();
+    const exprPlayMap = new Map<string, Map<string, number>>();
+    speeches.forEach(speech => {
+      const tokens = processTokens(speech.text_raw || "", { useStoplist, useLemmas });
+      const title = speech.title || speech.play_id || "Unknown";
+      exprTokenArrays.forEach((exprTokens, idx) => {
+        const expression = expressions[idx];
+        const n = exprTokens.length;
+        let count = 0;
+        for (let i = 0; i + n <= tokens.length; i++) {
+          let match = true;
+          for (let j = 0; j < n; j++) { if (tokens[i + j] !== exprTokens[j]) { match = false; break; } }
+          if (match) count++;
+        }
+        if (count > 0) {
+          if (!playMap.has(title)) playMap.set(title, { count: 0, distinct: new Set() });
+          playMap.get(title)!.count += count;
+          playMap.get(title)!.distinct.add(expression);
+          if (!exprPlayMap.has(expression)) exprPlayMap.set(expression, new Map());
+          const pm = exprPlayMap.get(expression)!;
+          pm.set(title, (pm.get(title) || 0) + count);
+        }
+      });
+    });
+    const totalOccurrences = Array.from(playMap.values()).reduce((s, v) => s + v.count, 0);
+    const playRows = Array.from(playMap.entries())
+      .map(([play, data]) => ({
+        play, occurrences: data.count,
+        relativePct: totalOccurrences > 0 ? parseFloat(((data.count / totalOccurrences) * 100).toFixed(1)) : 0,
+        distinctExpressions: data.distinct.size,
+      }))
+      .sort((a, b) => b.occurrences - a.occurrences);
+    const expressionRows: { expression: string; play: string; frequency: number; length: number }[] = [];
+    exprPlayMap.forEach((pm, expression) => {
+      pm.forEach((freq, play) => { expressionRows.push({ expression, play, frequency: freq, length: expression.split(" ").length }); });
+    });
+    expressionRows.sort((a, b) => b.frequency - a.frequency);
+    return {
+      playRows, expressionRows,
+      playCount: playRows.length,
+      mostRepresentedPlay: playRows[0]?.play || "—",
+      totalOccurrences,
+      distinctExpressionsFound: expressions.filter(e => exprPlayMap.has(e)).length,
+    };
+  }, [expressions, speeches, useStoplist, useLemmas]);
+
+  const filteredPlayRows = useMemo(() => {
+    if (!evidenceData) return [];
+    let rows = evidenceData.playRows;
+    if (playSearch) { const ls = playSearch.toLowerCase(); rows = rows.filter(r => r.play.toLowerCase().includes(ls)); }
+    const limit = playShowLimit === "all" ? rows.length : parseInt(playShowLimit);
+    return rows.slice(0, limit);
+  }, [evidenceData, playSearch, playShowLimit]);
+
+  const filteredExprRows = useMemo(() => {
+    if (!evidenceData) return [];
+    if (!exprSearch) return evidenceData.expressionRows;
+    const ls = exprSearch.toLowerCase();
+    return evidenceData.expressionRows.filter(r => r.expression.toLowerCase().includes(ls) || r.play.toLowerCase().includes(ls));
+  }, [evidenceData, exprSearch]);
+
+  if (!expressions.length) return null;
+
+  if (!evidenceData || !evidenceData.playCount) {
+    return (
+      <Card className="shadow-none border-muted/60 border-dashed">
+        <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-evidence-empty">
+          No corpus evidence found for the selected item.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const handlePlayExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    exportToCsv(`${playDistFilename.replace(".csv", "")}_${timestamp}.csv`, evidenceData.playRows.map(r => ({
+      play: r.play, occurrences: r.occurrences, relative_pct: r.relativePct, distinct_expressions: r.distinctExpressions,
+    })));
+  };
+
+  const handleExprExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    exportToCsv(`${exprEvidenceFilename.replace(".csv", "")}_${timestamp}.csv`, evidenceData.expressionRows.map(r => ({
+      expression: r.expression, play: r.play, frequency: r.frequency, length: r.length,
+    })));
+  };
+
+  const maxOccurrences = evidenceData.playRows[0]?.occurrences || 1;
+
+  return (
+    <div className="space-y-4" data-testid="section-corpus-evidence">
+      <div className="text-[10px] uppercase font-bold text-muted-foreground">
+        Source Summary — <span className="font-mono normal-case font-normal">{label}</span>
+      </div>
+      <Card className="shadow-none border-muted/60">
+        <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Play Count</div>
+            <div className="font-semibold" data-testid="text-evidence-play-count">{evidenceData.playCount}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Represented Play</div>
+            <div className="font-semibold truncate" data-testid="text-evidence-top-play" title={evidenceData.mostRepresentedPlay}>{evidenceData.mostRepresentedPlay}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Total Occurrences</div>
+            <div className="font-semibold" data-testid="text-evidence-total-occ">{evidenceData.totalOccurrences}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Distinct Expressions</div>
+            <div className="font-semibold" data-testid="text-evidence-distinct">{evidenceData.distinctExpressionsFound}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Play Distribution</div>
+            <div className="flex items-center gap-2">
+              <Select value={playShowLimit} onValueChange={v => setPlayShowLimit(v as typeof playShowLimit)}>
+                <SelectTrigger className="h-7 text-xs w-24" data-testid="select-evidence-play-limit"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20" className="text-xs">Top 20</SelectItem>
+                  <SelectItem value="50" className="text-xs">Top 50</SelectItem>
+                  <SelectItem value="all" className="text-xs">All</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={handlePlayExport} className="h-7 w-7" title="Export Play Distribution CSV" data-testid="button-export-evidence-play"><Download className="h-3 w-3" /></Button>
+            </div>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Search plays..." value={playSearch} onChange={e => setPlaySearch(e.target.value)} className="h-8 text-xs pl-8" data-testid="input-evidence-play-search" />
+          </div>
+          <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "280px" }}>
+            <Table>
+              <TableHeader className="sticky top-0 z-10">
+                <TableRow>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Occurrences</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Relative %</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Distinct Expressions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPlayRows.map((r, i) => {
+                  const barPct = maxOccurrences > 0 ? Math.max(4, Math.round((r.occurrences / maxOccurrences) * 100)) : 0;
+                  return (
+                    <TableRow key={r.play} className="h-8" data-testid={`row-evidence-play-${i}`}>
+                      <TableCell className="py-1 text-[10px]" data-testid={`text-evidence-play-${i}`}>{r.play}</TableCell>
+                      <TableCell className="py-1 text-[10px]" data-testid={`text-evidence-occ-${i}`}>
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[50px]">
+                            <div className="h-full bg-primary/60 rounded-full" style={{ width: `${barPct}%` }} />
+                          </div>
+                          <span className="tabular-nums w-8 text-right">{r.occurrences}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-1 text-[10px] text-right tabular-nums" data-testid={`text-evidence-pct-${i}`}>{r.relativePct}%</TableCell>
+                      <TableCell className="py-1 text-[10px] text-right" data-testid={`text-evidence-distinct-${i}`}>{r.distinctExpressions}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="text-[10px] text-muted-foreground px-1">
+            Showing {filteredPlayRows.length}{playSearch ? ` of ${evidenceData.playRows.length}` : ""} plays
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="text-[10px] uppercase font-bold text-muted-foreground">Expression Evidence</div>
+            <Button variant="outline" size="icon" onClick={handleExprExport} className="h-7 w-7" title="Export Expression Evidence CSV" data-testid="button-export-evidence-expr"><Download className="h-3 w-3" /></Button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Search expressions or plays..." value={exprSearch} onChange={e => setExprSearch(e.target.value)} className="h-8 text-xs pl-8" data-testid="input-evidence-expr-search" />
+          </div>
+          <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "280px" }}>
+            <Table>
+              <TableHeader className="sticky top-0 z-10">
+                <TableRow>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Expression</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Frequency</TableHead>
+                  <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Length</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredExprRows.map((r, i) => (
+                  <TableRow key={`${r.expression}::${r.play}`} className="h-8" data-testid={`row-evidence-expr-${i}`}>
+                    <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-evidence-expr-${i}`}>{r.expression}</TableCell>
+                    <TableCell className="py-1 text-[10px]" data-testid={`text-evidence-expr-play-${i}`}>{r.play}</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right tabular-nums" data-testid={`text-evidence-expr-freq-${i}`}>{r.frequency}</TableCell>
+                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-evidence-expr-len-${i}`}>{r.length}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="text-[10px] text-muted-foreground px-1">
+            Showing {filteredExprRows.length}{exprSearch ? ` of ${evidenceData.expressionRows.length}` : ""} expression occurrences
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1197,6 +1488,7 @@ const SemanticTab = () => {
   const [minExpressionFreq, setMinExpressionFreq] = useState(2);
   const [expressionLengthFilter, setExpressionLengthFilter] = useState<"all" | "2" | "3" | "4" | "5">("all");
   const [showLimit, setShowLimit] = useState<"20" | "50" | "100" | "all">("50");
+  const [selectedExpression, setSelectedExpression] = useState<string | null>(null);
   const expressionCache = useRef<Map<string, any>>(new Map());
 
   const filteredSpeeches = useMemo(() => {
@@ -1326,6 +1618,13 @@ const SemanticTab = () => {
 
   const diacCandidateFilename = `semantic_expression_change_candidates_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
   const diacFamilyFilename = `semantic_expression_change_families_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
+  const nodeKey = expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus";
+  const evidencePlayFilename = `semantic_evidence_play_distribution_${expressionScope}_${nodeKey}.csv`;
+  const evidenceExprFilename = `semantic_evidence_expression_occurrences_${expressionScope}_${nodeKey}.csv`;
+
+  useEffect(() => { setSelectedExpression(null); }, [expressionResults]);
+
+  const selectedExpressions = useMemo(() => selectedExpression ? [selectedExpression] : [], [selectedExpression]);
 
   return (
     <div className="space-y-6">
@@ -1468,7 +1767,20 @@ const SemanticTab = () => {
             <ExpressionSnapshotTable
               data={displayedCandidates}
               filename={expressionExportFilename}
+              selectedExpression={selectedExpression}
+              onSelect={setSelectedExpression}
             />
+            {selectedExpression && (
+              <CorpusEvidencePanel
+                speeches={filteredSpeeches}
+                useStoplist={useStoplist}
+                useLemmas={useLemmas}
+                expressions={selectedExpressions}
+                label={selectedExpression}
+                playDistFilename={evidencePlayFilename}
+                exprEvidenceFilename={evidenceExprFilename}
+              />
+            )}
           </>
         )}
       </section>
@@ -1522,7 +1834,15 @@ const SemanticTab = () => {
                         </div>
                       </CardContent>
                     </Card>
-                    <ExpressionFamilyPanel families={expressionFamilies} filename={expressionFamilyExportFilename} />
+                    <ExpressionFamilyPanel
+                      families={expressionFamilies}
+                      filename={expressionFamilyExportFilename}
+                      speeches={filteredSpeeches}
+                      useStoplist={useStoplist}
+                      useLemmas={useLemmas}
+                      evidencePlayFilename={evidencePlayFilename}
+                      evidenceExprFilename={evidenceExprFilename}
+                    />
                   </>
                 )}
               </CardContent>
@@ -1560,7 +1880,15 @@ const SemanticTab = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <ConventionalisationPanel families={expressionFamilies} filename={conventionalisationExportFilename} />
+                  <ConventionalisationPanel
+                    families={expressionFamilies}
+                    filename={conventionalisationExportFilename}
+                    speeches={filteredSpeeches}
+                    useStoplist={useStoplist}
+                    useLemmas={useLemmas}
+                    evidencePlayFilename={evidencePlayFilename}
+                    evidenceExprFilename={evidenceExprFilename}
+                  />
                 )}
               </CardContent>
             </CollapsibleContent>
@@ -1595,6 +1923,8 @@ const SemanticTab = () => {
                   timeMode={timeMode}
                   candidateFilename={diacCandidateFilename}
                   familyFilename={diacFamilyFilename}
+                  evidencePlayFilename={evidencePlayFilename}
+                  evidenceExprFilename={evidenceExprFilename}
                 />
               </CardContent>
             </CollapsibleContent>

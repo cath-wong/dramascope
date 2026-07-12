@@ -1,0 +1,327 @@
+STEP 36 — Corpus Evidence & Provenance
+
+Goal
+
+Add a reusable Corpus Evidence panel to the Semantic Dashboard that allows every selected analytical object to be traced back to the corpus from which it was derived.
+
+This step introduces NO new analytical metrics.
+
+Instead, it provides transparent provenance for expression candidates, expression families, conventionalisation candidates, and diachronic objects.
+
+The purpose is to answer:
+
+"Where does this result come from?"
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- expression extraction
+- family construction
+- conventionalisation calculations
+- diachronic calculations
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+
+Do NOT add:
+
+- new metrics
+- new rankings
+- new algorithms
+- new statistical measures
+- new scoring systems
+
+This is an evidence/provenance layer only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+SemanticTab
+
+Reuse one shared component wherever possible.
+
+
+Design Philosophy
+
+Every selected analytical object should be traceable back to its corpus evidence.
+
+Researchers should always be able to inspect:
+
+• which plays
+
+• how often
+
+• which expressions
+
+generated the higher-level analytical object.
+
+
+Implementation
+
+Create one reusable component:
+
+CorpusEvidencePanel
+
+
+The component should accept one of:
+
+• expression candidate
+
+• expression family
+
+• conventionalisation candidate
+
+• diachronic item
+
+
+and display evidence accordingly.
+
+
+Evidence Views
+
+Every evidence panel should contain TWO tables.
+
+
+--------------------------------------------------
+
+TABLE 1
+
+Play Distribution
+
+Columns
+
+Play
+
+Occurrences
+
+Relative %
+
+Distinct Expressions
+
+Sort descending by Occurrences.
+
+Show Top 20 by default.
+
+Provide:
+
+Top 20
+
+Top 50
+
+All
+
+selector.
+
+Searchable.
+
+CSV export.
+
+Sticky header.
+
+Scrollable.
+
+--------------------------------------------------
+
+TABLE 2
+
+Expression Evidence
+
+Columns
+
+Expression
+
+Play
+
+Frequency
+
+Length
+
+Sort descending by Frequency.
+
+Searchable.
+
+CSV export.
+
+Sticky header.
+
+Scrollable.
+
+
+Behaviour
+
+Section A
+
+Selecting an expression
+
+↓
+
+shows
+
+CorpusEvidencePanel
+
+for that expression.
+
+
+--------------------------------------------------
+
+Section B
+
+Selecting an expression family
+
+↓
+
+shows
+
+CorpusEvidencePanel
+
+aggregated across every member expression.
+
+
+--------------------------------------------------
+
+Section C
+
+Selecting a conventionalisation candidate
+
+↓
+
+uses the same family evidence panel.
+
+No duplicate implementation.
+
+
+--------------------------------------------------
+
+Section D
+
+Selecting an expression candidate
+
+↓
+
+shows evidence.
+
+Selecting an expression family
+
+↓
+
+shows family evidence.
+
+Reuse the same component.
+
+
+Summary
+
+At the top of CorpusEvidencePanel display
+
+Source Summary
+
+Play count
+
+Most represented play
+
+Occurrences
+
+Distinct expressions
+
+
+CSV filenames
+
+semantic_evidence_play_distribution_<scope>_<node>.csv
+
+semantic_evidence_expression_occurrences_<scope>_<node>.csv
+
+
+Safety Constraints
+
+The agent must NOT
+
+change
+
+expression extraction
+
+family construction
+
+indicator calculations
+
+temporal behaviour
+
+sorting logic elsewhere
+
+Only expose provenance from the already computed data.
+
+
+Expected Result
+
+Every analytical object throughout the Semantic Dashboard should now be traceable back to:
+
+• individual plays
+
+• frequencies
+
+• underlying expressions
+
+without leaving the dashboard.
+
+Researchers should no longer need to switch to external corpus tools simply to discover where a result originates.
+
+
+Validation Checklist
+
+Confirm:
+
+1.
+
+App compiles.
+
+2.
+
+Sections A–D analytical behaviour unchanged.
+
+3.
+
+CorpusEvidencePanel reused across sections.
+
+4.
+
+Play Distribution table works.
+
+5.
+
+Expression Evidence table works.
+
+6.
+
+Search works.
+
+7.
+
+Sorting works.
+
+8.
+
+Sticky headers work.
+
+9.
+
+CSV export works.
+
+10.
+
+Evidence reflects the selected analytical object.
+
+11.
+
+No changes to Lexical or Discursive tabs.
+
+STOP AFTER STEP 36.
