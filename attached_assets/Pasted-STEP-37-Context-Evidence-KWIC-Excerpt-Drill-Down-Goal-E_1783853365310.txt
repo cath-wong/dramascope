@@ -1,0 +1,311 @@
+STEP 37 — Context Evidence (KWIC / Excerpt Drill-Down)
+
+Goal
+
+Extend the Semantic Dashboard’s Corpus Evidence & Provenance layer so selected expressions and expression families can be traced back to their original textual contexts.
+
+This step introduces NO new analytical metrics.
+
+Its purpose is to complete the evidence chain:
+
+Expression
+→ Play Distribution
+→ Expression Evidence
+→ Context Evidence
+
+Researchers should be able to inspect where an expression occurs, in which play, and in what immediate context.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- expression extraction
+- expression family construction
+- conventionalisation calculations
+- diachronic calculations
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- CSV logic outside the Semantic evidence layer
+
+Do NOT add:
+
+- new scoring systems
+- new rankings
+- new statistical measures
+- new semantic interpretation logic
+- AI or LLM calls
+- external APIs
+
+This is a provenance and context-inspection step only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+CorpusEvidencePanel
+
+and the Semantic sections that already call it.
+
+Reuse the existing evidence architecture introduced in Step 36.
+
+
+Design Principle
+
+Every selected analytical object should be traceable to the original corpus text.
+
+The Context Evidence panel should show real source excerpts rather than reconstructed or generated text.
+
+
+Implementation Steps
+
+1. Extend CorpusEvidencePanel with a third evidence view:
+
+Context Evidence
+
+The existing two views remain unchanged:
+
+- Play Distribution
+- Expression Evidence
+
+Add:
+
+- Context Evidence
+
+
+2. Context Evidence should be driven by the current evidence selection.
+
+Preferred interaction:
+
+- clicking a row in Expression Evidence selects that expression + play combination
+- Context Evidence then shows all matching occurrences from that play
+
+If no Expression Evidence row is selected:
+
+- show contexts for the currently selected expression across all plays
+- or show a clear prompt asking the user to select an expression evidence row
+
+Use the simplest robust behaviour.
+
+
+3. For each matching occurrence, display:
+
+- play title
+- speaker
+- act
+- scene
+- time slice / year if available
+- expression
+- excerpt / context
+
+Use existing speech fields where available:
+
+- title or play_id
+- speaker
+- act
+- scene
+- year_est / year_mid / year_min / decade
+- text_raw
+
+
+4. Context window
+
+Display a compact KWIC-style context around the matched expression.
+
+Recommended:
+
+- approximately 8–12 tokens before
+- matched expression
+- approximately 8–12 tokens after
+
+Do NOT use the first 200 characters of the speech unless no reliable token-aligned context can be produced.
+
+Prefer token-aligned extraction from text_raw.
+
+
+5. Highlight the matched expression.
+
+Use simple inline styling:
+
+- bold
+- background highlight
+- or Badge-like emphasis
+
+Do NOT add a new library.
+
+
+6. Preserve original text for display.
+
+Important:
+
+- matching may use processed tokens
+- displayed context must come from text_raw where possible
+
+Do not display lemmatised or stoplist-filtered text as the source excerpt.
+
+
+7. Handle repeated occurrences within the same speech.
+
+Each occurrence should be represented separately.
+
+Do not collapse multiple matches in the same speech into one context row.
+
+
+8. Add controls to Context Evidence:
+
+- Search
+- Show:
+  - Top 20
+  - Top 50
+  - All
+- optional Play filter if easy with existing Select component
+
+Default:
+
+Top 20
+
+
+9. Make Context Evidence scrollable.
+
+Use:
+
+- fixed max height
+- internal vertical scrolling
+- sticky header if rendered as a table
+- or stacked context cards inside a bounded scroll container
+
+Recommended max height:
+
+450–500px
+
+
+10. Add CSV export.
+
+Suggested filename:
+
+semantic_context_evidence_<scope>_<node-or-corpus>.csv
+
+CSV columns:
+
+- expression
+- play
+- speaker
+- act
+- scene
+- time
+- left_context
+- match
+- right_context
+- full_excerpt
+
+
+11. Add empty states.
+
+If no expression is selected:
+
+“Select an expression to inspect its source contexts.”
+
+If no matching contexts are found:
+
+“No source contexts are available for the current selection.”
+
+
+12. Reuse across all Semantic sections.
+
+Section A:
+selected expression → Context Evidence
+
+Section B:
+selected family → user can inspect contexts for individual member expressions
+
+Section C:
+selected conventionalisation candidate → contexts for its member expressions
+
+Section D:
+selected diachronic item → contexts for the selected expression or family
+
+Do NOT duplicate the context extraction implementation across sections.
+
+
+13. Performance protection
+
+Because the app has shown signs of freezing, implement Context Evidence carefully.
+
+Required protections:
+
+- compute contexts only when an expression or evidence row is selected
+- do NOT scan the full corpus eagerly on every render
+- memoise context extraction
+- avoid recalculating when unrelated controls change
+- cap displayed contexts before rendering
+- reuse filteredSpeeches already available in SemanticTab
+
+Do NOT introduce a web worker in this step unless already present.
+
+
+14. Do not alter current Evidence tables.
+
+Play Distribution and Expression Evidence should remain functionally unchanged.
+
+Only add Context Evidence beneath or beside them.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify Sections A–D analytical logic
+- alter expression matching semantics
+- change family construction
+- change conventionalisation indicators
+- change temporal behaviour
+- add AI/API dependencies
+- touch LexicalTab
+- touch DiscursiveTab
+
+Only extend the shared Semantic evidence layer with source contexts.
+
+
+Expected Result
+
+After Step 37:
+
+Researchers can trace every selected Semantic result back to:
+
+1. the plays contributing evidence
+2. the expressions found in those plays
+3. the exact textual contexts in which those expressions occur
+
+The Semantic Dashboard should now support a complete evidence chain without requiring the researcher to leave the app.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Lexical and Discursive tabs are unchanged.
+3. Sections A–D analytical outputs are unchanged.
+4. Context Evidence appears for selected expressions.
+5. Play, speaker, act, scene, and time metadata display where available.
+6. Matched expressions are highlighted.
+7. Repeated occurrences in the same speech appear separately.
+8. Search works.
+9. Show Top 20 / Top 50 / All works.
+10. CSV export works.
+11. Context extraction is lazy and memoised.
+12. The app does not scan the full corpus unnecessarily on every render.
+13. No AI or API calls have been added.
+14. Existing Play Distribution and Expression Evidence tables remain unchanged.
+
+STOP AFTER STEP 37

@@ -337,7 +337,7 @@ const buildExpressionFamilies = (candidates: ExpressionCandidate[]): ExpressionF
 
 type FamilySortKey = "pattern" | "memberCount" | "totalFrequency" | "mostFrequentMember";
 
-const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string }) => {
+const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename, contextEvidenceFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string; contextEvidenceFilename: string }) => {
   const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: FamilySortKey; direction: "asc" | "desc" }>({ key: "totalFrequency", direction: "desc" });
@@ -531,6 +531,7 @@ const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useL
           label={selected.pattern}
           playDistFilename={evidencePlayFilename}
           exprEvidenceFilename={evidenceExprFilename}
+          contextEvidenceFilename={contextEvidenceFilename}
         />
       )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-family-table-count">
@@ -601,7 +602,7 @@ const ConvBreakdownBar = ({ label, value, testId }: { label: string; value: numb
   </div>
 );
 
-const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string }) => {
+const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, useLemmas, evidencePlayFilename, evidenceExprFilename, contextEvidenceFilename }: { families: ExpressionFamily[]; filename: string; speeches: any[]; useStoplist: boolean; useLemmas: boolean; evidencePlayFilename: string; evidenceExprFilename: string; contextEvidenceFilename: string }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: ConvSortKey; direction: "asc" | "desc" }>({ key: "indicator", direction: "desc" });
@@ -830,6 +831,7 @@ const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, u
           label={selectedPattern}
           playDistFilename={evidencePlayFilename}
           exprEvidenceFilename={evidenceExprFilename}
+          contextEvidenceFilename={contextEvidenceFilename}
         />
       )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-conv-table-count">
@@ -886,7 +888,7 @@ const getDiacBehaviour = (presentSlices: string[], allSlices: string[]): Tempora
 const DiachronicExpressionPanel = ({
   speeches, expressionScope, nodeLemma, useStoplist, useLemmas, activeNgramLengths,
   minExpressionFreq, expressionFamilies, timeMode, candidateFilename, familyFilename,
-  evidencePlayFilename, evidenceExprFilename,
+  evidencePlayFilename, evidenceExprFilename, contextEvidenceFilename,
 }: {
   speeches: any[];
   expressionScope: "node" | "corpus";
@@ -901,6 +903,7 @@ const DiachronicExpressionPanel = ({
   familyFilename: string;
   evidencePlayFilename: string;
   evidenceExprFilename: string;
+  contextEvidenceFilename: string;
 }) => {
   const [diacObject, setDiacObject] = useState<"candidates" | "families">("candidates");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -1229,6 +1232,7 @@ const DiachronicExpressionPanel = ({
           label={selectedRow.key}
           playDistFilename={evidencePlayFilename}
           exprEvidenceFilename={evidenceExprFilename}
+          contextEvidenceFilename={contextEvidenceFilename}
         />
       )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-diac-table-count">
@@ -1247,6 +1251,7 @@ const CorpusEvidencePanel = ({
   label,
   playDistFilename,
   exprEvidenceFilename,
+  contextEvidenceFilename,
 }: {
   speeches: any[];
   useStoplist: boolean;
@@ -1255,10 +1260,16 @@ const CorpusEvidencePanel = ({
   label: string;
   playDistFilename: string;
   exprEvidenceFilename: string;
+  contextEvidenceFilename: string;
 }) => {
   const [playSearch, setPlaySearch] = useState("");
   const [exprSearch, setExprSearch] = useState("");
   const [playShowLimit, setPlayShowLimit] = useState<"20" | "50" | "all">("20");
+  const [selectedEvidenceKey, setSelectedEvidenceKey] = useState<string | null>(null);
+  const [contextSearch, setContextSearch] = useState("");
+  const [contextShowLimit, setContextShowLimit] = useState<"20" | "50" | "all">("20");
+
+  useEffect(() => { setSelectedEvidenceKey(null); setContextSearch(""); }, [expressions]);
 
   const evidenceData = useMemo(() => {
     if (!expressions.length || !speeches.length) return null;
@@ -1324,6 +1335,65 @@ const CorpusEvidencePanel = ({
     return evidenceData.expressionRows.filter(r => r.expression.toLowerCase().includes(ls) || r.play.toLowerCase().includes(ls));
   }, [evidenceData, exprSearch]);
 
+  const contextData = useMemo((): { expression: string; play: string; speaker: string; act: string; scene: string; time: string; leftContext: string; matchText: string; rightContext: string; fullExcerpt: string; }[] => {
+    if (!selectedEvidenceKey) return [];
+    const sepIdx = selectedEvidenceKey.indexOf("::");
+    if (sepIdx < 0) return [];
+    const expression = selectedEvidenceKey.slice(0, sepIdx);
+    const playFilter = selectedEvidenceKey.slice(sepIdx + 2);
+    const exprTokens = expression.split(" ");
+    const n = exprTokens.length;
+    if (!n) return [];
+    const speechesToScan = speeches.filter(s => (s.title || s.play_id || "Unknown") === playFilter);
+    const results: { expression: string; play: string; speaker: string; act: string; scene: string; time: string; leftContext: string; matchText: string; rightContext: string; fullExcerpt: string; }[] = [];
+    for (const speech of speechesToScan) {
+      const rawText = speech.text_raw || "";
+      if (!rawText) continue;
+      const rawWords = rawText.split(/\s+/).filter((w: string) => w.length > 0);
+      const noStopTokens = processTokens(rawText, { useStoplist: false, useLemmas });
+      const fullTokens = processTokens(rawText, { useStoplist, useLemmas });
+      const posMap: number[] = [];
+      let fi = 0;
+      for (let ni = 0; ni < noStopTokens.length && fi < fullTokens.length; ni++) {
+        if (noStopTokens[ni] === fullTokens[fi]) { posMap.push(ni); fi++; }
+      }
+      for (let i = 0; i + n <= fullTokens.length; i++) {
+        let match = true;
+        for (let j = 0; j < n; j++) { if (fullTokens[i + j] !== exprTokens[j]) { match = false; break; } }
+        if (match) {
+          const rawStart = posMap[i] !== undefined ? posMap[i] : i;
+          const rawEnd = posMap[i + n - 1] !== undefined ? posMap[i + n - 1] : (i + n - 1);
+          const leftStart = Math.max(0, rawStart - 10);
+          const rightEnd = Math.min(rawWords.length, rawEnd + 1 + 10);
+          const time = speech.year_est || speech.year_mid || speech.decade || speech.year_min;
+          results.push({
+            expression,
+            play: speech.title || speech.play_id || "Unknown",
+            speaker: speech.speaker || "—",
+            act: speech.act != null ? String(speech.act) : "—",
+            scene: speech.scene != null ? String(speech.scene) : "—",
+            time: time != null ? String(time) : "—",
+            leftContext: rawWords.slice(leftStart, rawStart).join(" "),
+            matchText: rawWords.slice(rawStart, rawEnd + 1).join(" "),
+            rightContext: rawWords.slice(rawEnd + 1, rightEnd).join(" "),
+            fullExcerpt: rawWords.slice(leftStart, rightEnd).join(" "),
+          });
+        }
+      }
+    }
+    return results;
+  }, [selectedEvidenceKey, speeches, useStoplist, useLemmas]);
+
+  const filteredContextRows = useMemo(() => {
+    let rows = contextData;
+    if (contextSearch) {
+      const ls = contextSearch.toLowerCase();
+      rows = rows.filter(r => r.fullExcerpt.toLowerCase().includes(ls) || r.speaker.toLowerCase().includes(ls) || r.play.toLowerCase().includes(ls) || r.expression.toLowerCase().includes(ls));
+    }
+    const limit = contextShowLimit === "all" ? rows.length : parseInt(contextShowLimit);
+    return rows.slice(0, limit);
+  }, [contextData, contextSearch, contextShowLimit]);
+
   if (!expressions.length) return null;
 
   if (!evidenceData || !evidenceData.playCount) {
@@ -1347,6 +1417,14 @@ const CorpusEvidencePanel = ({
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     exportToCsv(`${exprEvidenceFilename.replace(".csv", "")}_${timestamp}.csv`, evidenceData.expressionRows.map(r => ({
       expression: r.expression, play: r.play, frequency: r.frequency, length: r.length,
+    })));
+  };
+
+  const handleContextExport = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    exportToCsv(`${contextEvidenceFilename.replace(".csv", "")}_${timestamp}.csv`, contextData.map(r => ({
+      expression: r.expression, play: r.play, speaker: r.speaker, act: r.act, scene: r.scene,
+      time: r.time, left_context: r.leftContext, match: r.matchText, right_context: r.rightContext, full_excerpt: r.fullExcerpt,
     })));
   };
 
@@ -1455,21 +1533,94 @@ const CorpusEvidencePanel = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredExprRows.map((r, i) => (
-                  <TableRow key={`${r.expression}::${r.play}`} className="h-8" data-testid={`row-evidence-expr-${i}`}>
-                    <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-evidence-expr-${i}`}>{r.expression}</TableCell>
-                    <TableCell className="py-1 text-[10px]" data-testid={`text-evidence-expr-play-${i}`}>{r.play}</TableCell>
-                    <TableCell className="py-1 text-[10px] text-right tabular-nums" data-testid={`text-evidence-expr-freq-${i}`}>{r.frequency}</TableCell>
-                    <TableCell className="py-1 text-[10px] text-right" data-testid={`text-evidence-expr-len-${i}`}>{r.length}</TableCell>
-                  </TableRow>
-                ))}
+                {filteredExprRows.map((r, i) => {
+                  const rowKey = `${r.expression}::${r.play}`;
+                  return (
+                    <TableRow key={rowKey} className={`h-8 cursor-pointer ${selectedEvidenceKey === rowKey ? "bg-muted/60" : ""}`} onClick={() => setSelectedEvidenceKey(selectedEvidenceKey === rowKey ? null : rowKey)} data-testid={`row-evidence-expr-${i}`}>
+                      <TableCell className="py-1 text-[10px] font-mono" data-testid={`text-evidence-expr-${i}`}>{r.expression}</TableCell>
+                      <TableCell className="py-1 text-[10px]" data-testid={`text-evidence-expr-play-${i}`}>{r.play}</TableCell>
+                      <TableCell className="py-1 text-[10px] text-right tabular-nums" data-testid={`text-evidence-expr-freq-${i}`}>{r.frequency}</TableCell>
+                      <TableCell className="py-1 text-[10px] text-right" data-testid={`text-evidence-expr-len-${i}`}>{r.length}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
           <div className="text-[10px] text-muted-foreground px-1">
-            Showing {filteredExprRows.length}{exprSearch ? ` of ${evidenceData.expressionRows.length}` : ""} expression occurrences
+            Showing {filteredExprRows.length}{exprSearch ? ` of ${evidenceData.expressionRows.length}` : ""} expression occurrences · click a row to inspect contexts
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2" data-testid="section-context-evidence">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-[10px] uppercase font-bold text-muted-foreground">Context Evidence</div>
+          <div className="flex items-center gap-2">
+            <Select value={contextShowLimit} onValueChange={v => setContextShowLimit(v as typeof contextShowLimit)}>
+              <SelectTrigger className="h-7 text-xs w-24" data-testid="select-context-limit"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20" className="text-xs">Top 20</SelectItem>
+                <SelectItem value="50" className="text-xs">Top 50</SelectItem>
+                <SelectItem value="all" className="text-xs">All</SelectItem>
+              </SelectContent>
+            </Select>
+            {contextData.length > 0 && (
+              <Button variant="outline" size="icon" onClick={handleContextExport} className="h-7 w-7" title="Export Context Evidence CSV" data-testid="button-export-context"><Download className="h-3 w-3" /></Button>
+            )}
+          </div>
+        </div>
+        {!selectedEvidenceKey ? (
+          <Card className="shadow-none border-muted/60 border-dashed">
+            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-context-prompt">
+              Select an expression to inspect its source contexts.
+            </CardContent>
+          </Card>
+        ) : contextData.length === 0 ? (
+          <Card className="shadow-none border-muted/60 border-dashed">
+            <CardContent className="pt-6 text-xs text-muted-foreground" data-testid="text-context-empty">
+              No source contexts are available for the current selection.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input placeholder="Search contexts, speakers, plays..." value={contextSearch} onChange={e => setContextSearch(e.target.value)} className="h-8 text-xs pl-8" data-testid="input-context-search" />
+            </div>
+            <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "480px" }}>
+              <Table>
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-28">Speaker</TableHead>
+                    <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-10">Act</TableHead>
+                    <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-12">Scene</TableHead>
+                    <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-14">Time</TableHead>
+                    <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Context</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredContextRows.map((r, i) => (
+                    <TableRow key={i} className="h-auto align-top" data-testid={`row-context-${i}`}>
+                      <TableCell className="py-2 text-[10px] font-semibold align-top" data-testid={`text-context-speaker-${i}`}>{r.speaker}</TableCell>
+                      <TableCell className="py-2 text-[10px] tabular-nums align-top" data-testid={`text-context-act-${i}`}>{r.act}</TableCell>
+                      <TableCell className="py-2 text-[10px] tabular-nums align-top" data-testid={`text-context-scene-${i}`}>{r.scene}</TableCell>
+                      <TableCell className="py-2 text-[10px] tabular-nums align-top" data-testid={`text-context-time-${i}`}>{r.time}</TableCell>
+                      <TableCell className="py-2 text-[10px] align-top leading-relaxed" data-testid={`text-context-excerpt-${i}`}>
+                        <span className="text-muted-foreground">{r.leftContext} </span>
+                        <mark className="bg-yellow-200 dark:bg-yellow-800 font-bold px-0.5 rounded-sm not-italic">{r.matchText}</mark>
+                        <span className="text-muted-foreground"> {r.rightContext}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="text-[10px] text-muted-foreground px-1" data-testid="text-context-count">
+              Showing {filteredContextRows.length}{contextSearch ? ` of ${contextData.length}` : ""} contexts
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1621,6 +1772,7 @@ const SemanticTab = () => {
   const nodeKey = expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus";
   const evidencePlayFilename = `semantic_evidence_play_distribution_${expressionScope}_${nodeKey}.csv`;
   const evidenceExprFilename = `semantic_evidence_expression_occurrences_${expressionScope}_${nodeKey}.csv`;
+  const contextEvidenceFilename = `semantic_context_evidence_${expressionScope}_${nodeKey}.csv`;
 
   useEffect(() => { setSelectedExpression(null); }, [expressionResults]);
 
@@ -1779,6 +1931,7 @@ const SemanticTab = () => {
                 label={selectedExpression}
                 playDistFilename={evidencePlayFilename}
                 exprEvidenceFilename={evidenceExprFilename}
+                contextEvidenceFilename={contextEvidenceFilename}
               />
             )}
           </>
@@ -1842,6 +1995,7 @@ const SemanticTab = () => {
                       useLemmas={useLemmas}
                       evidencePlayFilename={evidencePlayFilename}
                       evidenceExprFilename={evidenceExprFilename}
+                      contextEvidenceFilename={contextEvidenceFilename}
                     />
                   </>
                 )}
@@ -1888,6 +2042,7 @@ const SemanticTab = () => {
                     useLemmas={useLemmas}
                     evidencePlayFilename={evidencePlayFilename}
                     evidenceExprFilename={evidenceExprFilename}
+                    contextEvidenceFilename={contextEvidenceFilename}
                   />
                 )}
               </CardContent>
@@ -1925,6 +2080,7 @@ const SemanticTab = () => {
                   familyFilename={diacFamilyFilename}
                   evidencePlayFilename={evidencePlayFilename}
                   evidenceExprFilename={evidenceExprFilename}
+                  contextEvidenceFilename={contextEvidenceFilename}
                 />
               </CardContent>
             </CollapsibleContent>
