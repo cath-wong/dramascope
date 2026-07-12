@@ -376,7 +376,7 @@ const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useL
   }, [displayedFamilies, selectedPattern]);
 
   const maxTotalFrequency = useMemo(() => displayedFamilies.reduce((max, f) => Math.max(max, f.totalFrequency), 1), [displayedFamilies]);
-  const selected = displayedFamilies.find(f => f.pattern === selectedPattern) || null;
+  const selected = useMemo(() => displayedFamilies.find(f => f.pattern === selectedPattern) || null, [displayedFamilies, selectedPattern]);
 
   const selectedMemberExpressions = useMemo(
     () => selected ? selected.members.map(m => m.expression) : [],
@@ -635,7 +635,7 @@ const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, u
   }, [filteredRows, selectedPattern]);
 
   const maxIndicator = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.indicator), 1), [filteredRows]);
-  const selectedRow = filteredRows.find(r => r.pattern === selectedPattern) || null;
+  const selectedRow = useMemo(() => filteredRows.find(r => r.pattern === selectedPattern) || null, [filteredRows, selectedPattern]);
 
   const selectedFamilyMembers = useMemo(() => {
     if (!selectedPattern) return [];
@@ -1655,21 +1655,16 @@ const SemanticTab = () => {
   }, [ngramLengthSetting]);
 
   const expressionResults = useMemo(() => {
-    if (!speeches || speeches.length === 0) return null;
+    if (!filteredSpeeches.length) return null;
 
-    const filtered = speeches.filter(s => {
-      if (corpusScope === "play" && (s.title || s.play_id) !== selectedPlayTitle) return false;
-      return true;
-    });
+    if (expressionScope === "node" && !nodeLemma.trim()) return { allCandidates: [], noNodeLemma: true };
 
     const processedNode = expressionScope === "node"
       ? (processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase())
       : "";
 
-    if (expressionScope === "node" && !nodeLemma.trim()) return { allCandidates: [], noNodeLemma: true };
-
     const cacheKey = JSON.stringify({
-      scope: corpusScope,
+      corpusScope,
       play: selectedPlayTitle,
       expressionScope,
       node: processedNode,
@@ -1677,13 +1672,13 @@ const SemanticTab = () => {
       lemmas: useLemmas,
       minFreq: minExpressionFreq,
       ngramLengthSetting,
-      speechesLen: speeches.length,
+      speechesLen: filteredSpeeches.length,
     });
     if (expressionCache.current.has(cacheKey)) return expressionCache.current.get(cacheKey);
 
     const ngramCounts = new Map<string, { n: number; count: number }>();
 
-    filtered.forEach(s => {
+    filteredSpeeches.forEach(s => {
       const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
       activeNgramLengths.forEach(n => {
         for (let i = 0; i + n <= tokens.length; i++) {
@@ -1709,7 +1704,7 @@ const SemanticTab = () => {
     const output = { allCandidates, noNodeLemma: false };
     expressionCache.current.set(cacheKey, output);
     return output;
-  }, [speeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting]);
+  }, [filteredSpeeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting]);
 
   const matchingCandidates = useMemo(() => {
     const all = expressionResults?.allCandidates || [];

@@ -1,0 +1,290 @@
+STEP 38 — Semantic Dashboard v1.0 Freeze, Performance Audit & Documentation Lock
+
+Goal
+
+Freeze the Semantic Dashboard as Version 1.0.
+
+This step introduces NO new analytical functionality.
+
+Its purpose is to:
+
+• confirm analytical correctness
+• identify unnecessary computation
+• improve responsiveness where safe
+• document the implemented methodology
+• establish a stable baseline before returning to the Lexical Dashboard
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Lexical tab
+- Discursive tab
+- analytical algorithms
+- expression extraction
+- family construction
+- conventionalisation calculations
+- diachronic calculations
+- evidence extraction logic
+- preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+
+Do NOT add:
+
+- new features
+- new metrics
+- new visualisations
+- new exports
+- new controls
+
+Only fix genuine bugs, performance bottlenecks, or documentation inconsistencies.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+and any helper files directly supporting SemanticTab.
+
+Do NOT modify unrelated components.
+
+
+Part 1 — Functional Verification
+
+Confirm the following work correctly:
+
+Section A
+
+✓ Expression Snapshot
+✓ Node-centred / Corpus-wide
+✓ N-gram Length
+✓ Min Frequency
+✓ Expression Length
+✓ Search
+✓ Sort
+✓ CSV
+✓ Evidence panel
+
+Section B
+
+✓ Expression Families
+✓ Search
+✓ Sort
+✓ Top 20 / 50 / 100 / All
+✓ CSV
+✓ Evidence panel
+
+Section C
+
+✓ Conventionalisation Indicators
+✓ Indicator bands
+✓ Indicator breakdown
+✓ Candidate evidence
+✓ CSV
+
+Section D
+
+✓ Diachronic tracking
+✓ Candidate / Family toggle
+✓ Temporal labels
+✓ Drill-down
+✓ CSV
+
+
+Part 2 — Evidence Chain Verification
+
+Confirm the complete provenance chain works.
+
+Expression
+
+↓
+
+Play Distribution
+
+↓
+
+Expression Evidence
+
+↓
+
+Context Evidence
+
+Verify:
+
+✓ play metadata
+
+✓ speaker
+
+✓ act
+
+✓ scene
+
+✓ highlighted expression
+
+✓ KWIC
+
+✓ CSV export
+
+
+Part 3 — Performance Audit
+
+Inspect all Semantic useMemo chains.
+
+Identify:
+
+• duplicate computation
+
+• unnecessary recomputation
+
+• expensive scans
+
+• eager calculations
+
+Only implement safe improvements.
+
+Examples:
+
+✓ memoise repeated calculations
+
+✓ reuse filtered results
+
+✓ avoid scanning corpus when nothing selected
+
+✓ avoid rebuilding large arrays unnecessarily
+
+Do NOT redesign algorithms.
+
+Document any remaining unavoidable bottlenecks.
+
+
+Part 4 — Terminology Audit
+
+Confirm consistent terminology.
+
+Use only:
+
+Expression
+
+Expression Candidate
+
+Expression Family
+
+Representative Expression
+
+Conventionalisation Indicator
+
+Temporal Behaviour
+
+Evidence
+
+Context Evidence
+
+Node Lemma
+
+Corpus-wide
+
+Node-centred
+
+Do not introduce synonyms.
+
+
+Part 5 — Documentation Lock
+
+Generate a concise implementation summary documenting:
+
+Section A
+
+Purpose
+
+Inputs
+
+Outputs
+
+Section B
+
+Purpose
+
+Inputs
+
+Outputs
+
+Section C
+
+Purpose
+
+Indicator formula
+
+Outputs
+
+Section D
+
+Purpose
+
+Temporal categories
+
+Outputs
+
+Evidence Layer
+
+Play Distribution
+
+Expression Evidence
+
+Context Evidence
+
+This documentation should reflect the implementation exactly.
+
+Do NOT speculate about future features.
+
+
+Part 6 — Version Freeze
+
+Confirm:
+
+Semantic Dashboard v1.0
+
+Feature-complete
+
+Stable
+
+Ready for release
+
+Suitable as the baseline for future work.
+
+
+Deliverable
+
+Provide a final report including:
+
+1. Bugs found
+2. Bugs fixed
+3. Performance improvements
+4. Remaining limitations
+5. Documentation summary
+6. Confirmation that Semantic Dashboard v1.0 has been frozen
+
+
+Validation Checklist
+
+Confirm:
+
+✓ no regressions
+
+✓ no new TypeScript errors
+
+✓ no console errors
+
+✓ HMR clean
+
+✓ Lexical tab unchanged
+
+✓ Discursive tab unchanged
+
+✓ Semantic Dashboard ready to freeze
+
+STOP AFTER STEP 38.
