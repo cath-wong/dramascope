@@ -83,6 +83,7 @@ const LexicalTab = () => {
   const computationCache = useRef<Map<string, any>>(new Map());
   const [lexSettings, setLexSettings] = useState({ stoplist: true, lemmatization: true, ngramSize: "2", excludeStage: true, contentFocus: false });
   const [pinned, setPinned] = useState<any[]>([]);
+  const [selectedWord, setSelectedWord] = useState("");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -103,6 +104,9 @@ const LexicalTab = () => {
       tokens.forEach(t => { unigramCounts.set(t, (unigramCounts.get(t) || 0) + 1); totalTokens++; });
     });
     if (totalTokens === 0) return { error: "No tokens found." };
+
+    const totalTypes = unigramCounts.size;
+    const ttr = parseFloat((totalTypes / totalTokens).toFixed(4));
     const freqList = Array.from(unigramCounts.entries()).map(([token, count]) => ({ token, count, per_10k: parseFloat(((count / totalTokens) * 10000).toFixed(2)) })).sort((a, b) => b.count - a.count).slice(0, topN);
 
     const ngramCounts = new Map<string, number>();
@@ -122,37 +126,246 @@ const LexicalTab = () => {
       });
     }
 
-    const output = { freqList, ngramList: ngramList.slice(0, topN), totalTokens };
+    const output = { freqList, ngramList: ngramList.slice(0, topN), totalTokens, totalTypes, ttr, unigramCounts };
     computationCache.current.set(cacheKey, output);
     return output;
   }, [lines, corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, lexSettings]);
+
+  const wordData = useMemo(() => {
+    if (!selectedWord.trim() || !results || !results.unigramCounts) return null;
+    const processed = processTokens(selectedWord.trim(), { useStoplist: false, useLemmas: lexSettings.lemmatization });
+    const word = processed[0] || selectedWord.trim().toLowerCase();
+    const freq = (results.unigramCounts as Map<string, number>).get(word) || 0;
+    const relFreq = results.totalTokens > 0 ? parseFloat(((freq / results.totalTokens) * 10000).toFixed(2)) : 0;
+    return { word, freq, relFreq, found: freq > 0 };
+  }, [selectedWord, results, lexSettings.lemmatization]);
+
+  const wordPlayData = useMemo(() => {
+    if (!wordData?.found || !lines) return [];
+    const word = wordData.word;
+    const playMap = new Map<string, number>();
+    lines.forEach(l => {
+      if (corpusScope === "play" && (l.title || l.play_id) !== selectedPlayTitle) return;
+      if (selectedGenre && l.genre !== selectedGenre) return;
+      if (selectedSpeaker && l.speaker !== selectedSpeaker) return;
+      if (lexSettings.excludeStage && (l.unit === "stage" || l.unit === "stage_direction")) return;
+      const tokens = processTokens(l.text_norm || "", { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      const count = tokens.filter(t => t === word).length;
+      if (count > 0) {
+        const play = l.title || l.play_id;
+        playMap.set(play, (playMap.get(play) || 0) + count);
+      }
+    });
+    return Array.from(playMap.entries()).map(([play, count]) => ({ play, count })).sort((a, b) => b.count - a.count);
+  }, [wordData, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings]);
 
   return (
     <div className="space-y-6">
       <DetailsPanel dataset="LINES ONLY" tokenCol="text_norm" settings={{ stoplist: lexSettings.stoplist, lemmas: lexSettings.lemmatization }} ui={ui} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
-      <Card className="shadow-none border-muted/60"><CardHeader className="pb-3 bg-muted/5 border-b"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4" /> Lexical Parameters</CardTitle></CardHeader>
-      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-2"><div className="flex items-center space-x-2"><Checkbox id="l-stop" checked={lexSettings.stoplist} onCheckedChange={v => setLexSettings(s => ({...s, stoplist:!!v}))}/><Label htmlFor="l-stop" className="text-xs">Stoplist</Label></div><div className="flex items-center space-x-2"><Checkbox id="l-lemma" checked={lexSettings.lemmatization} onCheckedChange={v => setLexSettings(s => ({...s, lemmatization:!!v}))}/><Label htmlFor="l-lemma" className="text-xs">Lemmas</Label></div></div>
-        <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">N-grams</Label><Select value={lexSettings.ngramSize} onValueChange={v => setLexSettings(s => ({...s, ngramSize:v}))}><SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2">Bigrams</SelectItem><SelectItem value="3">Trigrams</SelectItem></SelectContent></Select></div>
-        <div className="flex items-center space-x-2 pt-5"><Checkbox id="l-focus" checked={lexSettings.contentFocus} onCheckedChange={v => setLexSettings(s => ({...s, contentFocus:!!v}))}/><Label htmlFor="l-focus" className="text-xs flex items-center gap-1.5">Content Focus <Info className="h-3 w-3 opacity-50" title="Hides n-grams with 2+ stoplist tokens" /></Label></div>
-      </CardContent></Card>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="shadow-none">
-          <CardHeader><CardTitle className="text-sm">Word Frequencies</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-[200px]"><ResponsiveContainer><BarChart data={results?.freqList?.slice(0, 10)}><XAxis dataKey="token" fontSize={9}/><Tooltip/><Bar dataKey="count" fill="hsl(var(--primary))"/></BarChart></ResponsiveContainer></div>
-            <ResultsTable data={results?.freqList || []} columns={[{ key: "token", label: "Token" }, { key: "count", label: "Count", sortable: true, align: "right" }, { key: "per_10k", label: "Per 10k", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.token, metric: item.count }])} filename="lex_freq.csv" />
+
+      <Card className="shadow-none border-muted/60">
+        <CardHeader className="pb-3 bg-muted/5 border-b">
+          <CardTitle className="text-sm font-semibold">Lexical Controls</CardTitle>
+          <CardDescription className="text-xs">Settings shared across all Lexical sections.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 flex flex-wrap gap-6">
+          <div className="flex items-center space-x-2">
+            <Checkbox id="l-stop" checked={lexSettings.stoplist} onCheckedChange={v => setLexSettings(s => ({ ...s, stoplist: !!v }))} data-testid="checkbox-lex-stoplist" />
+            <Label htmlFor="l-stop" className="text-xs">Stoplist</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox id="l-lemma" checked={lexSettings.lemmatization} onCheckedChange={v => setLexSettings(s => ({ ...s, lemmatization: !!v }))} data-testid="checkbox-lex-lemmas" />
+            <Label htmlFor="l-lemma" className="text-xs">Lemmas</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox id="l-stage" checked={lexSettings.excludeStage} onCheckedChange={v => setLexSettings(s => ({ ...s, excludeStage: !!v }))} data-testid="checkbox-lex-exclude-stage" />
+            <Label htmlFor="l-stage" className="text-xs">Exclude Stage Directions</Label>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3" data-testid="section-corpus-overview">
+        <div>
+          <h3 className="text-sm font-bold">A. Corpus Overview</h3>
+          <p className="text-xs text-muted-foreground">Summary of the lexical composition of the current corpus selection.</p>
+        </div>
+        <Card className="shadow-none border-muted/60">
+          <CardContent className="pt-6 space-y-6">
+            {!results || results.error ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-overview-empty">{results?.error || "No corpus data available."}</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Total Tokens</div>
+                    <div className="font-semibold tabular-nums" data-testid="text-corpus-total-tokens">{results.totalTokens.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Word Types</div>
+                    <div className="font-semibold tabular-nums" data-testid="text-corpus-total-types">{results.totalTypes.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Type-Token Ratio</div>
+                    <div className="font-semibold tabular-nums" data-testid="text-corpus-ttr">{results.ttr}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent</div>
+                    <div className="font-semibold font-mono truncate" data-testid="text-corpus-top-word">{results.freqList[0]?.token || "—"}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Word Frequency List</div>
+                  <div className="h-[180px] mb-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={results.freqList.slice(0, 10)} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="token" fontSize={9} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ResultsTable
+                    data={results.freqList}
+                    columns={[
+                      { key: "token", label: "Token" },
+                      { key: "count", label: "Frequency", sortable: true, align: "right" },
+                      { key: "per_10k", label: "Per 10k", sortable: true, align: "right" },
+                    ]}
+                    onPin={(item) => setPinned(p => [...p, { label: item.token, metric: item.count }])}
+                    filename="lex_freq.csv"
+                    scrollable
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">N-gram List</div>
+                    <Select value={lexSettings.ngramSize} onValueChange={v => setLexSettings(s => ({ ...s, ngramSize: v }))}>
+                      <SelectTrigger className="h-7 text-xs w-28" data-testid="select-ngram-size"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2" className="text-xs">Bigrams</SelectItem>
+                        <SelectItem value="3" className="text-xs">Trigrams</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="l-focus" checked={lexSettings.contentFocus} onCheckedChange={v => setLexSettings(s => ({ ...s, contentFocus: !!v }))} data-testid="checkbox-lex-content-focus" />
+                      <Label htmlFor="l-focus" className="text-xs flex items-center gap-1">Content Focus <Info className="h-3 w-3 opacity-50" /></Label>
+                    </div>
+                  </div>
+                  <div className="h-[180px] mb-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={results.ngramList.slice(0, 10)} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="ngram" fontSize={9} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                        <Tooltip contentStyle={{ fontSize: 10 }} />
+                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ResultsTable
+                    data={results.ngramList}
+                    columns={[
+                      { key: "ngram", label: "Sequence" },
+                      { key: "count", label: "Frequency", sortable: true, align: "right" },
+                      { key: "per_10k", label: "Per 10k", sortable: true, align: "right" },
+                    ]}
+                    onPin={(item) => setPinned(p => [...p, { label: item.ngram, metric: item.count }])}
+                    filename="lex_ngrams.csv"
+                    scrollable
+                  />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
-        <Card className="shadow-none">
-          <CardHeader><CardTitle className="text-sm">N-Grams {lexSettings.contentFocus && <Badge variant="outline" className="text-[9px] font-normal border-primary/30 text-primary">Filtered</Badge>}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-[200px]"><ResponsiveContainer><BarChart data={results?.ngramList?.slice(0, 10)}><XAxis dataKey="ngram" fontSize={9}/><Tooltip/><Bar dataKey="count" fill="hsl(var(--primary))"/></BarChart></ResponsiveContainer></div>
-            <ResultsTable data={results?.ngramList || []} columns={[{ key: "ngram", label: "Sequence" }, { key: "count", label: "Count", sortable: true, align: "right" }]} onPin={(item) => setPinned(p => [...p, { label: item.ngram, metric: item.count }])} filename="lex_ngrams.csv" />
+      </section>
+
+      <section className="space-y-3" data-testid="section-word-explorer">
+        <div>
+          <h3 className="text-sm font-bold">B. Word Explorer</h3>
+          <p className="text-xs text-muted-foreground">Frequency, distribution, and source contexts for a selected word.</p>
+        </div>
+        <Card className="shadow-none border-muted/60">
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="lex-word" className="text-[10px] uppercase font-bold">Word</Label>
+              <Input id="lex-word" placeholder="e.g. love" value={selectedWord} onChange={e => setSelectedWord(e.target.value)} className="h-8 text-xs max-w-xs" data-testid="input-lex-word" />
+            </div>
+            {!selectedWord.trim() ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-word-explorer-prompt">Enter a word to explore its frequency and distribution.</p>
+            ) : !wordData ? null : !wordData.found ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-word-not-found">"{wordData.word}" was not found in the current corpus selection.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Frequency</div>
+                    <div className="font-semibold tabular-nums" data-testid="text-word-freq">{wordData.freq.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Relative Frequency</div>
+                    <div className="font-semibold tabular-nums" data-testid="text-word-rel-freq">{wordData.relFreq} per 10k tokens</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Lemma Form</div>
+                    <div className="font-semibold font-mono" data-testid="text-word-lemma">{wordData.word}</div>
+                  </div>
+                </div>
+
+                {wordPlayData.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Frequency by Play</div>
+                    <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "240px" }}>
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10">
+                          <TableRow>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Frequency</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {wordPlayData.map((r, i) => (
+                            <TableRow key={r.play} className="h-8" data-testid={`row-word-play-${i}`}>
+                              <TableCell className="py-1 text-[10px]" data-testid={`text-word-play-${i}`}>{r.play}</TableCell>
+                              <TableCell className="py-1 text-[10px] text-right tabular-nums" data-testid={`text-word-play-freq-${i}`}>{r.count}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">KWIC / Concordance</div>
+                  <Card className="shadow-none border-muted/60 border-dashed">
+                    <CardContent className="pt-4 text-xs text-muted-foreground" data-testid="text-kwic-placeholder">
+                      Concordance view (KWIC) will be available in a future step.
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
-      </div>
+      </section>
+
+      <section className="space-y-3" data-testid="section-collocates">
+        <div>
+          <h3 className="text-sm font-bold">C. Collocates</h3>
+          <p className="text-xs text-muted-foreground">Words occurring characteristically near the selected word.</p>
+        </div>
+        <Card className="shadow-none border-muted/60">
+          <CardContent className="pt-6">
+            <Card className="shadow-none border-muted/60 border-dashed">
+              <CardContent className="pt-4 text-xs text-muted-foreground" data-testid="text-collocates-placeholder">
+                Collocate analysis — co-occurrence frequency, association scores, and positional distribution — will be available in a future step.
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 };

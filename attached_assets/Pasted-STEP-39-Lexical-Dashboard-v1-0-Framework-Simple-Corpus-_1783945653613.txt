@@ -1,0 +1,317 @@
+STEP 39 — Lexical Dashboard v1.0 Framework (Simple Corpus Explorer)
+
+Goal
+
+Restructure the Lexical tab into a simple, accessible corpus-linguistic workspace.
+
+The Lexical tab should remain the easiest entry point into the app.
+
+It should provide familiar corpus tools without reproducing the complexity of the Semantic or Discursive dashboards.
+
+This step creates and organises the Lexical Dashboard framework only.
+
+Do NOT add substantial new analytical methods yet.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- Semantic tab
+- Discursive tab
+- data loading
+- corpus preprocessing
+- tokenisation
+- lemmatisation
+- stoplists
+- expression extraction
+- quad extraction
+- constellation logic
+- shared corpus metadata
+
+Do NOT add:
+
+- expression families
+- n-gram conventionalisation
+- formulaicity
+- fossilisation
+- concept modelling
+- network analysis
+- new statistical association measures
+
+Only organise the existing Lexical tab into a clear and compact structure.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+LexicalTab
+
+Do NOT touch SemanticTab or DiscursiveTab.
+
+
+Design Principle
+
+The Lexical tab is the app’s accessible corpus-exploration layer.
+
+It should answer three straightforward questions:
+
+1. What does the current corpus selection look like?
+2. Where and how is a selected word used?
+3. Which words characteristically occur near it?
+
+Keep the interface compact.
+
+Avoid turning the Lexical tab into another long multi-section research dashboard.
+
+
+Required Structure
+
+Organise the Lexical tab into three areas:
+
+A. Corpus Overview
+
+B. Word Explorer
+
+C. Collocates
+
+
+--------------------------------------------------
+SECTION A — Corpus Overview
+--------------------------------------------------
+
+Title:
+
+A. Corpus Overview
+
+Description:
+
+Summary of the lexical composition of the current corpus selection.
+
+Preserve or organise existing functionality such as:
+
+- total tokens
+- total word types
+- type-token ratio
+- most frequent words
+- stoplist control
+- lemma control
+- frequency table or word list
+- CSV export if already available
+
+Do NOT add new metrics in this step.
+
+If these outputs already exist, reuse them rather than rebuilding them.
+
+
+--------------------------------------------------
+SECTION B — Word Explorer
+--------------------------------------------------
+
+Title:
+
+B. Word Explorer
+
+Description:
+
+Frequency, distribution, and source contexts for a selected word.
+
+Add or preserve a single Word / Node Lemma input.
+
+This section will eventually contain:
+
+- raw frequency
+- relative frequency
+- frequency by play or time
+- KWIC / concordance
+- source evidence
+
+In this framework step:
+
+- preserve existing word-search or KWIC functionality
+- organise it under Word Explorer
+- use a placeholder only for features that do not yet exist
+
+Do NOT implement new concordance logic if it is not already available.
+
+
+--------------------------------------------------
+SECTION C — Collocates
+--------------------------------------------------
+
+Title:
+
+C. Collocates
+
+Description:
+
+Words occurring characteristically near the selected word.
+
+This section will eventually contain:
+
+- collocate
+- co-occurrence frequency
+- association score
+- left/right position
+- adjustable context window
+- minimum frequency
+
+In this framework step:
+
+- preserve any existing collocation or neighbouring-word functionality
+- move it under Collocates
+- use a clear placeholder if no real collocation analysis currently exists
+
+Do NOT implement MI, logDice, or another association measure yet.
+
+
+Top Controls
+
+At the top of LexicalTab, keep one compact control card.
+
+Suggested title:
+
+Lexical Controls
+
+Preserve relevant existing controls only, such as:
+
+- Corpus Scope
+- selected play if applicable
+- Lemmas
+- Stoplist
+- minimum frequency if already used
+
+Do NOT expose controls that currently have no function.
+
+Avoid duplicating controls separately inside each section.
+
+
+Layout Requirements
+
+1. Keep the page visually compact.
+
+2. Use section headings and short descriptions outside content cards, matching the established Semantic and Discursive design language.
+
+3. Do not create many nested panels.
+
+4. Do not make every small output its own card.
+
+5. Use one main content card per section where practical.
+
+6. Long word lists or tables should use:
+
+- bounded height
+- internal scrolling
+- sticky headers
+
+7. Keep the three sections open by default.
+
+Do NOT add collapsible behaviour in this step unless the current Lexical tab already uses it.
+
+
+Existing Functionality Protection
+
+Before editing, inspect the existing LexicalTab.
+
+Preserve all working functionality that belongs to:
+
+- word frequency
+- corpus statistics
+- word list
+- keyword list
+- KWIC
+- lexical search
+- collocates or co-occurrence
+- CSV export
+
+Do NOT delete working functionality merely because it does not yet fit perfectly.
+
+Reorganise it into the nearest appropriate section.
+
+
+Terminology
+
+Use consistently:
+
+- Lexical
+- Corpus Overview
+- Word Explorer
+- Collocates
+- Word
+- Lemma
+- Frequency
+- Relative Frequency
+- Word Type
+- Token
+- KWIC
+- Context
+
+Avoid using Semantic or Discursive terminology such as:
+
+- Expression Family
+- Conventionalisation
+- Constellation
+- Configuration
+- Concept Behaviour
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- rebuild LexicalTab from scratch if working functionality exists
+- modify shared utility files
+- modify SemanticTab
+- modify DiscursiveTab
+- remove existing exports
+- add complex visualisations
+- introduce new algorithms
+- change hook ordering outside LexicalTab
+
+Make minimal targeted edits.
+
+
+Expected Result
+
+After Step 39:
+
+The Lexical tab should present a simple three-part corpus explorer:
+
+A. Corpus Overview
+
+- corpus statistics
+- word-frequency information
+
+B. Word Explorer
+
+- selected-word analysis and contexts
+
+C. Collocates
+
+- lexical neighbourhood analysis or a clear placeholder
+
+The tab should feel familiar, compact, and accessible rather than as complex as the Semantic or Discursive dashboards.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Semantic tab is unchanged.
+3. Discursive tab is unchanged.
+4. Existing Lexical functionality has been preserved.
+5. Lexical tab now has three clearly labelled areas.
+6. Controls are compact and functional.
+7. No unused controls have been added.
+8. Long tables remain readable and scrollable.
+9. No Semantic or Discursive analyses have been introduced.
+10. The Lexical tab remains simple and easy to use.
+
+STOP AFTER STEP 39
