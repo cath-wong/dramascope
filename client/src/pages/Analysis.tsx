@@ -478,8 +478,8 @@ const LexicalTab = () => {
                 {wordData?.found && wordPlayData.length > 0 && (
                   <div>
                     <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Frequency by Play</div>
-                    <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "240px" }}>
-                      <Table>
+                    <div className="rounded-md border bg-background">
+                      <Table wrapperClassName="relative w-full max-h-[240px] overflow-y-auto overflow-x-auto">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Play</TableHead>
@@ -597,8 +597,8 @@ const LexicalTab = () => {
                           No concordance lines found for "{selectedWord.trim()}" in the current corpus selection.
                         </p>
                       ) : (
-                        <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
-                          <Table>
+                        <div className="rounded-md border">
+                          <Table wrapperClassName="relative w-full max-h-[500px] overflow-y-auto overflow-x-auto">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right w-[28%]">Left</TableHead>
@@ -765,8 +765,8 @@ const LexicalTab = () => {
                   {rows.length === 0 ? (
                     <p className="text-xs text-muted-foreground" data-testid="text-colloc-empty">No collocates meet the current frequency and window settings.</p>
                   ) : (
-                    <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
-                      <Table>
+                    <div className="rounded-md border">
+                      <Table wrapperClassName="relative w-full max-h-[500px] overflow-y-auto overflow-x-auto">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Collocate</TableHead>

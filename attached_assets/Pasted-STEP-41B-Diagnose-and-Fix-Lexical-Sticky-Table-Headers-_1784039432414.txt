@@ -1,0 +1,106 @@
+STEP 41B — Diagnose and Fix Lexical Sticky Table Headers
+
+Goal
+
+Fix the Lexical table headers so they demonstrably remain visible while the table body scrolls.
+
+The previous attempt added sticky classes to <th> cells but did not solve the issue.
+
+Do not assume the problem is the header classes. Inspect the actual rendered DOM and overflow hierarchy first.
+
+
+Scope
+
+Check all Lexical tables:
+
+- Word Frequency List
+- N-gram List
+- Frequency by Play
+- KWIC / Concordance
+- Collocates
+
+Also inspect:
+
+- ResultsTable.tsx
+- the shared Table component implementation, likely under client/src/components/ui/table.tsx
+- every wrapper between the bounded-height container and the <table>
+
+
+Diagnostic Requirements
+
+1. Use browser devtools or the testing agent to inspect the rendered DOM for one failing table.
+
+Report:
+
+- which element is actually scrolling
+- which ancestor is the nearest overflow container for each sticky <th>
+- whether any ancestor has overflow-hidden, overflow-auto, overflow-scroll, transform, contain, or relative positioning that interferes
+- whether the shared Table component inserts an additional overflow wrapper
+
+2. Confirm the failure by scrolling the table body in the browser.
+
+Do not declare success from static class inspection alone.
+
+3. Fix the overflow hierarchy.
+
+The required structure should be effectively:
+
+<div className="max-h-[...] overflow-y-auto overflow-x-auto">
+  <table>
+    <thead>
+      <tr>
+        <th className="sticky top-0 z-20 bg-...">...</th>
+      </tr>
+    </thead>
+    <tbody>...</tbody>
+  </table>
+</div>
+
+There must not be another overflow wrapper between the sticky cells and the intended scroll container.
+
+4. If the shared Table component automatically wraps <table> in overflow-auto:
+
+- either disable that wrapper for these scrollable tables
+- or make that wrapper itself the bounded-height scrolling element
+- do not nest it inside another vertical overflow container
+
+5. If needed, add a prop to the shared Table component such as:
+
+- wrapperClassName
+- disableWrapper
+- scrollContainerClassName
+
+but keep the change minimal and backwards-compatible.
+
+6. Verify each table manually by scrolling.
+
+Success criterion:
+
+The column header must remain fixed at the top of the visible table container while rows move underneath it.
+
+
+Safety Constraints
+
+Do not change:
+
+- table data
+- calculations
+- sorting
+- search
+- CSV export
+- Semantic or Discursive analytical logic
+
+Only repair the rendered scroll/sticky structure.
+
+
+Validation Checklist
+
+For each of the five Lexical tables:
+
+1. Scroll the table vertically.
+2. Confirm the header remains visible.
+3. Capture a screenshot after scrolling, with the header still visible and non-first rows visible beneath it.
+
+Do not mark the task complete without this runtime verification.
+
+STOP AFTER STEP 41B.

@@ -90,8 +90,8 @@ export function ResultsTable({ data, columns, filename = "results.csv", onPin, m
           <Button variant="outline" size="icon" onClick={handleExport} className="h-8 w-8" title="Export CSV"><Download className="h-3.5 w-3.5" /></Button>
         </div>
       </div>
-      <div className={`rounded-md border bg-background ${scrollable ? "max-h-[450px] overflow-y-auto overflow-x-auto" : "overflow-hidden"}`}>
-        <Table>
+      <div className="rounded-md border bg-background">
+        <Table wrapperClassName={scrollable ? "relative w-full max-h-[450px] overflow-y-auto overflow-x-auto" : "relative w-full overflow-hidden"}>
           <TableHeader>
             <TableRow>
               {columns.map(col => (
