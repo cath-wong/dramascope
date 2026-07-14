@@ -92,10 +92,10 @@ export function ResultsTable({ data, columns, filename = "results.csv", onPin, m
       </div>
       <div className={`rounded-md border bg-background ${scrollable ? "max-h-[450px] overflow-y-auto overflow-x-auto" : "overflow-hidden"}`}>
         <Table>
-          <TableHeader className="sticky top-0 z-10">
+          <TableHeader>
             <TableRow>
               {columns.map(col => (
-                <TableHead key={col.key} className={`h-8 text-[10px] bg-muted/50 ${col.align === "right" ? "text-right" : ""}`}>
+                <TableHead key={col.key} className={`h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur ${col.align === "right" ? "text-right" : ""}`}>
                   {col.sortable ? (
                     <button onClick={() => handleSort(col.key)} className="inline-flex items-center gap-1 hover:text-foreground">
                       {col.label} <ArrowUpDown className="h-2.5 w-2.5" />
@@ -103,7 +103,7 @@ export function ResultsTable({ data, columns, filename = "results.csv", onPin, m
                   ) : col.label}
                 </TableHead>
               ))}
-              {onPin && <TableHead className="w-8 h-8 bg-muted/50"></TableHead>}
+              {onPin && <TableHead className="w-8 h-8 sticky top-0 z-20 bg-muted/95 backdrop-blur"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -1,0 +1,95 @@
+STEP 41A — Lexical Table Sticky Header Fix
+
+Goal
+
+Fix all scrollable tables in the Lexical tab so their column headers remain visible while the table body scrolls.
+
+This is a UI consistency and usability fix only.
+
+Do NOT change any lexical calculations, controls, sorting, search, exports, or analytical outputs.
+
+
+Scope
+
+Apply ONLY to LexicalTab and any shared ResultsTable styling directly responsible for Lexical table headers.
+
+Tables to verify:
+
+Section A — Corpus Overview
+- Word Frequency List
+- N-gram List
+
+Section B — Word Explorer
+- Frequency by Play
+- KWIC / Concordance
+
+Section C — Collocates
+- Collocate table
+
+
+Implementation Requirements
+
+1. Every long table must be wrapped in a bounded-height scroll container.
+
+Recommended:
+
+max-height: 450–500px
+overflow-y: auto
+overflow-x: auto where needed
+
+2. Apply sticky positioning to each header cell, not only the table or thead.
+
+Each <th> should have:
+
+sticky
+top-0
+z-20
+opaque background
+
+Use the existing table header background colour so rows cannot show through beneath it.
+
+3. If the table uses a sticky first column or corner cell, ensure z-index stacking is correct:
+
+- ordinary sticky header cells: z-20
+- sticky corner cell: z-30
+
+4. Ensure the scroll container is the nearest ancestor controlling vertical overflow.
+
+Do not place overflow-y-auto on an outer card while the table itself sits inside another overflow wrapper.
+
+5. Inspect the shared ResultsTable component.
+
+If ResultsTable receives scrollable={true} but headers still fail to stick:
+
+- fix the shared sticky-header implementation once
+- confirm the change does not break Semantic or Discursive tables
+- do not alter table calculations or data handling
+
+6. For custom tables in Word Explorer and Collocates, apply the same sticky-header pattern directly.
+
+7. Preserve:
+
+- sorting
+- search
+- scrolling
+- horizontal overflow
+- CSV export
+- current table heights
+
+
+Validation Checklist
+
+Confirm:
+
+1. Word Frequency List header remains visible while scrolling.
+2. N-gram List header remains visible while scrolling.
+3. Frequency by Play header remains visible while scrolling.
+4. KWIC header remains visible while scrolling.
+5. Collocates header remains visible while scrolling.
+6. Header backgrounds remain opaque.
+7. No rows overlap or show through the header.
+8. Horizontal scrolling still works where required.
+9. Semantic and Discursive tables are not visually broken.
+10. No analytical logic changes.
+
+STOP AFTER STEP 41A.

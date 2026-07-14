@@ -480,10 +480,10 @@ const LexicalTab = () => {
                     <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Frequency by Play</div>
                     <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "240px" }}>
                       <Table>
-                        <TableHeader className="sticky top-0 z-10">
+                        <TableHeader>
                           <TableRow>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Frequency</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Play</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right">Frequency</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -599,17 +599,17 @@ const LexicalTab = () => {
                       ) : (
                         <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
                           <Table>
-                            <TableHeader className="sticky top-0 z-10">
+                            <TableHeader>
                               <TableRow>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right w-[28%]">Left</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-center w-[9%]">Match</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-[28%]">Right</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Speaker</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Act</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Sc</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Unit</TableHead>
-                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Time</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right w-[28%]">Left</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-center w-[9%]">Match</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur w-[28%]">Right</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Play</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Speaker</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Act</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Sc</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Unit</TableHead>
+                                <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Time</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -767,15 +767,15 @@ const LexicalTab = () => {
                   ) : (
                     <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
                       <Table>
-                        <TableHeader className="sticky top-0 z-10">
+                        <TableHeader>
                           <TableRow>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Collocate</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">LogDice</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Co-occ</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Left</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Right</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Col Freq</TableHead>
-                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Position</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Collocate</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">LogDice</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Co-occ</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right">Left</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right">Right</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right">Col Freq</TableHead>
+                            <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Position</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
