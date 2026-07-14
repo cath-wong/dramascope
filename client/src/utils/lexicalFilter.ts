@@ -37,3 +37,36 @@ export const LEXICAL_FUNCTION_WORDS = new Set([
 export function isLexicalContentWord(token: string): boolean {
   return !LEXICAL_FUNCTION_WORDS.has(token.toLowerCase());
 }
+
+const CONTRACTION_FRAGMENTS = new Set(["ll", "ve", "re", "d", "m"]);
+
+const EARLY_MODERN_FRAGMENTS = new Set(["ne", "er", "ta", "en"]);
+
+const LEMMA_CORRECTIONS: Record<string, string> = {
+  "thi": "this",
+  "whi": "which",
+  "the": "the",
+};
+
+/**
+ * Lexical-only cleanup pass applied after processTokens().
+ * Removes confirmed contraction fragments and malformed lightweight-lemma
+ * artefacts. Returns null to signal that the token should be dropped.
+ *
+ * @param token      The token after processTokens() / lightLemmatize().
+ * @param contentMode  True when "Content Words Only" view is active.
+ *                     Early Modern split-form artefacts are only removed
+ *                     in content mode (they are rare but could legitimately
+ *                     appear as abbreviations in All Words mode).
+ */
+export function cleanLexicalToken(token: string, contentMode: boolean): string | null {
+  const lower = token.toLowerCase();
+
+  const corrected = LEMMA_CORRECTIONS[lower] ?? lower;
+
+  if (CONTRACTION_FRAGMENTS.has(corrected)) return null;
+
+  if (contentMode && EARLY_MODERN_FRAGMENTS.has(corrected)) return null;
+
+  return corrected;
+}

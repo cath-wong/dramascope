@@ -1,0 +1,193 @@
+STEP 39B — Lexical Token Artefact Cleanup
+
+Goal
+
+Remove obvious contraction fragments and malformed lightweight-lemma artefacts from Lexical Content Words Only results.
+
+This must apply ONLY to the Lexical tab.
+
+Do NOT alter shared tokenisation or lemmatisation behaviour used by Semantic or Discursive analyses.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- processTokens()
+- lightLemmatize()
+- getStoplist()
+- SemanticTab
+- DiscursiveTab
+- semantic expression extraction
+- discursive concept modelling
+
+Do NOT make any global tokenisation changes.
+
+This is a Lexical-only cleanup layer.
+
+
+Scope
+
+Apply to:
+
+client/src/utils/lexicalFilter.ts
+
+and the LexicalTab processing path in:
+
+client/src/pages/Analysis.tsx
+
+
+Implementation
+
+1. Extend lexicalFilter.ts with a Lexical-only cleanup function.
+
+Suggested name:
+
+cleanLexicalToken(token: string): string | null
+
+The function should:
+
+- return null for recognised contraction fragments and artefacts
+- optionally map malformed lexical lemmas back to their grammatical source form before filtering
+
+
+2. Add recognised contraction fragments to the Lexical-only exclusion set.
+
+Include at least:
+
+ll
+ve
+re
+d
+m
+
+Also inspect whether standalone contraction fragments such as:
+
+s
+t
+
+are already removed by the existing minimum-token-length rule before adding them.
+
+
+3. Handle known Early Modern split-form artefacts conservatively.
+
+Examples visible in the current output include:
+
+ne
+er
+ta
+en
+
+Only remove these in Lexical Content Words Only mode if they are confirmed to be fragments created from contractions such as:
+
+ne'er
+ta'en
+
+Do not modify the source text or shared tokenizer.
+
+
+4. Handle malformed lightweight lemmas produced by the shared lemmatiser.
+
+At minimum:
+
+thi
+
+should not appear as a content word.
+
+Preferred safe approach:
+
+- map thi → this inside cleanLexicalToken()
+- then allow isLexicalContentWord("this") to remove it as a function word
+
+Do not change lightLemmatize() globally.
+
+
+5. Apply the processing order in LexicalTab:
+
+processTokens()
+↓
+cleanLexicalToken()
+↓
+remove null values
+↓
+optional Lexical Content Words Only filter
+↓
+frequency / n-gram calculations
+
+
+6. Preserve All Words mode as much as possible.
+
+Preferred behaviour:
+
+- contraction-fragment cleanup may apply in both Lexical views if the fragments are clearly tokenisation artefacts
+- content-word filtering remains active only in Content Words Only mode
+
+Do not silently remove legitimate lexical items without strong justification.
+
+
+7. Verify that Content Words Only no longer surfaces:
+
+thi
+ll
+
+as high-frequency lexical items.
+
+Also inspect whether:
+
+ne er
+ta en
+thi day
+thi man
+
+remain in the n-gram output.
+
+
+8. Do not add:
+
+stage
+enter
+exit
+exeunt
+aside
+
+to this lexical cleanup.
+
+Stage directions continue to be handled structurally through Exclude Stage Directions.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- modify shared linguistic utilities
+- change Semantic results
+- change Discursive results
+- alter evidence/KWIC logic
+- change source corpus files
+- introduce broad spelling normalisation
+
+Only remove confirmed Lexical token artefacts.
+
+
+Expected Result
+
+The Lexical Content Words Only view should foreground genuine lexical items rather than malformed lemmas or contraction fragments.
+
+Semantic and Discursive outputs must remain exactly unchanged.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. App compiles without new errors.
+2. Lexical All Words still works.
+3. Lexical Content Words Only no longer shows thi or ll as leading items.
+4. Obvious contraction-fragment n-grams are reduced.
+5. Semantic tab unchanged.
+6. Discursive tab unchanged.
+7. processTokens() unchanged.
+8. lightLemmatize() unchanged.
+9. getStoplist() unchanged.
+
+STOP AFTER STEP 39B.

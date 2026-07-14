@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard, ArrowUpDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
-import { isLexicalContentWord } from "@/utils/lexicalFilter";
+import { isLexicalContentWord, cleanLexicalToken } from "@/utils/lexicalFilter";
 import { exportToCsv } from "@/utils/exportCsv";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -99,11 +99,13 @@ const LexicalTab = () => {
     const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, genre: selectedGenre, speaker: selectedSpeaker, topN, lex: lexSettings, wordView });
     if (computationCache.current.has(cacheKey)) return computationCache.current.get(cacheKey);
 
+    const isContent = wordView === "content";
     const unigramCounts = new Map<string, number>();
     let totalTokens = 0;
     scopedLines.forEach(l => {
       const raw = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
-      const tokens = wordView === "content" ? raw.filter(isLexicalContentWord) : raw;
+      const cleaned = raw.map(t => cleanLexicalToken(t, isContent)).filter((t): t is string => t !== null);
+      const tokens = isContent ? cleaned.filter(isLexicalContentWord) : cleaned;
       tokens.forEach(t => { unigramCounts.set(t, (unigramCounts.get(t) || 0) + 1); totalTokens++; });
     });
     if (totalTokens === 0) return { error: "No tokens found." };
@@ -116,7 +118,8 @@ const LexicalTab = () => {
     const nSize = parseInt(lexSettings.ngramSize);
     scopedLines.forEach(l => {
       const raw = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
-      const tokens = wordView === "content" ? raw.filter(isLexicalContentWord) : raw;
+      const cleaned = raw.map(t => cleanLexicalToken(t, isContent)).filter((t): t is string => t !== null);
+      const tokens = isContent ? cleaned.filter(isLexicalContentWord) : cleaned;
       for (let i = 0; i <= tokens.length - nSize; i++) { const gram = tokens.slice(i, i + nSize).join(" "); ngramCounts.set(gram, (ngramCounts.get(gram) || 0) + 1); }
     });
     let ngramList = Array.from(ngramCounts.entries()).map(([ngram, count]) => ({ ngram, count, per_10k: parseFloat(((count / totalTokens) * 10000).toFixed(2)) })).sort((a, b) => b.count - a.count);
