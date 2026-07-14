@@ -18,10 +18,10 @@ export default function Home() {
             <FileText className="w-8 h-8 text-primary" strokeWidth={1.5} />
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold tracking-tight text-foreground">
-            Corpus <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">Explorer</span>
+            Drama<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">Scope</span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-sans leading-relaxed">
-            A clean, minimal interface for parsing and analyzing your text corpus data entirely on the client-side.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed">
+            Explore lexical, semantic, and discursive patterns across Early Modern English drama.
           </p>
         </header>
 

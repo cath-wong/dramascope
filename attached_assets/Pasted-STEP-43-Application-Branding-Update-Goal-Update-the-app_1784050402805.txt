@@ -1,0 +1,129 @@
+STEP 43 — Application Branding Update
+
+Goal
+
+Update the application's user-facing branding from:
+
+Corpus Explorer
+
+to
+
+DramaScope
+
+with the subtitle:
+
+Explore lexical, semantic, and discursive patterns across Early Modern English drama.
+
+This is a branding/UI update only.
+
+Do NOT change any analytical logic, routing, state management, or component names unless they are purely user-facing.
+
+
+Scope
+
+Update all user-visible branding, including where applicable:
+
+- application title
+- landing page
+- homepage hero/header
+- sidebar header
+- navigation bar
+- browser page title (document.title)
+- favicon title (if present)
+- loading screen
+- empty states that display the application name
+- About dialog (if present)
+- README placeholder references inside the app (if any)
+
+Do NOT rename:
+
+- React component names
+- filenames
+- routes
+- variables
+- imports
+- APIs
+- contexts
+- TypeScript interfaces
+
+unless they are purely cosmetic and user-facing.
+
+
+Branding
+
+Application Name
+
+DramaScope
+
+Subtitle
+
+Explore lexical, semantic, and discursive patterns across Early Modern English drama.
+
+Use this subtitle consistently wherever a descriptive tagline is displayed.
+
+Do not invent alternative wording.
+
+
+Visual Layout
+
+Where the application currently displays:
+
+Corpus Explorer
+
+replace it with:
+
+DramaScope
+
+Immediately beneath it, display the subtitle in a visually secondary style.
+
+Recommended:
+
+- smaller font
+- muted foreground colour
+- normal font weight
+- maximum width for readability
+
+The title should remain the primary visual focus.
+
+
+Browser Title
+
+Update the browser tab title to:
+
+DramaScope
+
+or, if a longer title is already used:
+
+DramaScope — Explore lexical, semantic, and discursive patterns across Early Modern English drama.
+
+
+Safety Constraints
+
+Do NOT modify:
+
+- Lexical Dashboard
+- Semantic Dashboard
+- Discursive Dashboard
+- DataContext
+- algorithms
+- exports
+- routes
+- corpus loading
+- application behaviour
+
+This is a presentation-only update.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The application title now displays "DramaScope".
+2. The subtitle displays exactly:
+   "Explore lexical, semantic, and discursive patterns across Early Modern English drama."
+3. Browser title updated.
+4. Sidebar/header branding updated.
+5. No functionality changed.
+6. No new TypeScript errors introduced.
+
+STOP AFTER STEP 43.

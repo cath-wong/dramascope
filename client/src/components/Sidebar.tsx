@@ -42,9 +42,12 @@ export function Sidebar() {
 
   return (
     <aside className="w-80 border-r bg-sidebar flex flex-col h-screen overflow-y-auto shrink-0">
-      <div className="p-4 font-bold text-lg border-b flex items-center gap-2 shrink-0">
-        <Database className="w-5 h-5 text-primary" />
-        <span>Corpus Explorer</span>
+      <div className="p-4 border-b flex items-center gap-2 shrink-0">
+        <Database className="w-5 h-5 text-primary shrink-0" />
+        <div>
+          <div className="font-bold text-base leading-tight">DramaScope</div>
+          <div className="text-[10px] text-muted-foreground font-normal leading-tight">Explore lexical, semantic, and discursive patterns across Early Modern English drama.</div>
+        </div>
       </div>
 
       <nav className="p-2 space-y-1 shrink-0">
