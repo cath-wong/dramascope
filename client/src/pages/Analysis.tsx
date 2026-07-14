@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard, ArrowUpDown } from "lucide-react";
+import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard, ArrowUpDown, Plus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
 import { isLexicalContentWord, cleanLexicalToken } from "@/utils/lexicalFilter";
@@ -93,6 +93,14 @@ interface CollocSettings {
   ranking: "logdice" | "cooc"; position: "both" | "left" | "right";
 }
 
+interface CompWordStat {
+  word: string; freq: number; relFreq: number;
+  playsCount: number; mostPlay: string;
+  firstSeen: number | null; lastSeen: number | null;
+}
+
+const COMP_COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
+
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
   const { lines } = useData();
@@ -109,6 +117,11 @@ const LexicalTab = () => {
   const [collocSettings, setCollocSettings] = useState<CollocSettings>({ window: 5, minCooc: 3, minColFreq: 3, ranking: "logdice", position: "both" });
   const [collocSearch, setCollocSearch] = useState("");
   const [collocLimit, setCollocLimit] = useState("50");
+  const [comparisonWords, setComparisonWords] = useState<string[]>([]);
+  const [comparisonInput, setComparisonInput] = useState("");
+  const [comparisonView, setComparisonView] = useState<"summary" | "play" | "time">("summary");
+  const [comparisonSort, setComparisonSort] = useState("order");
+  const [compWarning, setCompWarning] = useState("");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -290,6 +303,87 @@ const LexicalTab = () => {
     });
     return { rows, nodeFreq };
   }, [selectedWord, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings, wordView, collocWindowSize]);
+
+  const comparisonData = useMemo((): {
+    stats: CompWordStat[];
+    byPlay: { play: string; counts: Record<string, number>; total: number }[];
+    overTime: Record<string, number>[];
+    totalTokens: number;
+  } | null => {
+    if (comparisonWords.length < 2 || !lines) return null;
+    const searchTerms: string[] = comparisonWords.map(w => {
+      const p = processTokens(w, { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      return p[0] || w;
+    });
+    const freqMap: Record<string, number> = {};
+    const playsMap: Record<string, Map<string, number>> = {};
+    const timeMap: Record<string, Map<number, number>> = {};
+    const firstSeenMap: Record<string, number | null> = {};
+    const lastSeenMap: Record<string, number | null> = {};
+    comparisonWords.forEach(w => {
+      freqMap[w] = 0; playsMap[w] = new Map(); timeMap[w] = new Map();
+      firstSeenMap[w] = null; lastSeenMap[w] = null;
+    });
+    let totalTokens = 0;
+    lines.forEach((l: any) => {
+      if (corpusScope === "play" && (l.title || l.play_id) !== selectedPlayTitle) return;
+      if (selectedGenre && l.genre !== selectedGenre) return;
+      if (selectedSpeaker && l.speaker !== selectedSpeaker) return;
+      if (lexSettings.excludeStage && (l.unit === "stage" || l.unit === "stage_direction")) return;
+      const normText: string = l.text_norm || "";
+      const tokens: string[] = processTokens(normText, { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      const playName: string = l.title || l.play_id || "Unknown";
+      const decade: number | null = l.decade ? Math.round(parseFloat(String(l.decade))) : null;
+      totalTokens += tokens.length;
+      tokens.forEach((t: string) => {
+        for (let i = 0; i < searchTerms.length; i++) {
+          if (t !== searchTerms[i]) continue;
+          const w = comparisonWords[i];
+          freqMap[w]++;
+          playsMap[w].set(playName, (playsMap[w].get(playName) || 0) + 1);
+          if (decade) {
+            timeMap[w].set(decade, (timeMap[w].get(decade) || 0) + 1);
+            if (firstSeenMap[w] === null || decade < firstSeenMap[w]!) firstSeenMap[w] = decade;
+            if (lastSeenMap[w] === null || decade > lastSeenMap[w]!) lastSeenMap[w] = decade;
+          }
+        }
+      });
+    });
+    const stats: CompWordStat[] = comparisonWords.map(w => {
+      const freq = freqMap[w];
+      const relFreq = totalTokens > 0 ? parseFloat(((freq / totalTokens) * 10000).toFixed(2)) : 0;
+      const plays = playsMap[w];
+      let mostPlay = "—"; let maxPc = 0;
+      plays.forEach((c, p) => { if (c > maxPc) { maxPc = c; mostPlay = p; } });
+      return { word: w, freq, relFreq, playsCount: plays.size, mostPlay, firstSeen: firstSeenMap[w], lastSeen: lastSeenMap[w] };
+    });
+    const allPlaysMap = new Map<string, Record<string, number>>();
+    comparisonWords.forEach(w => playsMap[w].forEach((count, play) => {
+      if (!allPlaysMap.has(play)) allPlaysMap.set(play, {});
+      allPlaysMap.get(play)![w] = count;
+    }));
+    const byPlay = Array.from(allPlaysMap.entries())
+      .map(([play, counts]) => ({ play, counts, total: comparisonWords.reduce((s, w) => s + (counts[w] || 0), 0) }))
+      .sort((a, b) => b.total - a.total);
+    const allSlices = new Set<number>();
+    comparisonWords.forEach(w => timeMap[w].forEach((_, s) => allSlices.add(s)));
+    const overTime: Record<string, number>[] = Array.from(allSlices).sort().map(slice => {
+      const entry: Record<string, number> = { slice };
+      comparisonWords.forEach(w => { entry[w] = timeMap[w].get(slice) || 0; });
+      return entry;
+    });
+    return { stats, byPlay, overTime, totalTokens };
+  }, [comparisonWords, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings]);
+
+  const addCompWord = () => {
+    const trimmed = comparisonInput.trim().toLowerCase();
+    if (!trimmed) return;
+    if (comparisonWords.length >= 8) { setCompWarning("Maximum 8 words in a comparison set."); return; }
+    if (comparisonWords.includes(trimmed)) { setCompWarning(`"${trimmed}" is already in the comparison set.`); return; }
+    setComparisonWords(prev => [...prev, trimmed]);
+    setComparisonInput("");
+    setCompWarning("");
+  };
 
   return (
     <div className="space-y-6">
@@ -635,6 +729,188 @@ const LexicalTab = () => {
                     </div>
                   );
                 })()}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none border-muted/60" data-testid="section-word-comparison">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wide">Word Comparison</h4>
+              <p className="text-[10px] text-muted-foreground">Compare the corpus distribution of multiple user-selected words.</p>
+            </div>
+            <div className="flex gap-2 items-center flex-wrap">
+              <Input
+                placeholder="Enter a word…"
+                value={comparisonInput}
+                onChange={e => { setComparisonInput(e.target.value); setCompWarning(""); }}
+                onKeyDown={e => e.key === "Enter" && addCompWord()}
+                className="h-7 text-xs max-w-[180px]"
+                data-testid="input-comparison-word"
+              />
+              <Button size="sm" variant="outline" onClick={addCompWord} className="h-7 text-xs" data-testid="button-add-comparison-word">
+                <Plus className="w-3 h-3 mr-1" />Add Word
+              </Button>
+              {comparisonWords.length > 0 && (
+                <Button size="sm" variant="ghost" onClick={() => { setComparisonWords([]); setCompWarning(""); }} className="h-7 text-xs text-muted-foreground" data-testid="button-clear-comparison">
+                  Clear All
+                </Button>
+              )}
+            </div>
+            {compWarning && <p className="text-[10px] text-amber-600 dark:text-amber-400">{compWarning}</p>}
+            {comparisonWords.length > 0 && (
+              <div className="flex flex-wrap gap-1.5" data-testid="comparison-chips">
+                {comparisonWords.map(w => (
+                  <Badge key={w} variant="secondary" className="text-xs pr-1 gap-1" data-testid={`badge-comp-${w}`}>
+                    {w}
+                    <button onClick={() => setComparisonWords(p => p.filter(x => x !== w))} className="text-muted-foreground hover:text-foreground ml-0.5" data-testid={`button-comp-remove-${w}`}>
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {comparisonWords.length < 2 ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-comparison-min">Add at least two words to create a comparison set.</p>
+            ) : !comparisonData || comparisonData.stats.every(s => s.freq === 0) ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-comparison-empty">None of the selected words occur in the current corpus selection.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-md bg-muted/30 border text-xs">
+                  <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Words Compared</div><div className="font-semibold tabular-nums" data-testid="text-comp-count">{comparisonWords.length}</div></div>
+                  <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Combined Frequency</div><div className="font-semibold tabular-nums" data-testid="text-comp-total">{comparisonData.stats.reduce((s,r) => s + r.freq, 0).toLocaleString()}</div></div>
+                  <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Most Frequent Word</div><div className="font-mono font-semibold" data-testid="text-comp-top-freq">{[...comparisonData.stats].sort((a,b) => b.freq - a.freq)[0]?.word || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Widest Distribution</div><div className="font-mono font-semibold" data-testid="text-comp-top-dist">{[...comparisonData.stats].sort((a,b) => b.playsCount - a.playsCount)[0]?.word || "—"}</div></div>
+                </div>
+
+                <div className="flex gap-2 flex-wrap items-center">
+                  {(["summary","play","time"] as const).map(v => (
+                    <Button key={v} size="sm" variant={comparisonView === v ? "default" : "outline"} className="h-7 text-xs" onClick={() => setComparisonView(v)} data-testid={`button-comp-view-${v}`}>
+                      {v === "summary" ? "Summary" : v === "play" ? "By Play" : "Over Time"}
+                    </Button>
+                  ))}
+                  <div className="ml-auto">
+                    {comparisonView === "summary" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs" data-testid="button-comp-export-summary"
+                        onClick={() => {
+                          const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g,"_") : corpusScope;
+                          exportToCsv(`lexical_word_comparison_summary_${sc}.csv`, comparisonData.stats.map(r => ({
+                            word: r.word, frequency: r.freq, relative_frequency_per_10k: r.relFreq,
+                            plays_represented: r.playsCount, most_represented_play: r.mostPlay,
+                            first_seen: r.firstSeen ?? "Unknown", last_seen: r.lastSeen ?? "Unknown"
+                          })));
+                        }}><Download className="w-3 h-3 mr-1"/>CSV</Button>
+                    )}
+                    {comparisonView === "play" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs" data-testid="button-comp-export-play"
+                        onClick={() => {
+                          const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g,"_") : corpusScope;
+                          exportToCsv(`lexical_word_comparison_by_play_${sc}.csv`, comparisonData.byPlay.map(r => ({ play: r.play, ...Object.fromEntries(comparisonWords.map(w => [w, r.counts[w] || 0])) })));
+                        }}><Download className="w-3 h-3 mr-1"/>CSV</Button>
+                    )}
+                    {comparisonView === "time" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs" data-testid="button-comp-export-time"
+                        onClick={() => {
+                          const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g,"_") : corpusScope;
+                          exportToCsv(`lexical_word_comparison_over_time_${sc}.csv`, comparisonData.overTime.map(r => ({ time_slice: r["slice"], ...Object.fromEntries(comparisonWords.map(w => [w, r[w] || 0])) })));
+                        }}><Download className="w-3 h-3 mr-1"/>CSV</Button>
+                    )}
+                  </div>
+                </div>
+
+                {comparisonView === "summary" && (
+                  <div className="rounded-md border">
+                    <Table wrapperClassName="relative w-full max-h-[400px] overflow-y-auto overflow-x-auto">
+                      <TableHeader>
+                        <TableRow>
+                          {[["Word","word"],["Frequency","freq"],["Rel/10k","relFreq"],["Plays","playsCount"],["Most Represented Play","mostPlay"],["First Seen","firstSeen"],["Last Seen","lastSeen"]].map(([label,key]) => (
+                            <TableHead key={key} className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur" onClick={() => setComparisonSort(s => s === key ? `-${key}` : key)}>
+                              <button className="inline-flex items-center gap-1 hover:text-foreground">{label}<ArrowUpDown className="w-2.5 h-2.5"/></button>
+                            </TableHead>
+                          ))}
+                          <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Inspect</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          let rows = [...comparisonData.stats];
+                          const sk = comparisonSort.replace(/^-/,"");
+                          const asc = !comparisonSort.startsWith("-");
+                          if (sk !== "order") rows.sort((a,b) => {
+                            const av = (a as any)[sk]; const bv = (b as any)[sk];
+                            if (av === null || av === undefined) return 1;
+                            if (bv === null || bv === undefined) return -1;
+                            return typeof av === "number" ? (asc ? av - bv : bv - av) : (asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)));
+                          });
+                          return rows.map((r,i) => (
+                            <TableRow key={r.word} className="h-8 hover:bg-muted/30" data-testid={`row-comp-summary-${i}`}>
+                              <TableCell className="py-1 text-[10px] font-mono font-semibold" data-testid={`text-comp-word-${i}`}>{r.word}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums" data-testid={`text-comp-freq-${i}`}>{r.freq.toLocaleString()}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums">{r.relFreq}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums">{r.playsCount}</TableCell>
+                              <TableCell className="py-1 text-[10px] truncate max-w-[140px]" title={r.mostPlay}>{r.mostPlay}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums">{r.firstSeen ?? "Unknown"}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums">{r.lastSeen ?? "Unknown"}</TableCell>
+                              <TableCell className="py-1 text-[10px]">
+                                <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5" onClick={() => setSelectedWord(r.word)} data-testid={`button-comp-inspect-${i}`}>Inspect</Button>
+                              </TableCell>
+                            </TableRow>
+                          ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {comparisonView === "play" && (
+                  <div className="rounded-md border">
+                    <Table wrapperClassName="relative w-full max-h-[450px] overflow-y-auto overflow-x-auto">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="h-8 text-[10px] sticky top-0 left-0 z-30 bg-muted/95 backdrop-blur">Play</TableHead>
+                          {comparisonWords.map(w => (
+                            <TableHead key={w} className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right">{w}</TableHead>
+                          ))}
+                          <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur text-right font-bold">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {comparisonData.byPlay.map((r,i) => (
+                          <TableRow key={r.play} className="h-8 hover:bg-muted/30" data-testid={`row-comp-play-${i}`}>
+                            <TableCell className="py-1 text-[10px] sticky left-0 z-10 bg-background">{r.play}</TableCell>
+                            {comparisonWords.map(w => (
+                              <TableCell key={w} className="py-1 text-[10px] tabular-nums text-right">{r.counts[w] || 0}</TableCell>
+                            ))}
+                            <TableCell className="py-1 text-[10px] tabular-nums text-right font-semibold">{r.total}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {comparisonView === "time" && (
+                  <div className="space-y-2">
+                    {comparisonData.overTime.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No time metadata available for the current corpus selection.</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={comparisonData.overTime} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="slice" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} width={36} />
+                          <Tooltip contentStyle={{ fontSize: 11 }} />
+                          <Legend wrapperStyle={{ fontSize: 10 }} />
+                          {comparisonWords.map((w, i) => (
+                            <Line key={w} type="monotone" dataKey={w} stroke={COMP_COLORS[i % COMP_COLORS.length]} dot={false} strokeWidth={2} />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                    <p className="text-[10px] italic text-muted-foreground">Raw frequency is shown for the active corpus and time selection. Frequency is grouped by decade.</p>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

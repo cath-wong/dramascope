@@ -1,0 +1,464 @@
+STEP 42 — Lexical Word Comparison
+
+Goal
+
+Add a simple, manual Word Comparison feature to the Lexical Dashboard.
+
+This feature should allow researchers to compare the corpus behaviour of multiple user-selected words side by side.
+
+It must remain deterministic, corpus-derived, and free of AI or external lexical resources.
+
+The app must NOT suggest synonyms or antonyms automatically.
+
+The researcher chooses the comparison words.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- SemanticTab
+- DiscursiveTab
+- Section A — Corpus Overview
+- the existing KWIC implementation
+- the existing Collocates implementation
+- shared tokenisation
+- shared lemmatisation
+- shared stoplists
+- lexicalFilter.ts unless a genuine Lexical-only bug requires it
+- global corpus-loading behaviour
+
+Do NOT add:
+
+- AI or LLM calls
+- automatic synonym suggestions
+- WordNet
+- Historical Thesaurus integration
+- USAS semantic tagging
+- embeddings
+- semantic similarity
+- expression comparison
+- concept comparison
+- new external libraries
+
+This step implements manual lexical comparison only.
+
+
+Scope
+
+Primary file:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+LexicalTab
+
+Place Word Comparison as a compact subsection within:
+
+B. Word Explorer
+
+Do NOT create another large top-level section unless absolutely necessary.
+
+
+Design Principle
+
+The app does not decide which words are related.
+
+The researcher builds a comparison set manually.
+
+All words in the set are treated equally.
+
+Example comparison set:
+
+love
+affection
+dote
+hate
+charity
+
+The feature should answer:
+
+How do these selected words differ in frequency, distribution, and temporal behaviour within the current corpus selection?
+
+
+Comparison Set
+
+1. Add a compact subsection titled:
+
+Word Comparison
+
+Description:
+
+Compare the corpus distribution of multiple user-selected words.
+
+2. Allow the user to enter multiple words.
+
+Recommended interaction:
+
+- one text input
+- Add Word button
+- entered words appear as removable chips or badges
+- Compare button is optional if updates are already reactive
+
+3. Treat every word equally.
+
+Do NOT use:
+
+- primary word
+- synonym
+- antonym
+- related word
+
+Use only:
+
+- comparison word
+- comparison set
+
+4. Recommended practical limit:
+
+Maximum 8 words
+
+Minimum 2 words for comparison outputs
+
+If fewer than 2 words are entered, show:
+
+“Add at least two words to create a comparison set.”
+
+5. Prevent duplicates.
+
+Comparison should be case-insensitive.
+
+If a user enters the same word twice, ignore the duplicate or show a brief neutral message.
+
+6. Allow individual words to be removed.
+
+Also provide:
+
+Clear All
+
+if simple to implement.
+
+
+Matching Behaviour
+
+1. Respect the Lemmas toggle.
+
+When Lemmas is OFF:
+
+- match exact normalised surface forms
+
+When Lemmas is ON:
+
+- lemmatise both comparison words and corpus tokens using existing lightweight lemmatisation
+
+Do NOT change the shared lemmatiser.
+
+2. Respect:
+
+- active Corpus Scope
+- selected play
+- genre filter
+- speaker filter
+- Exclude Stage Directions
+
+3. Word View must NOT prevent manually entered grammatical words from being compared.
+
+For example:
+
+my
+thou
+will
+
+must remain valid comparison words even when Content Words Only is selected.
+
+4. Stoplist must NOT remove manually selected comparison words from comparison matching.
+
+The comparison feature should search explicitly for the words entered by the researcher.
+
+5. Use the same filtered corpus selection as Word Explorer and KWIC.
+
+
+Outputs
+
+Implement three compact comparison views.
+
+
+VIEW 1 — Comparison Summary
+
+Show one row per comparison word.
+
+Columns:
+
+- Word
+- Frequency
+- Relative Frequency per 10k tokens
+- Plays Represented
+- Most Represented Play
+- First Seen
+- Last Seen
+
+Use available time metadata only.
+
+If no valid time metadata exists, display:
+
+Unknown
+
+Default sorting:
+
+Comparison-set order
+
+Allow sorting by:
+
+- Word
+- Frequency
+- Relative Frequency
+- Plays Represented
+- First Seen
+- Last Seen
+
+
+VIEW 2 — Frequency by Play
+
+Show the distribution of all comparison words across plays.
+
+Preferred simple implementation:
+
+A table with columns:
+
+- Play
+- one frequency column per comparison word
+
+Example:
+
+Play | love | affection | dote | hate
+
+Sort by:
+
+- total frequency across the comparison set, descending
+
+Make the table:
+
+- scrollable
+- sticky header
+- horizontally scrollable
+- bounded height
+
+Do NOT add a complex heatmap in this step.
+
+
+VIEW 3 — Frequency Through Time
+
+Use an existing chart library only if already available in Analysis.tsx.
+
+Preferred:
+
+simple multi-line chart
+
+- x-axis: year or decade according to current Time Granularity
+- one line per comparison word
+- y-axis: frequency
+
+If a multi-line chart cannot be added safely without redesign:
+
+use a table instead:
+
+Time Slice | love | affection | dote | hate
+
+Do NOT add a new charting library.
+
+Add a short note:
+
+“Raw frequency is shown for the active corpus and time selection.”
+
+Do not imply semantic change from frequency movement alone.
+
+
+Summary
+
+Add a compact summary above the views showing:
+
+- Words Compared
+- Total Combined Frequency
+- Most Frequent Word
+- Widest Play Distribution
+
+
+KWIC Integration
+
+Add a simple action for each comparison word:
+
+Inspect in Word Explorer
+
+Preferred behaviour:
+
+- clicking the word or a small button sets the existing Word Explorer input to that word
+- the existing frequency, Frequency by Play, KWIC, and Collocates update automatically
+
+Do NOT create a duplicate KWIC implementation inside Word Comparison.
+
+
+CSV Exports
+
+Add separate CSV exports for:
+
+1. Comparison Summary
+
+Filename:
+
+lexical_word_comparison_summary_<scope>.csv
+
+Columns:
+
+- word
+- frequency
+- relative_frequency_per_10k
+- plays_represented
+- most_represented_play
+- first_seen
+- last_seen
+
+
+2. Frequency by Play
+
+Filename:
+
+lexical_word_comparison_by_play_<scope>.csv
+
+Columns:
+
+- play
+- one column per comparison word
+
+
+3. Frequency Through Time
+
+Filename:
+
+lexical_word_comparison_over_time_<scope>.csv
+
+Columns:
+
+- time_slice
+- one column per comparison word
+
+Exports should respect the active corpus selection and current comparison set.
+
+
+Performance Protection
+
+1. Compute only when at least two comparison words exist.
+
+2. Use useMemo.
+
+3. Tokenise each corpus row only once within the comparison computation.
+
+4. Match all comparison words in a single pass through the active corpus selection.
+
+Do NOT scan the corpus separately once per word.
+
+5. Avoid recomputation from unrelated KWIC display controls or Collocates controls.
+
+6. Do not build a new global cache architecture in this step.
+
+
+Empty States
+
+If fewer than two words:
+
+“Add at least two words to create a comparison set.”
+
+If none of the comparison words occur:
+
+“None of the selected words occur in the current corpus selection.”
+
+If one word is absent but others occur:
+
+Keep the absent word in the summary with frequency 0.
+
+Do not silently remove it.
+
+
+Terminology
+
+Use:
+
+- Word Comparison
+- Comparison Set
+- Comparison Word
+- Frequency
+- Relative Frequency
+- Distribution
+- Time Slice
+
+Do NOT use:
+
+- synonym
+- antonym
+- semantic similarity
+- related word
+- lexical field
+
+unless describing future work outside the UI.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify SemanticTab
+- modify DiscursiveTab
+- alter Word Explorer calculations
+- alter KWIC
+- alter Collocates
+- modify processTokens()
+- modify lightLemmatize()
+- modify getStoplist()
+- add external data sources
+- add AI or API dependencies
+- add automatic word suggestions
+
+Only implement manual Word Comparison inside LexicalTab.
+
+
+Expected Result
+
+After Step 42, researchers should be able to:
+
+1. build a comparison set of 2–8 words
+2. compare frequency and relative frequency
+3. compare distribution across plays
+4. compare distribution through time
+5. export each comparison view
+6. send any comparison word into the existing Word Explorer
+
+The feature should remain compact, intuitive, and fully deterministic.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Semantic tab is unchanged.
+3. Discursive tab is unchanged.
+4. Corpus Overview is unchanged.
+5. Existing Word Explorer and KWIC remain unchanged.
+6. Existing Collocates remain unchanged.
+7. Users can add and remove comparison words.
+8. Duplicate words are prevented.
+9. A maximum of 8 words is enforced.
+10. At least 2 words are required for outputs.
+11. Lemmas toggle is respected.
+12. Stoplist and Word View do not block manually selected words.
+13. Stage-direction exclusion works.
+14. Corpus/play/genre/speaker filters are respected.
+15. Comparison Summary works.
+16. Frequency by Play works.
+17. Frequency Through Time works.
+18. Inspect in Word Explorer works.
+19. CSV exports work.
+20. No AI, synonym suggestion, semantic tagging, or external-resource integration has been added.
+
+STOP AFTER STEP 42.
