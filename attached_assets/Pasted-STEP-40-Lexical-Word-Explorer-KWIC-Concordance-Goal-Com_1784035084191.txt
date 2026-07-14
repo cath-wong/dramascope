@@ -1,0 +1,334 @@
+STEP 40 — Lexical Word Explorer: KWIC / Concordance
+
+Goal
+
+Complete the core Word Explorer functionality in the Lexical Dashboard by implementing a transparent KWIC / concordance view for a selected word.
+
+This step should answer:
+
+Where does the selected word occur, and how is it used in context?
+
+This is a traditional corpus-linguistic feature.
+
+It must remain simple, accessible, deterministic, and fully corpus-derived.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- SemanticTab
+- DiscursiveTab
+- Semantic expression extraction
+- Discursive concept modelling
+- shared stoplists
+- shared lemmatisation
+- lexicalFilter.ts unless a genuine Lexical-only bug requires it
+- Section A — Corpus Overview
+- Section C — Collocates
+
+Do NOT add:
+
+- AI or LLM calls
+- external APIs
+- synonym generation
+- related-word comparison
+- collocation statistics
+- semantic tagging
+- new lemmatisation logic
+
+This step implements KWIC / concordance only.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+LexicalTab
+
+Section B — Word Explorer
+
+
+Existing Controls
+
+Preserve the existing:
+
+- Word input
+- Stoplist toggle
+- Lemmas toggle
+- Exclude Stage Directions toggle
+- Word View: All Words / Content Words Only
+- Corpus Scope / selected play controls already available through the page
+
+The Word View filter should affect frequency-list outputs, but it should NOT prevent a user from searching for a grammatical word manually in Word Explorer.
+
+For example, the user should still be able to search for:
+
+- my
+- thou
+- will
+
+even when Content Words Only is selected.
+
+
+Analytical Object
+
+Selected word or lemma.
+
+The concordance should search the currently filtered corpus selection and return every matching occurrence with its original textual context.
+
+
+Implementation Steps
+
+1. Replace the existing KWIC / Concordance placeholder in Section B with a working concordance panel.
+
+2. Use the existing Word input as the search term.
+
+If the Word input is empty, show:
+
+“Enter a word to inspect its corpus contexts.”
+
+3. Respect the Lemmas toggle.
+
+When Lemmas is OFF:
+
+- match the normalised surface token exactly
+
+When Lemmas is ON:
+
+- lemmatise both the search term and corpus tokens using the existing lightweight lemmatisation behaviour
+- match by lemma
+- display the original surface text in the concordance
+
+Do NOT change the shared lemmatiser.
+
+4. Respect Exclude Stage Directions.
+
+If enabled:
+
+- exclude rows where unit indicates stage direction
+
+If disabled:
+
+- include stage-direction contexts
+
+5. Respect the active Corpus Scope and selected play.
+
+Do not scan plays outside the current corpus selection.
+
+6. KWIC window.
+
+Display approximately:
+
+- 8–12 tokens to the left
+- matched word
+- 8–12 tokens to the right
+
+Recommended default:
+
+10 tokens left and 10 tokens right
+
+7. Display original text.
+
+Matching may use processed tokens, but the displayed context should come from text_raw wherever possible.
+
+Do not display stoplist-filtered or lemmatised text as the source excerpt.
+
+8. Highlight the matched token.
+
+Use simple styling:
+
+- bold
+- subtle background highlight
+- no new library
+
+9. Handle repeated occurrences.
+
+If the selected word appears more than once in the same row or speech, each occurrence should be shown separately.
+
+10. Add metadata columns.
+
+Recommended columns:
+
+- Left Context
+- Match
+- Right Context
+- Play
+- Speaker
+- Act
+- Scene
+- Unit
+- Time
+
+Use available fields only.
+
+Do not invent missing metadata.
+
+11. Add controls above the concordance table:
+
+Search within results
+
+Show:
+- Top 20
+- Top 50
+- Top 100
+- All
+
+Default:
+Top 50
+
+Optional Play filter may be added only if it reuses existing values cleanly.
+
+12. Add sorting where useful.
+
+At minimum support sorting by:
+
+- Play
+- Speaker
+- Act
+- Scene
+- Time
+
+Do not sort KWIC alphabetically by default unless already established.
+
+Default ordering should preserve corpus order where possible.
+
+13. Make the concordance table research-usable.
+
+Requirements:
+
+- bounded height
+- internal vertical scrolling
+- sticky header
+- horizontal scrolling if needed
+- no excessively tall page
+
+Recommended max height:
+
+500px
+
+14. Add a compact summary above the table.
+
+Show:
+
+- Search Word
+- Total Occurrences
+- Plays Represented
+- Most Represented Play
+
+15. Add CSV export.
+
+Suggested filename:
+
+lexical_kwic_<word>_<scope>.csv
+
+CSV columns:
+
+- search_word
+- surface_match
+- play
+- speaker
+- act
+- scene
+- unit
+- time
+- left_context
+- match
+- right_context
+- full_excerpt
+
+Export the current displayed result set, respecting:
+
+- active corpus selection
+- search within results
+- show limit
+
+16. Add row click or drill-down only if simple.
+
+Optional behaviour:
+
+Clicking a concordance row may show the full speech / full source row below.
+
+Do NOT implement this if it requires major new infrastructure.
+
+The KWIC table itself is sufficient for Step 40.
+
+17. Performance protection.
+
+Required:
+
+- compute concordance only when Word input is non-empty
+- use useMemo
+- avoid rescanning the corpus for unrelated UI changes
+- cap displayed rows before rendering
+- do not create a new corpus-wide cache architecture in this step
+
+18. Preserve Section B frequency statistics and Frequency by Play.
+
+The Word Explorer should now contain:
+
+- selected-word frequency summary
+- Frequency by Play
+- KWIC / Concordance
+
+Do not remove existing functionality.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify SemanticTab
+- modify DiscursiveTab
+- modify global preprocessing
+- change stoplist behaviour
+- change lexical content-word filtering
+- add collocate analysis
+- add Word Comparison
+- add AI/API dependencies
+
+Only implement KWIC / concordance in the Lexical Word Explorer.
+
+
+Expected Result
+
+After Step 40, Section B — Word Explorer should allow researchers to:
+
+1. enter a word or lemma
+2. inspect its frequency and relative frequency
+3. see which plays use it
+4. inspect every occurrence in KWIC context
+5. trace each occurrence to play, speaker, act, scene, unit, and time
+6. export the concordance as CSV
+
+The Lexical tab should remain compact and familiar rather than becoming another complex analytical dashboard.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Semantic tab is unchanged.
+3. Discursive tab is unchanged.
+4. Corpus Overview is unchanged.
+5. Collocates remains a placeholder.
+6. KWIC works for surface forms.
+7. KWIC works with Lemmas enabled.
+8. Stage-direction exclusion works.
+9. Corpus Scope and selected play are respected.
+10. Repeated matches in one speech appear separately.
+11. Original text is displayed.
+12. Matched tokens are highlighted.
+13. Search within results works.
+14. Top 20 / 50 / 100 / All works.
+15. Sticky headers and scrolling work.
+16. CSV export works.
+17. No AI, synonym, comparison, or collocation functionality has been added.
+
+STOP AFTER STEP 40.

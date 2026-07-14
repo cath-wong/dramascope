@@ -76,6 +76,12 @@ const PinnedPanel = ({ pinned, onRemove, title = "Pinned Items" }: any) => {
   );
 };
 
+interface KwicRow {
+  left: string; match: string; right: string;
+  play: string; speaker: string; act: string; scene: string; unit: string; time: string;
+  fullExcerpt: string; searchWord: string;
+}
+
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
   const { lines } = useData();
@@ -86,6 +92,9 @@ const LexicalTab = () => {
   const [pinned, setPinned] = useState<any[]>([]);
   const [selectedWord, setSelectedWord] = useState("");
   const [wordView, setWordView] = useState<"all" | "content">("all");
+  const [kwicSearch, setKwicSearch] = useState("");
+  const [kwicLimit, setKwicLimit] = useState("50");
+  const [kwicSort, setKwicSort] = useState("corpus");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -165,6 +174,47 @@ const LexicalTab = () => {
     });
     return Array.from(playMap.entries()).map(([play, count]) => ({ play, count })).sort((a, b) => b.count - a.count);
   }, [wordData, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings]);
+
+  const kwicData = useMemo((): KwicRow[] => {
+    if (!selectedWord.trim() || !lines) return [];
+    const processed = processTokens(selectedWord.trim(), { useStoplist: false, useLemmas: lexSettings.lemmatization });
+    const searchLemma = processed[0] || selectedWord.trim().toLowerCase();
+    const rows: KwicRow[] = [];
+    lines.forEach(l => {
+      if (corpusScope === "play" && (l.title || l.play_id) !== selectedPlayTitle) return;
+      if (selectedGenre && l.genre !== selectedGenre) return;
+      if (selectedSpeaker && l.speaker !== selectedSpeaker) return;
+      if (lexSettings.excludeStage && (l.unit === "stage" || l.unit === "stage_direction")) return;
+      const normText: string = l.text_norm || "";
+      const rawText: string = l.text_raw || normText;
+      const fastCheck = processTokens(normText, { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      if (!fastCheck.includes(searchLemma)) return;
+      const normWords: string[] = normText.split(/\s+/).filter((w: string) => w.length > 0);
+      const rawWords: string[] = rawText.split(/\s+/).filter((w: string) => w.length > 0);
+      normWords.forEach((normW: string, i: number) => {
+        const stripped = normW.replace(/[^a-zA-Z0-9''']/g, "").toLowerCase();
+        if (!stripped) return;
+        const tokenLemma = lexSettings.lemmatization
+          ? (processTokens(stripped, { useStoplist: false, useLemmas: true })[0] || stripped)
+          : stripped;
+        if (tokenLemma !== searchLemma) return;
+        rows.push({
+          left: normWords.slice(Math.max(0, i - 10), i).join(" "),
+          match: rawWords[i] || normW,
+          right: normWords.slice(i + 1, Math.min(normWords.length, i + 11)).join(" "),
+          play: l.title || l.play_id || "",
+          speaker: l.speaker || "",
+          act: String(l.act || ""),
+          scene: String(l.scene || ""),
+          unit: l.unit || "",
+          time: l.year_est ? String(Math.round(Number(l.year_est))) : "",
+          fullExcerpt: rawText,
+          searchWord: searchLemma,
+        });
+      });
+    });
+    return rows;
+  }, [selectedWord, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings.lemmatization, lexSettings.excludeStage]);
 
   return (
     <div className="space-y-6">
@@ -326,27 +376,31 @@ const LexicalTab = () => {
               <Input id="lex-word" placeholder="e.g. love" value={selectedWord} onChange={e => setSelectedWord(e.target.value)} className="h-8 text-xs max-w-xs" data-testid="input-lex-word" />
             </div>
             {!selectedWord.trim() ? (
-              <p className="text-xs text-muted-foreground" data-testid="text-word-explorer-prompt">Enter a word to explore its frequency and distribution.</p>
-            ) : !wordData ? null : !wordData.found ? (
-              <p className="text-xs text-muted-foreground" data-testid="text-word-not-found">"{wordData.word}" was not found in the current corpus selection.</p>
+              <p className="text-xs text-muted-foreground" data-testid="text-word-explorer-prompt">Enter a word to inspect its corpus contexts.</p>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Frequency</div>
-                    <div className="font-semibold tabular-nums" data-testid="text-word-freq">{wordData.freq.toLocaleString()}</div>
+                {wordData?.found ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Frequency</div>
+                      <div className="font-semibold tabular-nums" data-testid="text-word-freq">{wordData.freq.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Relative Frequency</div>
+                      <div className="font-semibold tabular-nums" data-testid="text-word-rel-freq">{wordData.relFreq} per 10k tokens</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Lemma Form</div>
+                      <div className="font-semibold font-mono" data-testid="text-word-lemma">{wordData.word}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Relative Frequency</div>
-                    <div className="font-semibold tabular-nums" data-testid="text-word-rel-freq">{wordData.relFreq} per 10k tokens</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-muted-foreground">Lemma Form</div>
-                    <div className="font-semibold font-mono" data-testid="text-word-lemma">{wordData.word}</div>
-                  </div>
-                </div>
+                ) : wordData ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400" data-testid="text-word-not-found">
+                    "{wordData.word}" is not in the current frequency list — it may be filtered by Word View. Concordance results below use the full token set.
+                  </p>
+                ) : null}
 
-                {wordPlayData.length > 0 && (
+                {wordData?.found && wordPlayData.length > 0 && (
                   <div>
                     <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Frequency by Play</div>
                     <div className="rounded-md border bg-background overflow-y-auto" style={{ maxHeight: "240px" }}>
@@ -370,14 +424,142 @@ const LexicalTab = () => {
                   </div>
                 )}
 
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">KWIC / Concordance</div>
-                  <Card className="shadow-none border-muted/60 border-dashed">
-                    <CardContent className="pt-4 text-xs text-muted-foreground" data-testid="text-kwic-placeholder">
-                      Concordance view (KWIC) will be available in a future step.
-                    </CardContent>
-                  </Card>
-                </div>
+                {/* KWIC Concordance */}
+                {(() => {
+                  let display = [...kwicData];
+                  if (kwicSearch.trim()) {
+                    const q = kwicSearch.trim().toLowerCase();
+                    display = display.filter(r =>
+                      r.left.toLowerCase().includes(q) || r.match.toLowerCase().includes(q) ||
+                      r.right.toLowerCase().includes(q) || r.play.toLowerCase().includes(q) ||
+                      r.speaker.toLowerCase().includes(q)
+                    );
+                  }
+                  if (kwicSort === "play") display.sort((a, b) => a.play.localeCompare(b.play));
+                  else if (kwicSort === "speaker") display.sort((a, b) => a.speaker.localeCompare(b.speaker));
+                  else if (kwicSort === "act") display.sort((a, b) => a.act.localeCompare(b.act));
+                  else if (kwicSort === "scene") display.sort((a, b) => a.scene.localeCompare(b.scene));
+                  else if (kwicSort === "time") display.sort((a, b) => a.time.localeCompare(b.time));
+                  const totalFiltered = display.length;
+                  if (kwicLimit !== "all") display = display.slice(0, parseInt(kwicLimit));
+                  const playFreq = kwicData.reduce<Record<string, number>>((acc, r) => { acc[r.play] = (acc[r.play] || 0) + 1; return acc; }, {});
+                  const topPlay = Object.entries(playFreq).sort((a, b) => b[1] - a[1])[0];
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">KWIC / Concordance</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs p-3 rounded-md bg-muted/30 border">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Search Word</div>
+                          <div className="font-mono font-semibold">{wordData?.word || selectedWord.trim().toLowerCase()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Total Occurrences</div>
+                          <div className="font-semibold tabular-nums" data-testid="text-kwic-total">{kwicData.length.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Plays Represented</div>
+                          <div className="font-semibold tabular-nums">{new Set(kwicData.map(r => r.play)).size}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground">Most Represented</div>
+                          <div className="text-[10px] font-semibold truncate" title={topPlay?.[0]}>{topPlay?.[0] || "—"}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <Input
+                          placeholder="Search within results…"
+                          value={kwicSearch}
+                          onChange={e => setKwicSearch(e.target.value)}
+                          className="h-7 text-xs max-w-[200px]"
+                          data-testid="input-kwic-search"
+                        />
+                        <Select value={kwicLimit} onValueChange={setKwicLimit}>
+                          <SelectTrigger className="h-7 text-xs w-24" data-testid="select-kwic-limit">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="20">Top 20</SelectItem>
+                            <SelectItem value="50">Top 50</SelectItem>
+                            <SelectItem value="100">Top 100</SelectItem>
+                            <SelectItem value="all">All</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={kwicSort} onValueChange={setKwicSort}>
+                          <SelectTrigger className="h-7 text-xs w-32" data-testid="select-kwic-sort">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="corpus">Corpus Order</SelectItem>
+                            <SelectItem value="play">By Play</SelectItem>
+                            <SelectItem value="speaker">By Speaker</SelectItem>
+                            <SelectItem value="act">By Act</SelectItem>
+                            <SelectItem value="scene">By Scene</SelectItem>
+                            <SelectItem value="time">By Time</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          onClick={() => {
+                            const ew = wordData?.word || selectedWord.trim().toLowerCase();
+                            const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g, "_") : corpusScope;
+                            exportToCsv(`lexical_kwic_${ew}_${sc}.csv`, display.map(r => ({
+                              search_word: r.searchWord, surface_match: r.match,
+                              play: r.play, speaker: r.speaker, act: r.act, scene: r.scene,
+                              unit: r.unit, time: r.time, left_context: r.left, match: r.match,
+                              right_context: r.right, full_excerpt: r.fullExcerpt,
+                            })));
+                          }}
+                          data-testid="button-kwic-export"
+                        >
+                          <Download className="w-3 h-3 mr-1" />CSV
+                        </Button>
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          Showing {display.length.toLocaleString()} of {totalFiltered.toLocaleString()} results
+                        </span>
+                      </div>
+                      {kwicData.length === 0 ? (
+                        <p className="text-xs text-muted-foreground" data-testid="text-kwic-empty">
+                          No concordance lines found for "{selectedWord.trim()}" in the current corpus selection.
+                        </p>
+                      ) : (
+                        <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
+                          <Table>
+                            <TableHeader className="sticky top-0 z-10">
+                              <TableRow>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right w-[28%]">Left</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-center w-[9%]">Match</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur w-[28%]">Right</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Play</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Speaker</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Act</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Sc</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Unit</TableHead>
+                                <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Time</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {display.map((r, i) => (
+                                <TableRow key={i} className="h-8 hover:bg-muted/30" data-testid={`row-kwic-${i}`}>
+                                  <TableCell className="py-1 text-[10px] text-right text-muted-foreground font-mono whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis">{r.left}</TableCell>
+                                  <TableCell className="py-1 text-[10px] text-center">
+                                    <span className="font-bold bg-yellow-100 dark:bg-yellow-900/30 px-1 rounded" data-testid={`text-kwic-match-${i}`}>{r.match}</span>
+                                  </TableCell>
+                                  <TableCell className="py-1 text-[10px] text-muted-foreground font-mono whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis">{r.right}</TableCell>
+                                  <TableCell className="py-1 text-[10px]" data-testid={`text-kwic-play-${i}`}>{r.play}</TableCell>
+                                  <TableCell className="py-1 text-[10px]" data-testid={`text-kwic-speaker-${i}`}>{r.speaker}</TableCell>
+                                  <TableCell className="py-1 text-[10px] tabular-nums">{r.act}</TableCell>
+                                  <TableCell className="py-1 text-[10px] tabular-nums">{r.scene}</TableCell>
+                                  <TableCell className="py-1 text-[10px]">{r.unit}</TableCell>
+                                  <TableCell className="py-1 text-[10px] tabular-nums">{r.time}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
