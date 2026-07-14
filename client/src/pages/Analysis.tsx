@@ -82,6 +82,17 @@ interface KwicRow {
   fullExcerpt: string; searchWord: string;
 }
 
+interface CollocRow {
+  collocate: string; logdice: number; cooc: number;
+  leftFreq: number; rightFreq: number; collocFreq: number;
+  dominantPos: "Left" | "Right" | "Balanced";
+}
+
+interface CollocSettings {
+  window: number; minCooc: number; minColFreq: number;
+  ranking: "logdice" | "cooc"; position: "both" | "left" | "right";
+}
+
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
   const { lines } = useData();
@@ -95,6 +106,9 @@ const LexicalTab = () => {
   const [kwicSearch, setKwicSearch] = useState("");
   const [kwicLimit, setKwicLimit] = useState("50");
   const [kwicSort, setKwicSort] = useState("corpus");
+  const [collocSettings, setCollocSettings] = useState<CollocSettings>({ window: 5, minCooc: 3, minColFreq: 3, ranking: "logdice", position: "both" });
+  const [collocSearch, setCollocSearch] = useState("");
+  const [collocLimit, setCollocLimit] = useState("50");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -215,6 +229,67 @@ const LexicalTab = () => {
     });
     return rows;
   }, [selectedWord, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings.lemmatization, lexSettings.excludeStage]);
+
+  const collocWindowSize = collocSettings.window;
+  const collocData = useMemo((): { rows: CollocRow[]; nodeFreq: number } => {
+    if (!selectedWord.trim() || !lines) return { rows: [], nodeFreq: 0 };
+    const processed = processTokens(selectedWord.trim(), { useStoplist: false, useLemmas: lexSettings.lemmatization });
+    const searchLemma = processed[0] || selectedWord.trim().toLowerCase();
+    const isContent = wordView === "content";
+    const stopSet = lexSettings.stoplist ? getStoplist() : null;
+    const coocTotal = new Map<string, number>();
+    const coocLeft = new Map<string, number>();
+    const coocRight = new Map<string, number>();
+    const corpFreq = new Map<string, number>();
+    let nodeFreq = 0;
+    lines.forEach((l: any) => {
+      if (corpusScope === "play" && (l.title || l.play_id) !== selectedPlayTitle) return;
+      if (selectedGenre && l.genre !== selectedGenre) return;
+      if (selectedSpeaker && l.speaker !== selectedSpeaker) return;
+      if (lexSettings.excludeStage && (l.unit === "stage" || l.unit === "stage_direction")) return;
+      const normText: string = l.text_norm || "";
+      const tokens: string[] = processTokens(normText, { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      tokens.forEach((t: string) => {
+        if (t === searchLemma) return;
+        if (stopSet && stopSet.has(t)) return;
+        if (isContent && !isLexicalContentWord(t)) return;
+        corpFreq.set(t, (corpFreq.get(t) || 0) + 1);
+      });
+      tokens.forEach((t: string, idx: number) => {
+        if (t !== searchLemma) return;
+        nodeFreq++;
+        for (let j = Math.max(0, idx - collocWindowSize); j < idx; j++) {
+          const ct: string = tokens[j];
+          if (ct === searchLemma) continue;
+          if (stopSet && stopSet.has(ct)) continue;
+          if (isContent && !isLexicalContentWord(ct)) continue;
+          coocTotal.set(ct, (coocTotal.get(ct) || 0) + 1);
+          coocLeft.set(ct, (coocLeft.get(ct) || 0) + 1);
+        }
+        for (let j = idx + 1; j <= Math.min(tokens.length - 1, idx + collocWindowSize); j++) {
+          const ct: string = tokens[j];
+          if (ct === searchLemma) continue;
+          if (stopSet && stopSet.has(ct)) continue;
+          if (isContent && !isLexicalContentWord(ct)) continue;
+          coocTotal.set(ct, (coocTotal.get(ct) || 0) + 1);
+          coocRight.set(ct, (coocRight.get(ct) || 0) + 1);
+        }
+      });
+    });
+    if (nodeFreq === 0) return { rows: [], nodeFreq: 0 };
+    const rows: CollocRow[] = [];
+    coocTotal.forEach((total: number, collocate: string) => {
+      const colFreq = corpFreq.get(collocate) || 0;
+      const leftCount = coocLeft.get(collocate) || 0;
+      const rightCount = coocRight.get(collocate) || 0;
+      const denom = nodeFreq + colFreq;
+      const logdice = denom > 0 ? parseFloat((14 + Math.log2((2 * total) / denom)).toFixed(3)) : 0;
+      const dominantPos: "Left" | "Right" | "Balanced" =
+        leftCount > rightCount ? "Left" : rightCount > leftCount ? "Right" : "Balanced";
+      rows.push({ collocate, logdice, cooc: total, leftFreq: leftCount, rightFreq: rightCount, collocFreq: colFreq, dominantPos });
+    });
+    return { rows, nodeFreq };
+  }, [selectedWord, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings, wordView, collocWindowSize]);
 
   return (
     <div className="space-y-6">
@@ -569,15 +644,177 @@ const LexicalTab = () => {
       <section className="space-y-3" data-testid="section-collocates">
         <div>
           <h3 className="text-sm font-bold">C. Collocates</h3>
-          <p className="text-xs text-muted-foreground">Words occurring characteristically near the selected word.</p>
+          <p className="text-xs text-muted-foreground">Words occurring characteristically near the selected word, ranked by association strength.</p>
         </div>
         <Card className="shadow-none border-muted/60">
-          <CardContent className="pt-6">
-            <Card className="shadow-none border-muted/60 border-dashed">
-              <CardContent className="pt-4 text-xs text-muted-foreground" data-testid="text-collocates-placeholder">
-                Collocate analysis — co-occurrence frequency, association scores, and positional distribution — will be available in a future step.
-              </CardContent>
-            </Card>
+          <CardContent className="pt-6 space-y-4">
+            {!selectedWord.trim() ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-collocates-prompt">Enter a word in Word Explorer to calculate its collocates.</p>
+            ) : collocData.nodeFreq === 0 ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-collocates-not-found">The selected word does not occur in the current corpus selection.</p>
+            ) : (() => {
+              let rows = [...collocData.rows];
+              rows = rows.filter(r => r.cooc >= collocSettings.minCooc && r.collocFreq >= collocSettings.minColFreq);
+              if (collocSettings.position === "left") rows = rows.filter(r => r.leftFreq > 0);
+              else if (collocSettings.position === "right") rows = rows.filter(r => r.rightFreq > 0);
+              if (collocSearch.trim()) { const q = collocSearch.trim().toLowerCase(); rows = rows.filter(r => r.collocate.includes(q)); }
+              rows.sort((a, b) => collocSettings.ranking === "cooc" ? b.cooc - a.cooc : b.logdice - a.logdice);
+              const totalFiltered = rows.length;
+              if (collocLimit !== "all") rows = rows.slice(0, parseInt(collocLimit));
+              const maxLogDice = Math.max(...rows.map(r => r.logdice), 1);
+              const maxCooc = Math.max(...rows.map(r => r.cooc), 1);
+              const strongestRow = collocData.rows.filter(r => r.cooc >= collocSettings.minCooc).sort((a, b) => b.logdice - a.logdice)[0];
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">Context Window</Label>
+                      <Select value={String(collocSettings.window)} onValueChange={v => setCollocSettings(s => ({ ...s, window: parseInt(v) }))}>
+                        <SelectTrigger className="h-7 text-xs w-24" data-testid="select-colloc-window"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2">±2 tokens</SelectItem>
+                          <SelectItem value="3">±3 tokens</SelectItem>
+                          <SelectItem value="5">±5 tokens</SelectItem>
+                          <SelectItem value="10">±10 tokens</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">Min Co-occ</Label>
+                      <Select value={String(collocSettings.minCooc)} onValueChange={v => setCollocSettings(s => ({ ...s, minCooc: parseInt(v) }))}>
+                        <SelectTrigger className="h-7 text-xs w-20" data-testid="select-colloc-min-cooc"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["1","2","3","5","10"].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">Min Col Freq</Label>
+                      <Select value={String(collocSettings.minColFreq)} onValueChange={v => setCollocSettings(s => ({ ...s, minColFreq: parseInt(v) }))}>
+                        <SelectTrigger className="h-7 text-xs w-20" data-testid="select-colloc-min-freq"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["1","2","3","5","10"].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">Ranking</Label>
+                      <Select value={collocSettings.ranking} onValueChange={v => setCollocSettings(s => ({ ...s, ranking: v as "logdice" | "cooc" }))}>
+                        <SelectTrigger className="h-7 text-xs w-28" data-testid="select-colloc-ranking"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="logdice">LogDice</SelectItem>
+                          <SelectItem value="cooc">Co-occurrence</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold">Position</Label>
+                      <Select value={collocSettings.position} onValueChange={v => setCollocSettings(s => ({ ...s, position: v as "both" | "left" | "right" }))}>
+                        <SelectTrigger className="h-7 text-xs w-28" data-testid="select-colloc-position"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="both">Both Sides</SelectItem>
+                          <SelectItem value="left">Left Only</SelectItem>
+                          <SelectItem value="right">Right Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs p-3 rounded-md bg-muted/30 border">
+                    <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Node Word</div><div className="font-mono font-semibold">{wordData?.word || selectedWord.trim().toLowerCase()}</div></div>
+                    <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Node Frequency</div><div className="font-semibold tabular-nums" data-testid="text-colloc-node-freq">{collocData.nodeFreq.toLocaleString()}</div></div>
+                    <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Eligible Collocates</div><div className="font-semibold tabular-nums" data-testid="text-colloc-count">{totalFiltered.toLocaleString()}</div></div>
+                    <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Strongest Collocate</div><div className="font-mono font-semibold truncate text-[10px]" title={strongestRow?.collocate}>{strongestRow?.collocate || "—"}</div></div>
+                    <div><div className="text-[10px] uppercase font-bold text-muted-foreground">Context Window</div><div className="font-semibold">±{collocSettings.window} tokens</div></div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Input placeholder="Search collocates…" value={collocSearch} onChange={e => setCollocSearch(e.target.value)} className="h-7 text-xs max-w-[180px]" data-testid="input-colloc-search" />
+                    <Select value={collocLimit} onValueChange={setCollocLimit}>
+                      <SelectTrigger className="h-7 text-xs w-24" data-testid="select-colloc-limit"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="20">Top 20</SelectItem>
+                        <SelectItem value="50">Top 50</SelectItem>
+                        <SelectItem value="100">Top 100</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" variant="outline" className="h-7 text-xs"
+                      onClick={() => {
+                        const nw = wordData?.word || selectedWord.trim().toLowerCase();
+                        const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g, "_") : corpusScope;
+                        exportToCsv(`lexical_collocates_${nw}_${sc}.csv`, rows.map(r => ({
+                          node_word: nw, collocate: r.collocate, logdice: r.logdice,
+                          cooccurrence: r.cooc, left_frequency: r.leftFreq, right_frequency: r.rightFreq,
+                          collocate_frequency: r.collocFreq, dominant_position: r.dominantPos,
+                          window_size: collocSettings.window, minimum_cooccurrence: collocSettings.minCooc,
+                          minimum_collocate_frequency: collocSettings.minColFreq, position_filter: collocSettings.position,
+                        })));
+                      }}
+                      data-testid="button-colloc-export"
+                    >
+                      <Download className="w-3 h-3 mr-1" />CSV
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground ml-auto">Showing {rows.length.toLocaleString()} of {totalFiltered.toLocaleString()} collocates</span>
+                  </div>
+
+                  <p className="text-[10px] italic text-muted-foreground">
+                    LogDice compares the observed co-occurrence frequency with the overall corpus frequencies of the node word and collocate. Higher values indicate stronger association under the current corpus and window settings.
+                  </p>
+
+                  {rows.length === 0 ? (
+                    <p className="text-xs text-muted-foreground" data-testid="text-colloc-empty">No collocates meet the current frequency and window settings.</p>
+                  ) : (
+                    <div className="rounded-md border overflow-auto" style={{ maxHeight: "500px" }}>
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10">
+                          <TableRow>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Collocate</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">LogDice</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Co-occ</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Left</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Right</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur text-right">Col Freq</TableHead>
+                            <TableHead className="h-8 text-[10px] bg-muted/95 backdrop-blur">Position</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rows.map((r, i) => (
+                            <TableRow key={r.collocate} className="h-8 hover:bg-muted/30" data-testid={`row-colloc-${i}`}>
+                              <TableCell className="py-1 text-[10px] font-mono font-semibold" data-testid={`text-colloc-word-${i}`}>{r.collocate}</TableCell>
+                              <TableCell className="py-1 text-[10px]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="tabular-nums w-10 shrink-0" data-testid={`text-colloc-logdice-${i}`}>{r.logdice.toFixed(2)}</span>
+                                  <div className="h-1.5 rounded-full bg-primary/15 overflow-hidden flex-1 min-w-[40px]">
+                                    <div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.max(0, (r.logdice / maxLogDice) * 100).toFixed(1)}%` }} />
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-1 text-[10px]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="tabular-nums w-8 shrink-0" data-testid={`text-colloc-cooc-${i}`}>{r.cooc}</span>
+                                  <div className="h-1.5 rounded-full bg-amber-200/60 overflow-hidden flex-1 min-w-[40px]">
+                                    <div className="h-full rounded-full bg-amber-500/60" style={{ width: `${Math.max(0, (r.cooc / maxCooc) * 100).toFixed(1)}%` }} />
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums text-right">{r.leftFreq}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums text-right">{r.rightFreq}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums text-right">{r.collocFreq.toLocaleString()}</TableCell>
+                              <TableCell className="py-1 text-[10px]">
+                                <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-medium ${r.dominantPos === "Left" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : r.dominantPos === "Right" ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-muted text-muted-foreground"}`}>
+                                  {r.dominantPos}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </section>

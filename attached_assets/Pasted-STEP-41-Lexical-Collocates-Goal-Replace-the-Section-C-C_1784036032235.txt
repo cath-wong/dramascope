@@ -1,0 +1,448 @@
+STEP 41 — Lexical Collocates
+
+Goal
+
+Replace the Section C — Collocates placeholder with a simple, traditional collocation analysis centred on the word entered in Section B — Word Explorer.
+
+This section should answer:
+
+Which individual words occur characteristically near the selected word?
+
+The analytical objects are:
+
+- one selected node word
+- individual collocate words
+
+Do NOT extract multi-word expressions or expression families. Those belong to the Semantic tab.
+
+The feature must remain deterministic, transparent, and easy to use.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- SemanticTab
+- DiscursiveTab
+- Section A — Corpus Overview
+- the existing KWIC/concordance implementation in Section B
+- Semantic expression extraction
+- expression families
+- Discursive quad or constellation logic
+- shared stoplists
+- shared lemmatisation
+- global preprocessing
+
+Do NOT add:
+
+- AI or LLM calls
+- external APIs
+- n-gram expression extraction
+- formulaicity or conventionalisation
+- semantic similarity
+- synonym suggestions
+- network graphs
+- new external libraries
+
+Apply changes only to LexicalTab and Section C.
+
+
+Scope
+
+Primary file:
+
+client/src/pages/Analysis.tsx
+
+Use existing Lexical-only helpers where appropriate:
+
+client/src/utils/lexicalFilter.ts
+
+Do not alter the filtering behaviour of the Semantic or Discursive tabs.
+
+
+Analytical Definition
+
+A collocate is an individual token occurring within a configurable number of tokens to the left or right of the selected word.
+
+For each collocate, calculate:
+
+- total co-occurrence frequency
+- left frequency
+- right frequency
+- corpus frequency
+- LogDice association score
+
+Use LogDice as the principal association measure because it is relatively interpretable and less strongly biased towards very rare words than raw Mutual Information.
+
+Formula:
+
+LogDice = 14 + log2(
+  2 × cooccurrenceFrequency
+  /
+  (nodeFrequency + collocateFrequency)
+)
+
+Do not claim that a high LogDice score proves semantic relatedness. It indicates a stronger corpus association under the current settings.
+
+
+Controls
+
+Add a compact controls row inside Section C.
+
+1. Context Window
+
+Options:
+
+- ±2 tokens
+- ±3 tokens
+- ±5 tokens
+- ±10 tokens
+
+Default:
+
+±5 tokens
+
+
+2. Minimum Co-occurrence
+
+Options or numeric control:
+
+- 1
+- 2
+- 3
+- 5
+- 10
+
+Default:
+
+3
+
+
+3. Minimum Collocate Frequency
+
+Options or numeric control:
+
+- 1
+- 2
+- 3
+- 5
+- 10
+
+Default:
+
+3
+
+
+4. Ranking
+
+Options:
+
+- LogDice
+- Co-occurrence Frequency
+
+Default:
+
+LogDice
+
+
+5. Position
+
+Options:
+
+- Both sides
+- Left only
+- Right only
+
+Default:
+
+Both sides
+
+
+Filtering Behaviour
+
+1. The selected node word comes from the existing Word Explorer input.
+
+2. The user must be allowed to analyse grammatical node words such as:
+
+- my
+- thou
+- will
+
+even when Content Words Only is active.
+
+Therefore, Word View must NOT block the selected node word.
+
+3. Word View affects candidate collocates:
+
+All Words:
+- retain all eligible collocate tokens after existing tokenisation and optional stoplist processing
+
+Content Words Only:
+- apply the existing Lexical-only content-word filter to candidate collocates
+
+4. Preserve the existing Stoplist checkbox behaviour.
+
+Recommended processing order:
+
+tokenise
+→ optional existing stoplist
+→ identify node occurrences
+→ collect neighbouring tokens
+→ optional Lexical Content Words Only filtering of collocate candidates
+→ calculate collocation statistics
+
+5. Respect:
+
+- Lemmas toggle
+- Exclude Stage Directions
+- active Corpus Scope
+- selected play
+- genre filter
+- speaker filter
+
+Use the same scope-filtering rules already used by Word Explorer and KWIC.
+
+
+Implementation Steps
+
+1. Replace the Section C placeholder with a working Collocates panel.
+
+2. Compute collocates only when the Word Explorer input is non-empty.
+
+If no word is entered, show:
+
+“Enter a word in Word Explorer to calculate its collocates.”
+
+3. Match the node consistently.
+
+When Lemmas is OFF:
+- match the normalised surface token
+
+When Lemmas is ON:
+- apply the existing lightweight lemmatisation to the search term and corpus tokens
+
+Do not change the shared lemmatiser.
+
+4. For every node occurrence:
+
+- inspect up to the selected window size on the left
+- inspect up to the selected window size on the right
+- count each neighbouring token occurrence
+- maintain separate left and right counts
+
+Do not allow the node token itself to become its own collocate unless it genuinely occurs again at another position within the window.
+
+5. Calculate corpus frequencies for eligible collocate tokens from the same active corpus selection and under the same tokenisation settings.
+
+6. Calculate LogDice using:
+
+- node corpus frequency
+- collocate corpus frequency
+- total node-collocate co-occurrence frequency
+
+Handle zero or invalid values safely.
+
+7. Filter results using:
+
+- Minimum Co-occurrence
+- Minimum Collocate Frequency
+- Position selection
+
+8. Add a summary block showing:
+
+- Node Word
+- Node Frequency
+- Eligible Collocates
+- Strongest Collocate
+- Context Window
+
+9. Add a sortable collocate table with columns:
+
+- Collocate
+- LogDice
+- Co-occurrence
+- Left
+- Right
+- Collocate Frequency
+- Dominant Position
+
+Dominant Position values:
+
+- Left
+- Right
+- Balanced
+
+Use a transparent rule:
+
+- Left if left count > right count
+- Right if right count > left count
+- Balanced if equal
+
+10. Default sorting:
+
+Highest LogDice first
+
+When Ranking is switched to Co-occurrence Frequency:
+
+Highest co-occurrence first
+
+11. Add subtle bars where useful.
+
+Recommended:
+
+- LogDice bar
+- Co-occurrence frequency bar
+
+Use simple CSS only.
+
+Do not add a charting library.
+
+12. Add search within collocate results.
+
+Search should match the collocate token.
+
+13. Add display limit:
+
+- Top 20
+- Top 50
+- Top 100
+- All
+
+Default:
+
+Top 50
+
+14. Make the table research-usable:
+
+- maximum height around 450–500px
+- internal vertical scrolling
+- sticky header
+- horizontal scrolling if needed
+
+15. Add CSV export.
+
+Suggested filename:
+
+lexical_collocates_<node>_<scope>.csv
+
+CSV columns:
+
+- node_word
+- collocate
+- logdice
+- cooccurrence
+- left_frequency
+- right_frequency
+- collocate_frequency
+- dominant_position
+- window_size
+- minimum_cooccurrence
+- minimum_collocate_frequency
+- position_filter
+
+Export the currently displayed result set, respecting:
+
+- active controls
+- search
+- display limit
+- ranking order
+
+16. Add a short methodological note:
+
+“LogDice compares the observed co-occurrence frequency with the overall corpus frequencies of the node word and collocate. Higher values indicate stronger association under the current corpus and window settings.”
+
+17. Add empty states.
+
+If no word is entered:
+
+“Enter a word in Word Explorer to calculate its collocates.”
+
+If the word is not found:
+
+“The selected word does not occur in the current corpus selection.”
+
+If no collocates meet the thresholds:
+
+“No collocates meet the current frequency and window settings.”
+
+
+Performance Protection
+
+- Use useMemo for collocate calculation.
+- Do not calculate when the node input is empty.
+- Reuse the currently filtered Lexical corpus rows where possible.
+- Avoid tokenising the same row repeatedly within one computation.
+- Do not create a new global cache architecture in this step.
+- Do not trigger recomputation from unrelated KWIC display controls.
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite Analysis.tsx entirely
+- modify SemanticTab
+- modify DiscursiveTab
+- modify Section A
+- alter the KWIC algorithm in Section B
+- modify processTokens()
+- modify lightLemmatize()
+- modify getStoplist()
+- add automatic related-word suggestions
+- add Word Comparison
+- add expression extraction
+- add AI or API dependencies
+
+Only implement Lexical Section C — Collocates.
+
+
+Expected Result
+
+After Step 41, the Lexical tab should provide:
+
+A. Corpus Overview
+- frequency lists and n-grams
+
+B. Word Explorer
+- word frequency
+- frequency by play
+- KWIC/concordance
+
+C. Collocates
+- configurable lexical neighbourhood analysis
+- LogDice and raw co-occurrence
+- left/right positional evidence
+- search, sorting, limits and CSV export
+
+The Lexical tab should remain straightforward and recognisable as a traditional corpus-analysis interface.
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Semantic tab is unchanged.
+3. Discursive tab is unchanged.
+4. Corpus Overview is unchanged.
+5. KWIC remains unchanged.
+6. Collocates calculate only after a word is entered.
+7. Context Window works.
+8. Minimum Co-occurrence works.
+9. Minimum Collocate Frequency works.
+10. LogDice is calculated correctly.
+11. Ranking control works.
+12. Left/right counts are correct.
+13. Position filter works.
+14. Lemmas toggle is respected.
+15. Stoplist toggle is respected.
+16. Word View filters candidate collocates but does not prevent grammatical node-word searches.
+17. Stage-direction exclusion works.
+18. Corpus/play/genre/speaker filters are respected.
+19. Search works.
+20. Top 20 / 50 / 100 / All works.
+21. Sticky headers and scrolling work.
+22. CSV export matches the displayed result set.
+23. No Semantic, Discursive, AI, synonym or expression-analysis functionality has been added.
+
+STOP AFTER STEP 41.
