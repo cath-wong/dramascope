@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, Download, Settings2, BarChart3, Table as TableIcon, Search, HelpCircle, TrendingUp, TrendingDown, History, ChevronLeft, ChevronRight, Play, Pause, Network, ChevronDown, ChevronUp, Pin, Trash2, ListFilter, LayoutGrid, FileText, X, Clipboard, ArrowUpDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { processTokens, formatTimeValue, getStoplist } from "@/utils/linguistics";
+import { isLexicalContentWord } from "@/utils/lexicalFilter";
 import { exportToCsv } from "@/utils/exportCsv";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -84,6 +85,7 @@ const LexicalTab = () => {
   const [lexSettings, setLexSettings] = useState({ stoplist: true, lemmatization: true, ngramSize: "2", excludeStage: true, contentFocus: false });
   const [pinned, setPinned] = useState<any[]>([]);
   const [selectedWord, setSelectedWord] = useState("");
+  const [wordView, setWordView] = useState<"all" | "content">("all");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -94,13 +96,14 @@ const LexicalTab = () => {
       return true;
     });
     if (!scopedLines.length) return null;
-    const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, genre: selectedGenre, speaker: selectedSpeaker, topN, lex: lexSettings });
+    const cacheKey = JSON.stringify({ scope: corpusScope, title: selectedPlayTitle, genre: selectedGenre, speaker: selectedSpeaker, topN, lex: lexSettings, wordView });
     if (computationCache.current.has(cacheKey)) return computationCache.current.get(cacheKey);
 
     const unigramCounts = new Map<string, number>();
     let totalTokens = 0;
     scopedLines.forEach(l => {
-      const tokens = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
+      const raw = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
+      const tokens = wordView === "content" ? raw.filter(isLexicalContentWord) : raw;
       tokens.forEach(t => { unigramCounts.set(t, (unigramCounts.get(t) || 0) + 1); totalTokens++; });
     });
     if (totalTokens === 0) return { error: "No tokens found." };
@@ -112,7 +115,8 @@ const LexicalTab = () => {
     const ngramCounts = new Map<string, number>();
     const nSize = parseInt(lexSettings.ngramSize);
     scopedLines.forEach(l => {
-      const tokens = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
+      const raw = processTokens(l.text_norm || "", { useStoplist: lexSettings.stoplist, useLemmas: lexSettings.lemmatization });
+      const tokens = wordView === "content" ? raw.filter(isLexicalContentWord) : raw;
       for (let i = 0; i <= tokens.length - nSize; i++) { const gram = tokens.slice(i, i + nSize).join(" "); ngramCounts.set(gram, (ngramCounts.get(gram) || 0) + 1); }
     });
     let ngramList = Array.from(ngramCounts.entries()).map(([ngram, count]) => ({ ngram, count, per_10k: parseFloat(((count / totalTokens) * 10000).toFixed(2)) })).sort((a, b) => b.count - a.count);
@@ -129,7 +133,7 @@ const LexicalTab = () => {
     const output = { freqList, ngramList: ngramList.slice(0, topN), totalTokens, totalTypes, ttr, unigramCounts };
     computationCache.current.set(cacheKey, output);
     return output;
-  }, [lines, corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, lexSettings]);
+  }, [lines, corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, lexSettings, wordView]);
 
   const wordData = useMemo(() => {
     if (!selectedWord.trim() || !results || !results.unigramCounts) return null;
@@ -169,18 +173,44 @@ const LexicalTab = () => {
           <CardTitle className="text-sm font-semibold">Lexical Controls</CardTitle>
           <CardDescription className="text-xs">Settings shared across all Lexical sections.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-6 flex flex-wrap gap-6">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="l-stop" checked={lexSettings.stoplist} onCheckedChange={v => setLexSettings(s => ({ ...s, stoplist: !!v }))} data-testid="checkbox-lex-stoplist" />
-            <Label htmlFor="l-stop" className="text-xs">Stoplist</Label>
+        <CardContent className="pt-6 space-y-5">
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="l-stop" checked={lexSettings.stoplist} onCheckedChange={v => setLexSettings(s => ({ ...s, stoplist: !!v }))} data-testid="checkbox-lex-stoplist" />
+              <Label htmlFor="l-stop" className="text-xs">Stoplist</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="l-lemma" checked={lexSettings.lemmatization} onCheckedChange={v => setLexSettings(s => ({ ...s, lemmatization: !!v }))} data-testid="checkbox-lex-lemmas" />
+              <Label htmlFor="l-lemma" className="text-xs">Lemmas</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="l-stage" checked={lexSettings.excludeStage} onCheckedChange={v => setLexSettings(s => ({ ...s, excludeStage: !!v }))} data-testid="checkbox-lex-exclude-stage" />
+              <Label htmlFor="l-stage" className="text-xs">Exclude Stage Directions</Label>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="l-lemma" checked={lexSettings.lemmatization} onCheckedChange={v => setLexSettings(s => ({ ...s, lemmatization: !!v }))} data-testid="checkbox-lex-lemmas" />
-            <Label htmlFor="l-lemma" className="text-xs">Lemmas</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="l-stage" checked={lexSettings.excludeStage} onCheckedChange={v => setLexSettings(s => ({ ...s, excludeStage: !!v }))} data-testid="checkbox-lex-exclude-stage" />
-            <Label htmlFor="l-stage" className="text-xs">Exclude Stage Directions</Label>
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase font-bold">Word View</Label>
+            <div className="flex rounded-md border overflow-hidden h-8 w-fit">
+              <button
+                type="button"
+                onClick={() => setWordView("all")}
+                className={`px-4 text-xs font-medium transition-colors ${wordView === "all" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                data-testid="button-wordview-all"
+              >
+                All Words
+              </button>
+              <button
+                type="button"
+                onClick={() => setWordView("content")}
+                className={`px-4 text-xs font-medium border-l transition-colors ${wordView === "content" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                data-testid="button-wordview-content"
+              >
+                Content Words Only
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Content Words Only removes common grammatical function words from lexical frequency analyses while preserving the existing stoplist behaviour.
+            </p>
           </div>
         </CardContent>
       </Card>

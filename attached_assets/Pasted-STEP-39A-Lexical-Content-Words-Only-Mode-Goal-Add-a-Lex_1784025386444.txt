@@ -1,0 +1,410 @@
+STEP 39A — Lexical Content Words Only Mode
+
+Goal
+
+Add a Lexical-only "Content Words Only" view to the Lexical Dashboard.
+
+This feature is completely independent of the existing Discursive implementation.
+
+It must NOT alter the Semantic or Discursive tabs.
+
+It is intended to improve traditional lexical frequency analysis by allowing users to suppress grammatical function words without changing the underlying lexical stoplist or expression extraction infrastructure.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- SemanticTab
+- DiscursiveTab
+- processTokens()
+- getStoplist()
+- expression extraction
+- family construction
+- concept modelling
+- discursiveFilter.ts
+- shared linguistic utilities unless absolutely necessary
+
+Do NOT expand the shared stoplist.
+
+Do NOT change existing Semantic behaviour.
+
+This is a Lexical-tab-only feature.
+
+
+Scope
+
+Apply ONLY to:
+
+client/src/pages/Analysis.tsx
+
+Create a new helper file ONLY if needed.
+
+Do NOT touch the existing Discursive content-word implementation.
+
+
+Design Principle
+
+The Lexical Dashboard should support two complementary lexical views.
+
+All Words
+
+Traditional lexical analysis after the existing stoplist has optionally been applied.
+
+Content Words Only
+
+Further suppresses high-frequency grammatical words to foreground lexical content.
+
+This is a display/filtering option.
+
+It is NOT a replacement for the stoplist.
+
+
+Implementation
+
+1.
+
+Keep the existing Stoplist checkbox unchanged.
+
+It continues to use the existing shared getStoplist() exactly as before.
+
+No behaviour changes.
+
+
+2.
+
+Add a new segmented toggle beneath the Stoplist/Lemma controls.
+
+Label:
+
+Word View
+
+Options:
+
+All Words
+Content Words Only
+
+Default:
+
+All Words
+
+
+3.
+
+Create a new lexical-only filter.
+
+Preferred location:
+
+client/src/utils/lexicalFilter.ts
+
+Implement something similar to:
+
+LEXICAL_FUNCTION_WORDS
+
+isLexicalContentWord(token)
+
+This filter is completely independent from:
+
+- getStoplist()
+- discursiveFilter.ts
+
+Do NOT import or reuse the Discursive filter directly.
+
+The lexical list should be appropriate for traditional frequency-list analysis.
+
+
+4.
+
+The Lexical Content Words filter should remove common grammatical items including:
+
+articles
+
+pronouns
+
+determiners
+
+prepositions
+
+conjunctions
+
+auxiliaries
+
+modal verbs
+
+common Early Modern grammatical variants
+
+Examples include (not exhaustive):
+
+a
+an
+the
+this
+that
+these
+those
+
+i
+me
+my
+mine
+you
+your
+yours
+he
+him
+his
+she
+her
+hers
+we
+us
+our
+ours
+they
+them
+their
+theirs
+it
+its
+
+of
+to
+in
+on
+at
+by
+for
+from
+with
+into
+unto
+upon
+as
+than
+then
+if
+but
+or
+nor
+yet
+so
+
+am
+is
+are
+was
+were
+be
+been
+being
+have
+has
+had
+do
+does
+did
+will
+would
+shall
+should
+may
+might
+can
+could
+must
+
+thou
+thee
+thy
+thine
+ye
+hath
+doth
+dost
+art
+hast
+wert
+wast
+shalt
+shouldst
+wouldst
+wilt
+
+This list does NOT need to match the Discursive filter.
+
+Do NOT remove lexical content words such as:
+
+good
+sir
+lord
+lady
+king
+queen
+love
+death
+life
+
+These remain meaningful lexical items.
+
+
+5.
+
+Apply this filter ONLY to Lexical outputs.
+
+Specifically:
+
+Corpus Overview
+
+- word frequency list
+- bar chart
+- summary statistics where appropriate
+
+Word Explorer
+
+- frequency by play
+
+Collocates (future)
+
+- prepare the pipeline so future collocate analysis respects the selected Word View.
+
+Do NOT affect:
+
+Semantic tab
+
+Discursive tab
+
+
+6.
+
+Keep the filtering order:
+
+tokenise
+
+↓
+
+optional stoplist
+
+↓
+
+optional Content Words Only filter
+
+↓
+
+frequency calculations
+
+
+7.
+
+UI
+
+The segmented toggle should match the existing style used elsewhere.
+
+Label:
+
+Word View
+
+Buttons:
+
+All Words
+Content Words Only
+
+
+8.
+
+Help text
+
+Below the toggle add a short note:
+
+"Content Words Only removes common grammatical function words from lexical frequency analyses while preserving the existing stoplist behaviour."
+
+
+9.
+
+Validation
+
+Confirm that enabling Content Words Only causes the frequency list to shift from items such as:
+
+my
+your
+he
+his
+have
+will
+
+towards content-bearing vocabulary such as:
+
+lord
+king
+love
+death
+father
+church
+
+(depending on corpus selection).
+
+
+Safety Constraints
+
+The agent must NOT:
+
+modify SemanticTab
+
+modify DiscursiveTab
+
+modify processTokens()
+
+modify getStoplist()
+
+reuse discursiveFilter.ts directly
+
+change expression extraction
+
+change evidence calculations
+
+change exports
+
+change hook ordering outside LexicalTab
+
+
+Expected Result
+
+The Lexical Dashboard gains a new optional Content Words Only mode.
+
+The existing Stoplist checkbox remains exactly as before.
+
+Users can now choose between:
+
+All Words
+
+Content Words Only
+
+without affecting any other analytical layer.
+
+This keeps the Lexical tab aligned with traditional corpus-linguistic practice while preserving the current Semantic and Discursive infrastructure.
+
+
+Validation Checklist
+
+Confirm:
+
+1. App compiles without new errors.
+
+2. Semantic tab unchanged.
+
+3. Discursive tab unchanged.
+
+4. Existing stoplist behaviour unchanged.
+
+5. New Word View toggle works.
+
+6. Frequency lists update correctly.
+
+7. Summary statistics update correctly where appropriate.
+
+8. No changes to Semantic expression extraction.
+
+9. No changes to Discursive concept modelling.
+
+10. Lexical tab remains simple and easy to use.
+
+STOP AFTER STEP 39A.
