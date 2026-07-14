@@ -42,11 +42,11 @@ export function Sidebar() {
 
   return (
     <aside className="w-80 border-r bg-sidebar flex flex-col h-screen overflow-y-auto shrink-0">
-      <div className="p-4 border-b flex items-center gap-2 shrink-0">
-        <Database className="w-5 h-5 text-primary shrink-0" />
+      <div className="px-4 py-5 border-b flex items-start gap-3 shrink-0">
+        <Database className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div>
-          <div className="font-bold text-base leading-tight">DramaScope</div>
-          <div className="text-[10px] text-muted-foreground font-normal leading-tight">Explore lexical, semantic, and discursive patterns across Early Modern English drama.</div>
+          <div className="text-xl font-bold tracking-tight leading-none">DramaScope</div>
+          <div className="text-xs text-muted-foreground font-normal leading-snug max-w-[220px] mt-1">Explore lexical, semantic, and discursive patterns in Early Modern English drama.</div>
         </div>
       </div>
 
