@@ -1,0 +1,295 @@
+STEP 42A — Word Comparison Play Distribution Drill-down
+
+Goal
+
+Extend the existing Lexical Word Comparison feature so researchers can inspect the complete play distribution for each comparison word.
+
+This is a drill-down and provenance refinement only.
+
+It must NOT change the existing comparison calculations, matching logic, summary statistics, KWIC implementation, or Collocates implementation.
+
+
+IMPORTANT
+
+Do NOT modify:
+
+- SemanticTab
+- DiscursiveTab
+- Section A — Corpus Overview
+- existing Word Explorer calculations
+- existing KWIC logic
+- existing Collocates logic
+- shared tokenisation
+- shared lemmatisation
+- stoplists
+- lexicalFilter.ts
+- Word Comparison matching semantics
+
+Do NOT add:
+
+- AI or LLM calls
+- automatic synonyms
+- semantic tagging
+- new association measures
+- new external libraries
+- new global filters
+
+This step only exposes the already computed per-play distribution more clearly.
+
+
+Scope
+
+Primary file:
+
+client/src/pages/Analysis.tsx
+
+Focus ONLY on:
+
+LexicalTab
+
+Word Comparison subsection inside Section B — Word Explorer.
+
+
+Current State
+
+The Word Comparison Summary table already shows:
+
+- Word
+- Frequency
+- Relative Frequency
+- Plays Represented
+- Most Represented Play
+- First Seen
+- Last Seen
+- Inspect
+
+The existing comparisonData computation already produces or can derive per-play counts for all comparison words.
+
+Reuse that existing data.
+
+Do NOT rescan the corpus independently for the drill-down if per-play counts already exist.
+
+
+Required Behaviour
+
+1. Make the play-count result interactive.
+
+Preferred interaction:
+
+- clicking the number in the Plays Represented column selects that comparison word
+
+Alternative acceptable interaction:
+
+- add a small View Plays action beside the count
+
+Do not require users to go to KWIC merely to see which plays contain the word.
+
+
+2. Add a compact drill-down panel beneath the Comparison Summary table.
+
+Title pattern:
+
+Play Distribution — <selected word>
+
+Example:
+
+Play Distribution — love
+
+
+3. If no comparison word is selected, show:
+
+“Select a word’s play count to inspect its full play distribution.”
+
+
+4. The drill-down must show the complete list of plays in which the selected word occurs.
+
+Columns:
+
+- Play
+- Frequency
+- Relative Frequency per 10k tokens
+- Share of Word Total
+- Inspect Contexts
+
+Definitions:
+
+Frequency:
+raw frequency of the selected word in that play
+
+Relative Frequency:
+word frequency divided by the total lexical token count for that play, multiplied by 10,000
+
+Share of Word Total:
+percentage of all occurrences of the selected word contributed by that play
+
+
+5. Sort by Frequency descending by default.
+
+Allow sorting by:
+
+- Play
+- Frequency
+- Relative Frequency
+- Share of Word Total
+
+
+6. Add display controls:
+
+Show:
+- Top 20
+- Top 50
+- All
+
+Default:
+Top 20
+
+
+7. Add search.
+
+Search should match play title.
+
+
+8. Make the table research-usable:
+
+- bounded height
+- internal vertical scrolling
+- sticky header
+- horizontal scrolling if needed
+
+Recommended max height:
+
+400–450px
+
+
+9. Add CSV export.
+
+Suggested filename:
+
+lexical_word_comparison_play_distribution_<word>_<scope>.csv
+
+Columns:
+
+- word
+- play
+- frequency
+- relative_frequency_per_10k
+- share_of_word_total_pct
+
+Export the currently displayed drill-down view, respecting:
+
+- active selected comparison word
+- search
+- display limit
+- sort order
+
+
+10. Add Inspect Contexts action.
+
+Clicking Inspect Contexts should:
+
+- set the existing Word Explorer input to the selected comparison word
+- constrain the existing Word Explorer / KWIC view to the selected play if this can be done safely with the existing corpus-scope controls
+
+If changing the global selected-play control is too disruptive:
+
+- set the Word Explorer input to the word
+- keep the play name visibly available
+- do not duplicate KWIC logic inside Word Comparison
+
+Do NOT create a second concordance implementation.
+
+
+11. Preserve existing Word Comparison views.
+
+Do not remove or alter:
+
+- Summary
+- By Play
+- Over Time
+- existing CSV exports
+- comparison chips
+- Add Word
+- Clear All
+- Inspect in Word Explorer
+
+
+12. Selection persistence.
+
+If the selected word remains in the comparison set:
+
+- preserve the selected drill-down word across sorting or view changes
+
+If the selected word is removed from the comparison set:
+
+- clear the drill-down selection
+- show the neutral empty-state prompt
+
+
+13. Performance protection.
+
+- derive drill-down rows from existing comparisonData
+- use useMemo
+- do not scan the corpus once per selected play
+- do not recompute when unrelated KWIC or Collocates controls change
+
+
+Safety Constraints
+
+The agent must NOT:
+
+- rewrite LexicalTab
+- modify SemanticTab
+- modify DiscursiveTab
+- alter comparison frequencies
+- alter comparison time calculations
+- alter KWIC matching
+- add new corpus scans where existing comparison data can be reused
+- add AI/API dependencies
+
+Only add the play-distribution drill-down.
+
+
+Expected Result
+
+After Step 42A, researchers should be able to:
+
+1. see how many plays contain each comparison word
+2. click that result
+3. inspect the full list of plays
+4. compare raw and relative frequency by play
+5. see how much each play contributes to the word’s total
+6. export the play distribution
+7. move from overview to KWIC evidence when needed
+
+This should create a clear evidence path:
+
+Word Comparison
+→ Plays Represented
+→ Full Play Distribution
+→ KWIC / Context Evidence
+
+
+Validation Checklist
+
+Confirm that:
+
+1. The app compiles without new errors.
+2. Semantic tab is unchanged.
+3. Discursive tab is unchanged.
+4. Existing Word Comparison calculations are unchanged.
+5. Plays Represented is interactive.
+6. Full play list appears for the selected word.
+7. Raw frequency is correct.
+8. Relative frequency per 10k is correct.
+9. Share of Word Total is correct.
+10. Search works.
+11. Top 20 / Top 50 / All works.
+12. Sorting works.
+13. Sticky header and scrolling work.
+14. CSV export matches the displayed rows.
+15. Selection persists appropriately.
+16. Removing a word clears stale selection.
+17. Inspect Contexts reuses the existing Word Explorer / KWIC.
+18. No AI, synonym, semantic-tagging, or external-resource functionality has been added.
+
+STOP AFTER STEP 42A.

@@ -122,6 +122,10 @@ const LexicalTab = () => {
   const [comparisonView, setComparisonView] = useState<"summary" | "play" | "time">("summary");
   const [comparisonSort, setComparisonSort] = useState("order");
   const [compWarning, setCompWarning] = useState("");
+  const [drillWord, setDrillWord] = useState("");
+  const [drillSearch, setDrillSearch] = useState("");
+  const [drillLimit, setDrillLimit] = useState<"20"|"50"|"all">("20");
+  const [drillSort, setDrillSort] = useState("-freq");
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -309,6 +313,7 @@ const LexicalTab = () => {
     byPlay: { play: string; counts: Record<string, number>; total: number }[];
     overTime: Record<string, number>[];
     totalTokens: number;
+    playTokens: Record<string, number>;
   } | null => {
     if (comparisonWords.length < 2 || !lines) return null;
     const searchTerms: string[] = comparisonWords.map(w => {
@@ -324,6 +329,7 @@ const LexicalTab = () => {
       freqMap[w] = 0; playsMap[w] = new Map(); timeMap[w] = new Map();
       firstSeenMap[w] = null; lastSeenMap[w] = null;
     });
+    const playTokensMap = new Map<string, number>();
     let totalTokens = 0;
     lines.forEach((l: any) => {
       if (corpusScope === "play" && (l.title || l.play_id) !== selectedPlayTitle) return;
@@ -335,6 +341,7 @@ const LexicalTab = () => {
       const playName: string = l.title || l.play_id || "Unknown";
       const decade: number | null = l.decade ? Math.round(parseFloat(String(l.decade))) : null;
       totalTokens += tokens.length;
+      playTokensMap.set(playName, (playTokensMap.get(playName) || 0) + tokens.length);
       tokens.forEach((t: string) => {
         for (let i = 0; i < searchTerms.length; i++) {
           if (t !== searchTerms[i]) continue;
@@ -372,8 +379,37 @@ const LexicalTab = () => {
       comparisonWords.forEach(w => { entry[w] = timeMap[w].get(slice) || 0; });
       return entry;
     });
-    return { stats, byPlay, overTime, totalTokens };
+    return { stats, byPlay, overTime, totalTokens, playTokens: Object.fromEntries(playTokensMap) };
   }, [comparisonWords, lines, corpusScope, selectedPlayTitle, selectedGenre, selectedSpeaker, lexSettings]);
+
+  const drillRows = useMemo(() => {
+    if (!drillWord || !comparisonData) return [];
+    const wordTotal = comparisonData.stats.find(s => s.word === drillWord)?.freq || 0;
+    const playTokens = comparisonData.playTokens;
+    let rows = comparisonData.byPlay
+      .filter(r => (r.counts[drillWord] || 0) > 0)
+      .map(r => {
+        const freq = r.counts[drillWord] || 0;
+        const playTok = playTokens[r.play] || 0;
+        const relFreq = playTok > 0 ? parseFloat(((freq / playTok) * 10000).toFixed(2)) : 0;
+        const share = wordTotal > 0 ? parseFloat(((freq / wordTotal) * 100).toFixed(1)) : 0;
+        return { play: r.play, freq, relFreq, share };
+      });
+    const sk = drillSort.replace(/^-/, "");
+    const asc = !drillSort.startsWith("-");
+    rows.sort((a, b) => {
+      const av = (a as any)[sk]; const bv = (b as any)[sk];
+      if (typeof av === "number") return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+    if (drillSearch.trim()) rows = rows.filter(r => r.play.toLowerCase().includes(drillSearch.toLowerCase().trim()));
+    if (drillLimit !== "all") rows = rows.slice(0, parseInt(drillLimit));
+    return rows;
+  }, [drillWord, comparisonData, drillSearch, drillSort, drillLimit]);
+
+  useEffect(() => {
+    if (drillWord && !comparisonWords.includes(drillWord)) setDrillWord("");
+  }, [comparisonWords, drillWord]);
 
   const addCompWord = () => {
     const trimmed = comparisonInput.trim().toLowerCase();
@@ -820,6 +856,7 @@ const LexicalTab = () => {
                 </div>
 
                 {comparisonView === "summary" && (
+                  <>
                   <div className="rounded-md border">
                     <Table wrapperClassName="relative w-full max-h-[400px] overflow-y-auto overflow-x-auto">
                       <TableHeader>
@@ -848,7 +885,9 @@ const LexicalTab = () => {
                               <TableCell className="py-1 text-[10px] font-mono font-semibold" data-testid={`text-comp-word-${i}`}>{r.word}</TableCell>
                               <TableCell className="py-1 text-[10px] tabular-nums" data-testid={`text-comp-freq-${i}`}>{r.freq.toLocaleString()}</TableCell>
                               <TableCell className="py-1 text-[10px] tabular-nums">{r.relFreq}</TableCell>
-                              <TableCell className="py-1 text-[10px] tabular-nums">{r.playsCount}</TableCell>
+                              <TableCell className="py-1 text-[10px] tabular-nums">
+                                <button onClick={() => setDrillWord(dw => dw === r.word ? "" : r.word)} className={`tabular-nums underline-offset-2 hover:underline ${drillWord === r.word ? "text-primary font-bold" : "text-primary"}`} data-testid={`button-drill-plays-${i}`}>{r.playsCount}</button>
+                              </TableCell>
                               <TableCell className="py-1 text-[10px] truncate max-w-[140px]" title={r.mostPlay}>{r.mostPlay}</TableCell>
                               <TableCell className="py-1 text-[10px] tabular-nums">{r.firstSeen ?? "Unknown"}</TableCell>
                               <TableCell className="py-1 text-[10px] tabular-nums">{r.lastSeen ?? "Unknown"}</TableCell>
@@ -861,6 +900,68 @@ const LexicalTab = () => {
                       </TableBody>
                     </Table>
                   </div>
+
+                  <div className="mt-3 space-y-2 border-t pt-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h5 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {drillWord ? `Play Distribution — ${drillWord}` : "Play Distribution"}
+                      </h5>
+                      {drillWord && (
+                        <div className="flex gap-2 items-center flex-wrap">
+                          <Input placeholder="Search play…" value={drillSearch} onChange={e => setDrillSearch(e.target.value)} className="h-6 text-[10px] max-w-[130px]" data-testid="input-drill-search" />
+                          <Select value={drillLimit} onValueChange={(v: any) => setDrillLimit(v)}>
+                            <SelectTrigger className="h-6 text-[10px] w-[72px]" data-testid="select-drill-limit"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="20">Top 20</SelectItem>
+                              <SelectItem value="50">Top 50</SelectItem>
+                              <SelectItem value="all">All</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px]" data-testid="button-drill-export"
+                            onClick={() => {
+                              const sc = corpusScope === "play" ? (selectedPlayTitle || "play").replace(/\s+/g,"_") : corpusScope;
+                              exportToCsv(`lexical_word_comparison_play_distribution_${drillWord}_${sc}.csv`,
+                                drillRows.map(r => ({ word: drillWord, play: r.play, frequency: r.freq, relative_frequency_per_10k: r.relFreq, share_of_word_total_pct: r.share }))
+                              );
+                            }}><Download className="w-3 h-3 mr-1"/>CSV</Button>
+                        </div>
+                      )}
+                    </div>
+                    {!drillWord ? (
+                      <p className="text-[10px] text-muted-foreground" data-testid="text-drill-empty">Select a word's play count to inspect its full play distribution.</p>
+                    ) : drillRows.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground" data-testid="text-drill-no-match">No plays match the current search.</p>
+                    ) : (
+                      <div className="rounded-md border">
+                        <Table wrapperClassName="relative w-full max-h-[420px] overflow-y-auto overflow-x-auto">
+                          <TableHeader>
+                            <TableRow>
+                              {[["Play","play"],["Frequency","freq"],["Rel/10k","relFreq"],["Share %","share"]].map(([label,key]) => (
+                                <TableHead key={key} className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur cursor-pointer" onClick={() => setDrillSort(s => { const k = s.replace(/^-/,""); return k === key ? (s.startsWith("-") ? key : `-${key}`) : `-${key}`; })} data-testid={`th-drill-${key}`}>
+                                  <button className="inline-flex items-center gap-1 hover:text-foreground">{label}<ArrowUpDown className="w-2.5 h-2.5"/></button>
+                                </TableHead>
+                              ))}
+                              <TableHead className="h-8 text-[10px] sticky top-0 z-20 bg-muted/95 backdrop-blur">Inspect</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {drillRows.map((r, i) => (
+                              <TableRow key={r.play} className="h-8 hover:bg-muted/30" data-testid={`row-drill-${i}`}>
+                                <TableCell className="py-1 text-[10px]">{r.play}</TableCell>
+                                <TableCell className="py-1 text-[10px] tabular-nums">{r.freq.toLocaleString()}</TableCell>
+                                <TableCell className="py-1 text-[10px] tabular-nums">{r.relFreq}</TableCell>
+                                <TableCell className="py-1 text-[10px] tabular-nums">{r.share}%</TableCell>
+                                <TableCell className="py-1 text-[10px]">
+                                  <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5" onClick={() => setSelectedWord(drillWord)} data-testid={`button-drill-inspect-${i}`}>Inspect</Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                  </>
                 )}
 
                 {comparisonView === "play" && (
