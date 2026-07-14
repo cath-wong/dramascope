@@ -10,4 +10,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/postgres" });
+
+// Required by node-postgres: without this, any background connection error
+// (SSL mismatch, network timeout, auth failure in Cloud Run) emits an
+// unhandled 'error' event and crashes the Node process.
+pool.on("error", (err) => {
+  console.error("[db] idle pool client error:", err.message);
+});
+
 export const db = drizzle(pool, { schema });
