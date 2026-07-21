@@ -1,2 +1,2 @@
-- [Semantic tab performance](semantic-perf.md) — corpus-wide n-gram scan must not be duplicated; share via precomputed props + remove auto-select useEffects
+- [Semantic tab performance](semantic-perf.md) — corpus-wide n-gram scan must not be duplicated; share via precomputed props + remove auto-select useEffects; diac table uses pagination (100 rows) not full render
 - [Analysis.tsx HMR stack overflow](analysis-hmr.md) — Vite HMR hits call stack limit on 5200+ line Analysis.tsx after many hot reloads; restart workflow to recover, not a production issue

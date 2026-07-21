@@ -1951,6 +1951,7 @@ const DiachronicExpressionPanel = ({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: DiacSortKey; direction: "asc" | "desc" }>({ key: "totalFrequency", direction: "desc" });
   const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(100);
 
   const processedNode = useMemo(() => {
     if (expressionScope !== "node" || !nodeLemma.trim()) return "";
@@ -2061,6 +2062,9 @@ const DiachronicExpressionPanel = ({
     }
   }, [filteredRows, selectedKey]);
 
+  useEffect(() => { setVisibleCount(100); }, [filteredRows]);
+
+  const visibleRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
   const selectedRow = filteredRows.find(r => r.key === selectedKey) || null;
   const maxFreq = useMemo(() => filteredRows.reduce((m, r) => Math.max(m, r.totalFrequency), 1), [filteredRows]);
 
@@ -2071,7 +2075,9 @@ const DiachronicExpressionPanel = ({
     return fam ? fam.members.map(m => m.expression) : [];
   }, [selectedRow, diacObject, expressionFamilies]);
 
-  const mostPersistent = useMemo(() => [...activeRows].sort((a, b) => b.slicesPresent - a.slicesPresent)[0] || null, [activeRows]);
+  const mostPersistent = useMemo(() =>
+    activeRows.reduce<DiacRow | null>((best, r) => (!best || r.slicesPresent > best.slicesPresent) ? r : best, null),
+  [activeRows]);
   const mostFrequent = activeRows[0] || null;
   const dominantBehaviour = useMemo(() => {
     if (!activeRows.length) return "—";
@@ -2196,7 +2202,7 @@ const DiachronicExpressionPanel = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRows.map((r, i) => {
+              {visibleRows.map((r, i) => {
                 const barPct = maxFreq > 0 ? Math.max(4, Math.round((r.totalFrequency / maxFreq) * 100)) : 0;
                 const isSelected = r.key === selectedKey;
                 return (
@@ -2221,6 +2227,19 @@ const DiachronicExpressionPanel = ({
                   </TableRow>
                 );
               })}
+              {visibleCount < filteredRows.length && (
+                <TableRow>
+                  <TableCell colSpan={diacObject === "candidates" ? 7 : 6} className="py-2 text-center">
+                    <button
+                      onClick={() => setVisibleCount(c => c + 100)}
+                      className="text-[10px] text-primary hover:underline"
+                      data-testid="button-diac-load-more"
+                    >
+                      Load 100 more ({filteredRows.length - visibleCount} remaining)
+                    </button>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -2280,7 +2299,7 @@ const DiachronicExpressionPanel = ({
         />
       )}
       <div className="text-[10px] text-muted-foreground px-1" data-testid="text-diac-table-count">
-        Showing {filteredRows.length}{search ? ` of ${activeRows.length}` : ""} {diacObject === "candidates" ? "candidates" : "families"} · {allSlices.length} time slices available
+        Showing {visibleRows.length} of {filteredRows.length}{search ? ` (filtered from ${activeRows.length})` : ""} {diacObject === "candidates" ? "candidates" : "families"} · {allSlices.length} time slices · Click a row to view its breakdown
       </div>
     </div>
   );
@@ -2825,6 +2844,11 @@ const SemanticTab = () => {
     const allSlices = expressionResults.allSlices as string[];
     const allCandidates = expressionResults.allCandidates as ExpressionCandidate[];
     if (!sliceFreqMap || !allSlices) return [];
+
+    const total = allSlices.length;
+    // Pre-build O(1) index so getDiacBehaviour never calls indexOf in a loop
+    const sliceIndex = new Map<string, number>(allSlices.map((s, i) => [s, i] as [string, number]));
+
     const rows: DiacRow[] = [];
     allCandidates.forEach((c: ExpressionCandidate) => {
       const slices = sliceFreqMap.get(c.expression);
@@ -2832,14 +2856,29 @@ const SemanticTab = () => {
       const presentSlices: string[] = Array.from(slices.keys()).sort();
       const sliceFreqs: Record<string, number> = {};
       slices.forEach((v: number, k: string) => { sliceFreqs[k] = v; });
+
+      const n = presentSlices.length;
+      let temporalBehaviour: TemporalBehaviour = "Transient";
+      if (total > 0 && n > 1) {
+        // Resolve indices once — O(1) per slice via pre-built map
+        const idxArr = presentSlices.map(s => sliceIndex.get(s) ?? 0);
+        const firstIdx = idxArr[0];
+        const lastIdx = idxArr[n - 1];
+        const span = lastIdx - firstIdx;
+        const isContiguous = idxArr.every((idx, i) => i === 0 || idx === idxArr[i - 1] + 1);
+        if (n >= 3 && span >= total / 2) temporalBehaviour = "Persistent";
+        else if (firstIdx > total / 3 && lastIdx >= (total * 2) / 3) temporalBehaviour = "Emerging";
+        else if (firstIdx <= total / 3 && lastIdx < (total * 2) / 3) temporalBehaviour = "Declining";
+        else if (!isContiguous) temporalBehaviour = "Intermittent";
+        else temporalBehaviour = "Intermittent";
+      }
+
       rows.push({
-        key: c.expression,
-        n: c.n,
-        totalFrequency: c.frequency,
+        key: c.expression, n: c.n, totalFrequency: c.frequency,
         firstSeen: presentSlices[0] || "—",
-        lastSeen: presentSlices[presentSlices.length - 1] || "—",
-        slicesPresent: presentSlices.length,
-        temporalBehaviour: getDiacBehaviour(presentSlices, allSlices),
+        lastSeen: presentSlices[n - 1] || "—",
+        slicesPresent: n,
+        temporalBehaviour,
         sliceFreqs,
       });
     });

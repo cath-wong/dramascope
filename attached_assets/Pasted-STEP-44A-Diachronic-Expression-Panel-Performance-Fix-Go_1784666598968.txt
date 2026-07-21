@@ -1,0 +1,269 @@
+STEP 44A — Diachronic Expression Panel Performance Fix
+
+Goal
+
+Fix the remaining performance problem in:
+
+D. Diachronic Expression Change
+
+STEP 44 successfully improved the initial Corpus-wide Semantic analysis and the first three panels are now substantially smoother.
+
+However, opening the final Diachronic Expression Change panel still causes the browser to become unresponsive and may trigger a “Page Unresponsive” warning.
+
+This step must optimise the diachronic panel without changing its analytical methodology or outputs.
+
+Scope
+
+Primary scope:
+
+- the Diachronic Expression Change section in the Semantic tab;
+- the `DiachronicExpressionPanel` component;
+- Semantic-specific diachronic data preparation immediately used by that component.
+
+Modify additional files only if genuinely required for:
+
+- a Web Worker;
+- a reusable asynchronous computation helper;
+- a virtualised results table.
+
+Keep the number of modified files minimal.
+
+Do not modify unrelated Semantic panels.
+
+Problem Context
+
+After STEP 44:
+
+- the main corpus-wide tokenisation and n-gram scan is shared;
+- diachronic slice frequencies are collected during the main expression scan;
+- `precomputedCandidateRows` and `precomputedAllSlices` are passed into `DiachronicExpressionPanel`;
+- sections B, C, and D are collapsed by default.
+
+The initial Corpus-wide overview is now much smoother.
+
+However, when the user opens D. Diachronic Expression Change, the application still freezes.
+
+The full analysis contains approximately:
+
+- 85,000 expression candidates;
+- 13,000+ expression families;
+- many time slices across the Shakespeare corpus.
+
+The remaining freeze is therefore likely occurring during diachronic row transformation, classification, sorting, filtering, or rendering rather than during the original corpus tokenisation pass.
+
+Investigation
+
+Before implementing changes:
+
+1. Add performance timings specifically around the operations triggered when the Diachronic Expression Change panel is opened.
+
+Measure separately:
+
+- reading the precomputed candidate data;
+- converting slice-frequency maps into diachronic rows;
+- calculating temporal statistics;
+- assigning temporal behaviour labels;
+- sorting the complete candidate list;
+- filtering the candidate list;
+- preparing chart data;
+- rendering the results table;
+- rendering any visualisations.
+
+2. Confirm whether any full-corpus tokenisation or n-gram generation still occurs when opening this panel.
+
+It must not repeat the original corpus-wide scan.
+
+3. Identify whether the freeze is primarily caused by:
+
+- calculation;
+- sorting;
+- React rendering;
+- chart generation;
+- or a combination of these.
+
+4. Report the measured timings before making the final optimisation.
+
+Required Changes
+
+1. Do not synchronously process the entire diachronic candidate inventory during panel opening
+
+Opening the panel must not run one uninterrupted main-thread operation across all corpus-wide expression candidates.
+
+Where possible:
+
+- process only the candidates required for the currently displayed results;
+- apply the minimum-frequency and user filters before expensive temporal classification;
+- avoid constructing full chart-ready arrays for candidates that are not displayed or selected;
+- calculate detailed visualisation data only when the user selects an expression.
+
+Do not silently discard valid candidates.
+
+The full candidate inventory must remain analytically available.
+
+2. Separate summary-row calculation from detailed evidence calculation
+
+The main diachronic results table should contain only the data required to display and sort its summary rows.
+
+Do not generate detailed chart or evidence data for every expression in advance.
+
+Detailed time-series data, chart points, and evidence should be prepared only when the user deliberately selects a candidate.
+
+3. Optimise temporal classification
+
+If temporal behaviour labels are currently calculated for all candidates when the panel opens:
+
+- reuse the precomputed slice frequencies;
+- avoid copying large maps or arrays unnecessarily;
+- avoid repeated conversion of the same slice keys;
+- avoid repeated sorting of time slices for every candidate;
+- reuse shared ordered slice metadata.
+
+Preserve the existing temporal behaviour definitions exactly.
+
+Do not alter:
+
+- emergence criteria;
+- persistence criteria;
+- diversification criteria;
+- disappearance criteria;
+- time-slice boundaries;
+- frequency calculations;
+- normalisation rules;
+- label names.
+
+4. Limit rendering cost
+
+Do not render thousands of diachronic rows into the DOM at once.
+
+Use one of the following, depending on the current table architecture:
+
+- existing Top-N rendering;
+- pagination;
+- incremental rendering;
+- table virtualisation.
+
+The analytical candidate count may still display the full number of matching candidates.
+
+Only the visible rows need to be mounted in the DOM.
+
+Do not change the user’s selected Top-N setting.
+
+5. Avoid automatic chart rendering
+
+Do not render a temporal chart until the user explicitly selects a diachronic expression.
+
+When no candidate is selected, show the existing empty-state instruction.
+
+Do not automatically select the first diachronic result.
+
+6. Preserve interface responsiveness
+
+When the panel is opened:
+
+- the page must remain scrollable;
+- the browser must not display a “Page Unresponsive” warning;
+- the panel should show a clear loading state if preparation is still required;
+- opening and closing the panel repeatedly must not restart an identical completed calculation;
+- changing relevant analytical settings must invalidate stale results correctly.
+
+7. Use a Web Worker if the remaining classification is still CPU-heavy
+
+If the measured diachronic transformation or classification still blocks the main thread after eliminating unnecessary work, move that computation into a Web Worker.
+
+The worker may receive already-prepared expression and slice-frequency data.
+
+Do not repeat tokenisation inside the worker.
+
+The worker result must preserve the existing analytical output exactly.
+
+Analytical Integrity
+
+For identical settings, confirm that the optimised Diachronic Expression Change panel produces the same:
+
+- candidate count;
+- expression text;
+- total frequency;
+- slice frequencies;
+- first and last observed slice;
+- temporal behaviour labels;
+- sorting order;
+- filtered results;
+- selected-expression chart data;
+- evidence counts.
+
+Any numerical or classificatory difference must be treated as a regression unless it corrects a separately documented bug.
+
+Do NOT Modify
+
+Do not modify:
+
+- Expression Snapshot methodology;
+- Expression Families methodology;
+- Conventionalisation methodology;
+- Lexical Dashboard;
+- Discursive Dashboard;
+- corpus CSV files;
+- corpus metadata;
+- tokenisation;
+- stoplist;
+- lemmatisation;
+- global filters;
+- time granularity definitions;
+- routing;
+- sidebar;
+- application version;
+- visual styling unrelated to loading, pagination, or virtualisation.
+
+Do not:
+
+- reduce the analytical candidate inventory;
+- raise minimum-frequency thresholds;
+- change the default Top-N value;
+- remove temporal behaviour categories;
+- remove any existing diachronic functionality;
+- introduce AI or LLM functionality;
+- move the analysis to the server.
+
+Validation
+
+Confirm:
+
+1. The initial Corpus-wide Semantic overview remains as smooth as after STEP 44.
+
+2. Opening D. Diachronic Expression Change no longer causes a “Page Unresponsive” warning.
+
+3. The page remains scrollable while diachronic results are prepared.
+
+4. No full-corpus tokenisation or n-gram generation is repeated when opening the panel.
+
+5. Only the required number of result rows are mounted in the DOM.
+
+6. Detailed chart data are not generated until the user selects an expression.
+
+7. No expression is automatically selected.
+
+8. The candidate count remains unchanged for identical settings.
+
+9. The top diachronic results and temporal labels remain unchanged.
+
+10. Selecting an expression still displays the correct time-series visualisation and evidence.
+
+11. Closing and reopening the panel reuses completed results.
+
+12. Changing time granularity, corpus scope, stoplist, lemmatisation, or relevant frequency settings invalidates the diachronic result correctly.
+
+13. No stale results appear after settings change.
+
+14. No new TypeScript, React, browser-console, or runtime errors are introduced.
+
+15. Report:
+
+- the measured timings before and after optimisation;
+- whether the bottleneck was calculation, sorting, rendering, chart generation, or a combination;
+- the files modified;
+- whether a Web Worker was required;
+- confirmation that the analytical outputs were preserved.
+
+STOP AFTER STEP 44A.
+
+Do not proceed to STEP 45.
