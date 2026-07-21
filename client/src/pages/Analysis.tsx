@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import { MainLayout } from "@/components/MainLayout";
 import { useData } from "@/contexts/DataContext";
 import { useUI } from "@/contexts/UIContext";
@@ -1408,12 +1408,9 @@ const ExpressionFamilyPanel = ({ families, filename, speeches, useStoplist, useL
   }, [filteredFamilies, showLimit]);
 
   useEffect(() => {
-    if (!displayedFamilies.length) {
-      if (selectedPattern !== null) setSelectedPattern(null);
-      return;
-    }
-    if (!selectedPattern || !displayedFamilies.some(f => f.pattern === selectedPattern)) {
-      setSelectedPattern(displayedFamilies[0].pattern);
+    if (!displayedFamilies.length) { setSelectedPattern(null); return; }
+    if (selectedPattern && !displayedFamilies.some(f => f.pattern === selectedPattern)) {
+      setSelectedPattern(null);
     }
   }, [displayedFamilies, selectedPattern]);
 
@@ -1671,8 +1668,8 @@ const ConventionalisationPanel = ({ families, filename, speeches, useStoplist, u
 
   useEffect(() => {
     if (!filteredRows.length) { setSelectedPattern(null); return; }
-    if (!selectedPattern || !filteredRows.some(r => r.pattern === selectedPattern)) {
-      setSelectedPattern(filteredRows[0].pattern);
+    if (selectedPattern && !filteredRows.some(r => r.pattern === selectedPattern)) {
+      setSelectedPattern(null);
     }
   }, [filteredRows, selectedPattern]);
 
@@ -1931,6 +1928,7 @@ const DiachronicExpressionPanel = ({
   speeches, expressionScope, nodeLemma, useStoplist, useLemmas, activeNgramLengths,
   minExpressionFreq, expressionFamilies, timeMode, candidateFilename, familyFilename,
   evidencePlayFilename, evidenceExprFilename, contextEvidenceFilename,
+  precomputedCandidateRows, precomputedAllSlices,
 }: {
   speeches: any[];
   expressionScope: "node" | "corpus";
@@ -1946,6 +1944,8 @@ const DiachronicExpressionPanel = ({
   evidencePlayFilename: string;
   evidenceExprFilename: string;
   contextEvidenceFilename: string;
+  precomputedCandidateRows?: DiacRow[];
+  precomputedAllSlices?: string[];
 }) => {
   const [diacObject, setDiacObject] = useState<"candidates" | "families">("candidates");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -1958,15 +1958,17 @@ const DiachronicExpressionPanel = ({
   }, [expressionScope, nodeLemma, useLemmas]);
 
   const allSlices = useMemo(() => {
+    if (precomputedAllSlices !== undefined) return precomputedAllSlices;
     const sliceSet = new Set<string>();
     speeches.forEach(s => {
       const raw = timeMode === "year" ? (s.year_est || s.year_mid || s.year_min) : (s.decade || s.decade_num);
       if (raw != null && raw !== "") sliceSet.add(formatTimeValue(raw));
     });
     return Array.from(sliceSet).sort();
-  }, [speeches, timeMode]);
+  }, [speeches, timeMode, precomputedAllSlices]);
 
   const candidateRows = useMemo((): DiacRow[] => {
+    if (precomputedCandidateRows !== undefined) return precomputedCandidateRows;
     if (!speeches.length) return [];
     if (expressionScope === "node" && !nodeLemma.trim()) return [];
     const exprMap = new Map<string, { n: number; slices: Map<string, number> }>();
@@ -2003,7 +2005,7 @@ const DiachronicExpressionPanel = ({
       });
     });
     return rows.sort((a, b) => b.totalFrequency - a.totalFrequency);
-  }, [speeches, expressionScope, nodeLemma, processedNode, useStoplist, useLemmas, activeNgramLengths, minExpressionFreq, timeMode, allSlices]);
+  }, [speeches, expressionScope, nodeLemma, processedNode, useStoplist, useLemmas, activeNgramLengths, minExpressionFreq, timeMode, allSlices, precomputedCandidateRows]);
 
   const familyRows = useMemo((): DiacRow[] => {
     if (!expressionFamilies.length || !candidateRows.length) return [];
@@ -2054,8 +2056,8 @@ const DiachronicExpressionPanel = ({
 
   useEffect(() => {
     if (!filteredRows.length) { setSelectedKey(null); return; }
-    if (!selectedKey || !filteredRows.some(r => r.key === selectedKey)) {
-      setSelectedKey(filteredRows[0].key);
+    if (selectedKey && !filteredRows.some(r => r.key === selectedKey)) {
+      setSelectedKey(null);
     }
   }, [filteredRows, selectedKey]);
 
@@ -2677,6 +2679,7 @@ const SemanticTab = () => {
   const [useLemmas, setUseLemmas] = useState(true);
 
   const [expressionScope, setExpressionScope] = useState<"node" | "corpus">("node");
+  const [scopePending, startScopeTransition] = useTransition();
   const [ngramLengthSetting, setNgramLengthSetting] = useState<"2-5" | "2" | "3" | "4" | "5">("2-5");
   const [minExpressionFreq, setMinExpressionFreq] = useState(2);
   const [expressionLengthFilter, setExpressionLengthFilter] = useState<"all" | "2" | "3" | "4" | "5">("all");
@@ -2699,7 +2702,7 @@ const SemanticTab = () => {
   const expressionResults = useMemo(() => {
     if (!filteredSpeeches.length) return null;
 
-    if (expressionScope === "node" && !nodeLemma.trim()) return { allCandidates: [], noNodeLemma: true };
+    if (expressionScope === "node" && !nodeLemma.trim()) return { allCandidates: [], noNodeLemma: true, sliceFreqMap: new Map<string, Map<string, number>>(), allSlices: [] as string[] };
 
     const processedNode = expressionScope === "node"
       ? (processTokens(nodeLemma, { useStoplist: false, useLemmas })[0] || nodeLemma.trim().toLowerCase())
@@ -2715,12 +2718,19 @@ const SemanticTab = () => {
       minFreq: minExpressionFreq,
       ngramLengthSetting,
       speechesLen: filteredSpeeches.length,
+      timeMode,
     });
     if (expressionCache.current.has(cacheKey)) return expressionCache.current.get(cacheKey);
 
     const ngramCounts = new Map<string, { n: number; count: number }>();
+    const sliceFreqMap = new Map<string, Map<string, number>>();
+    const allSlicesSet = new Set<string>();
 
     filteredSpeeches.forEach(s => {
+      const rawSlice = timeMode === "year" ? (s.year_est || s.year_mid || s.year_min) : (s.decade || s.decade_num);
+      const slice = rawSlice != null && rawSlice !== "" ? formatTimeValue(rawSlice) : null;
+      if (slice) allSlicesSet.add(slice);
+
       const tokens = processTokens(s.text_raw || "", { useStoplist, useLemmas });
       activeNgramLengths.forEach(n => {
         for (let i = 0; i + n <= tokens.length; i++) {
@@ -2729,9 +2739,16 @@ const SemanticTab = () => {
           const key = gram.join(" ");
           if (!ngramCounts.has(key)) ngramCounts.set(key, { n, count: 0 });
           ngramCounts.get(key)!.count += 1;
+          if (slice) {
+            if (!sliceFreqMap.has(key)) sliceFreqMap.set(key, new Map());
+            const sliceMap = sliceFreqMap.get(key)!;
+            sliceMap.set(slice, (sliceMap.get(slice) || 0) + 1);
+          }
         }
       });
     });
+
+    const allSlices = Array.from(allSlicesSet).sort();
 
     const allCandidates = Array.from(ngramCounts.entries())
       .map(([expression, d]) => ({
@@ -2743,10 +2760,10 @@ const SemanticTab = () => {
       .filter(c => c.frequency >= minExpressionFreq)
       .sort((a, b) => b.frequency - a.frequency);
 
-    const output = { allCandidates, noNodeLemma: false };
+    const output = { allCandidates, noNodeLemma: false, sliceFreqMap, allSlices };
     expressionCache.current.set(cacheKey, output);
     return output;
-  }, [filteredSpeeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting]);
+  }, [filteredSpeeches, corpusScope, selectedPlayTitle, expressionScope, nodeLemma, useStoplist, useLemmas, minExpressionFreq, activeNgramLengths, ngramLengthSetting, timeMode]);
 
   const matchingCandidates = useMemo(() => {
     const all = expressionResults?.allCandidates || [];
@@ -2802,6 +2819,35 @@ const SemanticTab = () => {
 
   const expressionFamilyExportFilename = `semantic_expression_families_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
+  const diacCandidateRows = useMemo((): DiacRow[] => {
+    if (!expressionResults?.allCandidates?.length) return [];
+    const sliceFreqMap = expressionResults.sliceFreqMap as Map<string, Map<string, number>>;
+    const allSlices = expressionResults.allSlices as string[];
+    const allCandidates = expressionResults.allCandidates as ExpressionCandidate[];
+    if (!sliceFreqMap || !allSlices) return [];
+    const rows: DiacRow[] = [];
+    allCandidates.forEach((c: ExpressionCandidate) => {
+      const slices = sliceFreqMap.get(c.expression);
+      if (!slices) return;
+      const presentSlices: string[] = Array.from(slices.keys()).sort();
+      const sliceFreqs: Record<string, number> = {};
+      slices.forEach((v: number, k: string) => { sliceFreqs[k] = v; });
+      rows.push({
+        key: c.expression,
+        n: c.n,
+        totalFrequency: c.frequency,
+        firstSeen: presentSlices[0] || "—",
+        lastSeen: presentSlices[presentSlices.length - 1] || "—",
+        slicesPresent: presentSlices.length,
+        temporalBehaviour: getDiacBehaviour(presentSlices, allSlices),
+        sliceFreqs,
+      });
+    });
+    return rows.sort((a, b) => b.totalFrequency - a.totalFrequency);
+  }, [expressionResults]);
+
+  const diacAllSlices = useMemo(() => expressionResults?.allSlices || [], [expressionResults]);
+
   const conventionalisationExportFilename = `semantic_conventionalisation_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
 
   const diacCandidateFilename = `semantic_expression_change_candidates_${expressionScope}_${expressionScope === "node" ? (nodeLemma.trim().toLowerCase() || "unspecified") : "corpus"}.csv`;
@@ -2830,7 +2876,7 @@ const SemanticTab = () => {
             <div className="flex rounded-md border overflow-hidden h-8">
               <button
                 type="button"
-                onClick={() => setExpressionScope("node")}
+                onClick={() => startScopeTransition(() => setExpressionScope("node"))}
                 className={`flex-1 text-xs font-medium transition-colors ${expressionScope === "node" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                 data-testid="button-scope-node"
               >
@@ -2838,11 +2884,11 @@ const SemanticTab = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setExpressionScope("corpus")}
+                onClick={() => startScopeTransition(() => setExpressionScope("corpus"))}
                 className={`flex-1 text-xs font-medium border-l transition-colors ${expressionScope === "corpus" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                 data-testid="button-scope-corpus"
               >
-                Corpus-wide
+                {scopePending ? "Computing…" : "Corpus-wide"}
               </button>
             </div>
           </div>
@@ -2980,7 +3026,7 @@ const SemanticTab = () => {
           <h3 className="text-sm font-bold">B. Expression Patterning</h3>
           <p className="text-xs text-muted-foreground">Examines how recurrent expressions are structured, varied, and grouped.</p>
         </div>
-        <Collapsible defaultOpen={true}>
+        <Collapsible defaultOpen={false}>
           <Card className="shadow-none border-muted/60 overflow-hidden">
             <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">Expression Families</CardTitle>
@@ -3047,7 +3093,7 @@ const SemanticTab = () => {
           <h3 className="text-sm font-bold">C. Conventionalisation Indicators</h3>
           <p className="text-xs text-muted-foreground">Assesses observable indicators of structural stability in expression families.</p>
         </div>
-        <Collapsible defaultOpen={true}>
+        <Collapsible defaultOpen={false}>
           <Card className="shadow-none border-muted/60 overflow-hidden">
             <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">Indicator Table</CardTitle>
@@ -3093,7 +3139,7 @@ const SemanticTab = () => {
           <h3 className="text-sm font-bold">D. Diachronic Expression Change</h3>
           <p className="text-xs text-muted-foreground">Tracks how expressions emerge, persist, diversify, or disappear across time.</p>
         </div>
-        <Collapsible defaultOpen={true}>
+        <Collapsible defaultOpen={false}>
           <Card className="shadow-none border-muted/60 overflow-hidden">
             <CardHeader className="bg-muted/5 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">Temporal Tracking</CardTitle>
@@ -3118,6 +3164,8 @@ const SemanticTab = () => {
                   evidencePlayFilename={evidencePlayFilename}
                   evidenceExprFilename={evidenceExprFilename}
                   contextEvidenceFilename={contextEvidenceFilename}
+                  precomputedCandidateRows={diacCandidateRows}
+                  precomputedAllSlices={diacAllSlices}
                 />
               </CardContent>
             </CollapsibleContent>

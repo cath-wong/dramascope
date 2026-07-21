@@ -1,0 +1,255 @@
+## STEP 44 — Semantic Corpus-Wide Performance Optimisation
+
+### Goal
+
+Fix the severe performance problem in the **Semantic** tab when switching **Expression Scope** from **Node-centred** to **Corpus-wide**.
+
+At present, clicking **Corpus-wide** causes the interface to freeze for a long time. The page becomes difficult or impossible to scroll while the calculation is running.
+
+The purpose of this step is to improve performance and responsiveness **without changing the analytical methodology or results**.
+
+---
+
+### Problem Context
+
+The Semantic tab currently calculates corpus-wide recurrent expressions across the full Shakespeare speech corpus.
+
+With the default settings:
+
+- Scope: Corpus-wide
+- N-gram length: 2–5 tokens
+- Minimum expression frequency: 2
+- Stoplist: ON
+- Lemmas: ON
+
+the analysis produces approximately 85,000 expression candidates.
+
+The current implementation appears to:
+
+- tokenise the same speeches repeatedly;
+- generate overlapping n-gram inventories separately for different Semantic sections;
+- calculate Expression Snapshot, Expression Families, Conventionalisation Indicators, Diachronic Expression Change, and associated evidence during the same interaction;
+- perform these calculations synchronously on the browser’s main thread.
+
+This causes the application to freeze when Corpus-wide mode is first selected.
+
+Node-centred analysis is comparatively fast and should not be degraded.
+
+---
+
+### Investigation
+
+Before implementing changes:
+
+1. Trace exactly which Semantic computations run when the user changes `expressionScope` from `"node"` to `"corpus"`.
+
+2. Add temporary performance timings around the major stages, including:
+
+   - filtering speeches;
+   - tokenisation;
+   - corpus-wide n-gram generation;
+   - expression candidate construction and sorting;
+   - expression-family construction;
+   - conventionalisation calculations;
+   - diachronic candidate generation;
+   - corpus-evidence calculations;
+   - initial rendering of Corpus-wide results.
+
+3. Identify:
+
+   - repeated calls to `processTokens()` for the same speeches and settings;
+   - duplicated n-gram generation;
+   - calculations performed by sections that the user has not yet inspected;
+   - unnecessary recalculation caused by React dependencies or component mounting.
+
+4. Use the findings to make a targeted performance fix.
+
+Do not replace the existing analytical methodology merely to make the page faster.
+
+---
+
+### Required Changes
+
+#### 1. Reuse processed speech tokens
+
+For a given combination of:
+
+- active corpus or play scope;
+- stoplist setting;
+- lemmatisation setting;
+
+each speech should be tokenised once and the processed token arrays should be reused by the Semantic analyses.
+
+Do not repeatedly call `processTokens()` over the same complete speech collection within separate Semantic components when the settings have not changed.
+
+The prepared token data must invalidate correctly when the relevant corpus scope or token-processing settings change.
+
+---
+
+#### 2. Avoid duplicate corpus-wide n-gram generation
+
+The Expression Snapshot and Diachronic Expression Change currently require overlapping corpus-wide expression data.
+
+Create or reuse a shared corpus-wide computation so that the same 2–5-gram inventory is not generated independently multiple times during the same analysis.
+
+Where possible, collect reusable information during one traversal, including:
+
+- expression text;
+- n-gram length;
+- total frequency;
+- frequencies by time slice.
+
+Derive the Snapshot and Diachronic outputs from this shared result.
+
+Do not alter:
+
+- expression boundaries;
+- token order;
+- stoplist behaviour;
+- lemmatisation behaviour;
+- minimum-frequency filtering;
+- time-slice definitions;
+- frequency calculations.
+
+---
+
+#### 3. Prevent unnecessary automatic evidence scans
+
+Do not automatically perform full-corpus evidence searches merely because a panel selects its first row by default.
+
+Corpus Evidence and Context Evidence should only run when the user deliberately selects an expression, expression family, or conventionalisation candidate for inspection.
+
+The summary tables may still display their default ordering, but selecting the first item automatically must not trigger an additional full-corpus scan.
+
+---
+
+#### 4. Defer non-essential Semantic section calculations
+
+Expression Snapshot is the user’s initial corpus-wide overview and should be prioritised.
+
+Heavy calculations for later sections should not block the initial Corpus-wide overview unnecessarily.
+
+Where appropriate:
+
+- keep later sections collapsed until opened; and/or
+- calculate their results only when the section is opened; and/or
+- derive them efficiently from the shared semantic result.
+
+Do not remove any existing Semantic section or functionality.
+
+---
+
+#### 5. Preserve interface responsiveness
+
+When Corpus-wide analysis is first requested:
+
+- the application must remain scrollable;
+- the controls must not appear permanently frozen;
+- show a clear loading or calculation state while results are being prepared;
+- prevent repeated Corpus-wide requests while the same calculation is already running.
+
+Use a Web Worker only if the optimised shared computation still blocks the interface significantly. Do not introduce a Web Worker unnecessarily before removing duplicated work.
+
+---
+
+#### 6. Retain and improve caching
+
+Retain the existing caching behaviour, but ensure that the cache represents the reusable analysis result rather than only storing the final result after several duplicated calculations.
+
+The cache key must reflect all settings that affect the analytical output.
+
+Do not return stale results when the corpus data or analytical settings change.
+
+---
+
+### Analytical Integrity
+
+The optimisation must not change the scholarly outputs.
+
+For identical settings, confirm that the optimised implementation produces the same:
+
+- expression candidates;
+- n-gram lengths;
+- expression frequencies;
+- candidate ordering;
+- expression families;
+- family frequencies;
+- conventionalisation indicators;
+- diachronic slice frequencies;
+- temporal behaviour labels;
+- corpus-evidence counts.
+
+Any numerical difference must be treated as a regression unless it corrects a separately documented bug.
+
+---
+
+### Scope
+
+Primary scope:
+
+- the analysis file containing `SemanticTab`;
+- Semantic-specific components and functions within that file.
+
+Additional files may be modified only when genuinely required for:
+
+- a reusable Semantic computation utility;
+- a Semantic processing hook;
+- a Web Worker, if proven necessary.
+
+Keep the number of modified files minimal.
+
+---
+
+### Do NOT Modify
+
+Do not modify:
+
+- Lexical Dashboard functionality;
+- Discursive Dashboard functionality;
+- corpus CSV files;
+- corpus text or metadata;
+- tokenisation rules;
+- stoplist contents;
+- lemmatisation rules;
+- expression-family methodology;
+- conventionalisation formula;
+- diachronic behaviour definitions;
+- navigation or routing;
+- global sidebar controls;
+- server architecture.
+
+Do not introduce:
+
+- AI or LLM functionality;
+- server-side analysis;
+- new analytical measures;
+- altered default thresholds.
+
+Do not solve the problem simply by reducing the number of candidates generated.
+
+---
+
+### Validation
+
+Confirm:
+
+1. Switching from Node-centred to Corpus-wide no longer freezes the interface.
+2. The page remains scrollable during computation.
+3. A loading state is shown while analysis runs.
+4. Corpus-wide analysis produces the same analytical results as before.
+5. Node-centred analysis is unaffected.
+6. Cached analyses return substantially faster.
+7. No stale results are displayed after changing settings.
+8. No new TypeScript or React errors are introduced.
+9. Report the measured timings before and after optimisation.
+10. Summarise:
+   - identified bottleneck;
+   - files modified;
+   - optimisation implemented;
+   - whether a Web Worker was required.
+
+---
+
+**STOP AFTER STEP 44.**
+
+Do not update the application version in this step. The DramaScope application version change from **v1.0** to **v1.1** will be handled separately in **STEP 45**.
