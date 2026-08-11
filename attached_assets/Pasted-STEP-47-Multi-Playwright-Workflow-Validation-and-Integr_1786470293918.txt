@@ -1,0 +1,453 @@
+STEP 47 — Multi-Playwright Workflow Validation and Integration Check
+
+Goal
+
+Validate the complete multi-playwright research workflow introduced in STEP 45, STEP 45A, STEP 46, and STEP 46A.
+
+This is primarily a validation and integration step.
+
+Do NOT add new analytical methods or redesign the application.
+
+The purpose is to confirm that the expanded DramaScope corpus behaves coherently across:
+
+- playwright selection
+- multi-playwright combinations
+- date-range filtering
+- individual-play scope
+- Dashboard
+- Corpus Browser
+- Lexical analysis
+- Semantic analysis
+- Discursive analysis
+
+Only fix genuine integration bugs discovered during validation.
+
+---
+
+Cost / Agent Efficiency
+
+Keep this task focused and economical.
+
+- Do not perform another broad codebase investigation.
+- Reuse the architecture already established in STEP 45–46.
+- Inspect only files directly relevant to any bug actually encountered.
+- Do not repeatedly re-read Analysis.tsx.
+- Do not take screenshots unless needed to confirm a UI problem.
+- Do not run repeated TypeScript checks.
+- Run one final TypeScript check only if code changes are made.
+- Do not fix unrelated pre-existing TypeScript errors.
+
+If all validation checks pass, make no code changes.
+
+---
+
+Current Corpus Architecture
+
+LINES:
+
+- corpus_lines_real.csv
+- early_modern_drama_lines.csv
+
+Merged total:
+
+280,546 lines
+
+SPEECHES:
+
+- corpus_speeches_real.csv
+- early_modern_drama_speeches.csv
+
+Merged total:
+
+96,514 speeches
+
+The corpus contains:
+
+- William Shakespeare
+- Christopher Marlowe
+- Thomas Kyd
+- Ben Jonson
+- Thomas Middleton
+- John Webster
+- Philip Massinger
+- John Ford
+
+All rows contain explicit playwright metadata.
+
+---
+
+Existing Filtering Architecture
+
+Preserve the current filtering order:
+
+merged corpus
+→ selected playwrights
+→ selected temporal range
+→ corpus scope / selected play
+→ genre / speaker / existing analytical controls
+→ analytical functions
+
+Current defaults:
+
+- William Shakespeare selected
+- full available date range
+- existing Corpus Scope behaviour unchanged
+
+Lexical uses LINES.
+
+Semantic and Discursive use SPEECHES.
+
+Do not alter this architecture unless a genuine bug is identified.
+
+---
+
+Validation Set
+
+Use a small representative set rather than exhaustively testing every possible combination.
+
+Validate the following corpus selections:
+
+1. Shakespeare only
+
+2. Marlowe only
+
+3. Shakespeare + Marlowe
+
+4. Middleton + Webster
+
+5. All playwrights
+
+Also test at least one restricted temporal range that contains material from more than one playwright.
+
+Suggested example:
+
+1590–1600
+
+If that range produces insufficient material for one of the selected combinations, use another sensible range within the existing 1585–1638 corpus bounds.
+
+---
+
+1. Validate Playwright Selection
+
+Confirm:
+
+- each playwright can be selected independently;
+- multiple playwrights can be selected simultaneously;
+- All playwrights selects all eight;
+- deselecting one playwright from All leaves the other seven selected;
+- the app cannot enter a zero-playwright state;
+- changing selections updates the active corpus immediately;
+- no stale results remain from the previous playwright selection.
+
+Do not change checkbox behaviour unless a bug is found.
+
+---
+
+2. Validate Dashboard
+
+For each representative selection, confirm that Dashboard statistics respond to the active corpus.
+
+Check:
+
+- Plays Included
+- Total Lines
+- Total Speeches
+- Tokens
+- Types
+- TTR
+- Plays by Time Slice
+
+Do not manually verify every numerical value against external sources.
+
+Instead confirm internal consistency:
+
+- narrower selections produce appropriately smaller corpora;
+- multi-playwright selections combine the expected material;
+- All playwrights produces the largest corpus;
+- temporal filtering reduces the active corpus correctly.
+
+For Shakespeare + full date range, confirm backward compatibility with the previous Shakespeare-only application.
+
+---
+
+3. Validate Corpus Browser
+
+Confirm that Corpus Browser respects:
+
+- selected playwrights;
+- selected temporal range;
+- individual play scope;
+- genre;
+- speaker;
+- existing stage-direction behaviour.
+
+Check that no play belonging to an unselected playwright appears.
+
+Check that plays outside the selected temporal range do not appear.
+
+Do not redesign Corpus Browser.
+
+---
+
+4. Validate Individual Play Scope
+
+For at least:
+
+- one Shakespeare play;
+- one Marlowe play;
+- one play from another new playwright;
+
+switch Corpus Scope to Individual Play.
+
+Confirm:
+
+- only valid plays from the active playwright/date selection are listed;
+- selecting a play restricts Dashboard/Browser/analysis correctly;
+- changing playwright selection clears a selected play if it is no longer valid;
+- changing temporal range clears a selected play if it falls outside the new range.
+
+Do not change existing play-scope semantics.
+
+---
+
+5. Validate Lexical Analysis
+
+Use one simple representative lexical query, such as:
+
+love
+
+or another frequent word already known to work.
+
+Test:
+
+- Shakespeare only;
+- Marlowe only;
+- Shakespeare + Marlowe;
+- All playwrights.
+
+Confirm that:
+
+- Corpus Overview changes with corpus scope;
+- Word Explorer frequency changes appropriately;
+- KWIC results come only from selected playwrights/date range;
+- Play Distribution lists valid plays;
+- Collocates operate normally;
+- Word Comparison still works;
+- cache results do not leak between playwright selections.
+
+Do not change lexical methodology.
+
+---
+
+6. Validate Semantic Analysis
+
+Use a simple node lemma already known to work.
+
+Test at least:
+
+- Shakespeare only;
+- one non-Shakespeare playwright;
+- one multi-playwright combination.
+
+Confirm:
+
+- Node-centred analysis works;
+- Corpus-wide analysis works;
+- Expression Snapshot reflects the active corpus;
+- Expression Families open normally;
+- Conventionalisation Indicators open normally;
+- Diachronic Expression Change opens without freezing;
+- STEP 44/44A pagination/incremental rendering remains intact;
+- Corpus Evidence contains only material from the active corpus;
+- switching playwright/date combinations does not return stale cached results.
+
+Do not change Semantic methodology or performance architecture unless a genuine regression is found.
+
+---
+
+7. Validate Discursive Analysis
+
+Use one node lemma already known to produce results.
+
+Test at least:
+
+- Shakespeare only;
+- one non-Shakespeare playwright;
+- one multi-playwright combination.
+
+Confirm:
+
+- quad calculations use only active speeches;
+- time slices reflect the active temporal range;
+- constellation/table views work;
+- Sankey visualisation works;
+- similarity matrix works;
+- clustering works;
+- switching playwright selections does not reuse stale results from another corpus.
+
+Do not change Discursive methodology.
+
+---
+
+8. Validate Temporal Filtering Across Analysis Tabs
+
+Choose one multi-playwright selection.
+
+Compare:
+
+Full corpus range
+
+versus
+
+a narrower range.
+
+Confirm that:
+
+- Dashboard changes;
+- Corpus Browser changes;
+- Lexical changes;
+- Semantic changes;
+- Discursive changes.
+
+Confirm that Time Granularity remains independent of Date Range.
+
+Do not change Year/Decade behaviour.
+
+---
+
+9. Validate Cache Isolation
+
+Perform one explicit cache-switching test:
+
+A. Select Shakespeare and run a representative analysis.
+
+B. Switch to Marlowe with the same analytical settings.
+
+C. Confirm that Marlowe results differ appropriately.
+
+D. Switch back to Shakespeare.
+
+E. Confirm that Shakespeare results return correctly.
+
+Repeat this test for at least one of:
+
+- Semantic
+- Discursive
+
+Also test one different temporal range.
+
+The purpose is to verify that:
+
+playwrightKey + temporalRangeKey
+
+correctly distinguishes corpus identities.
+
+---
+
+10. Check Playwright Metadata Integrity
+
+Using the loaded data, confirm that the unique playwright values are exactly the expected eight names:
+
+- William Shakespeare
+- Christopher Marlowe
+- Thomas Kyd
+- Ben Jonson
+- Thomas Middleton
+- John Webster
+- Philip Massinger
+- John Ford
+
+Report any unexpected spelling, blank value, or additional playwright value.
+
+Do not modify the CSV files in this step.
+
+If a metadata problem is found, report it rather than silently rewriting research data.
+
+---
+
+Bug-Fix Rule
+
+If all tests pass:
+
+- make no code changes.
+
+If a genuine integration bug is found:
+
+- identify the specific cause;
+- make the smallest possible fix;
+- do not refactor unrelated architecture;
+- preserve all analytical methodology;
+- preserve STEP 44/44A performance improvements;
+- preserve STEP 45/45A multi-playwright architecture;
+- preserve STEP 46 temporal filtering.
+
+Do not use this step as an opportunity for general cleanup.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV contents
+- analytical formulas
+- stoplists
+- lemmatisation
+- tokenisation
+- n-gram methodology
+- collocation methodology
+- expression-family methodology
+- conventionalisation methodology
+- diachronic classification
+- quad methodology
+- Sankey methodology
+- similarity calculations
+- clustering
+- Time Granularity definitions
+- sidebar layout unless a genuine functional bug prevents selection
+- application version
+- routing
+- server architecture
+- deployment configuration
+
+Do not introduce:
+
+- new analytical tools
+- historical-period presets
+- new visualisations
+- AI/LLM functionality
+- server-side analysis
+
+---
+
+Validation Summary
+
+At the end, report only:
+
+1. Whether all eight playwrights are recognised correctly.
+
+2. Whether representative single-playwright selections work.
+
+3. Whether representative multi-playwright selections work.
+
+4. Whether All playwrights works.
+
+5. Whether temporal range combines correctly with playwright selection.
+
+6. Whether Individual Play scope works with the expanded corpus.
+
+7. Whether Dashboard and Corpus Browser respond correctly.
+
+8. Whether Lexical, Semantic, and Discursive analyses operate correctly across the expanded corpus.
+
+9. Whether cache isolation works across playwright and temporal selections.
+
+10. Whether STEP 44/44A Semantic performance improvements remain intact.
+
+11. Any genuine bugs found.
+
+12. Any files modified and why.
+
+If code changes were required, run one final TypeScript check and confirm whether the existing baseline error count changed.
+
+STOP AFTER STEP 47.
