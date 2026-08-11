@@ -7,7 +7,8 @@ import {
   Database,
   Filter,
   BookOpen,
-  Users
+  Users,
+  RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -21,6 +22,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // Display surname → full name mapping (order controls sidebar order)
 const PLAYWRIGHT_DISPLAY: { surname: string; full: string }[] = [
@@ -47,6 +50,8 @@ export function Sidebar() {
     availablePlays, availableGenres, availableSpeakers,
     selectedPlaywrights, setSelectedPlaywrights,
     availablePlaywrights,
+    temporalRange, setTemporalRange,
+    corpusYearRange,
   } = useUI();
 
   const navItems = [
@@ -56,8 +61,7 @@ export function Sidebar() {
     { href: "/docs", label: "Docs / Methods", icon: BookOpen },
   ];
 
-  // Compute the set of playwrights to display — show all 8 canonical ones first,
-  // then any extras found in the corpus that aren't in the canonical list.
+  // Playwright display helpers
   const canonicalFullNames = PLAYWRIGHT_DISPLAY.map(p => p.full);
   const extraPlaywrights = availablePlaywrights.filter(pw => !canonicalFullNames.includes(pw));
   const displayPlaywrights = [
@@ -71,7 +75,6 @@ export function Sidebar() {
 
   const handleAllToggle = () => {
     if (allSelected) {
-      // Can't deselect all — keep the first one
       setSelectedPlaywrights([allPlaywrightFullNames[0]]);
     } else {
       setSelectedPlaywrights(allPlaywrightFullNames);
@@ -80,12 +83,34 @@ export function Sidebar() {
 
   const handlePlaywrightToggle = (full: string) => {
     if (selectedPlaywrights.includes(full)) {
-      // Guard: never go to zero
-      if (selectedPlaywrights.length === 1) return;
+      if (selectedPlaywrights.length === 1) return; // guard: never zero
       setSelectedPlaywrights(selectedPlaywrights.filter(pw => pw !== full));
     } else {
       setSelectedPlaywrights([...selectedPlaywrights, full]);
     }
+  };
+
+  // Temporal range helpers
+  const isFullRange =
+    temporalRange.startYear <= corpusYearRange.min &&
+    temporalRange.endYear >= corpusYearRange.max;
+
+  const handleStartYear = (raw: string) => {
+    const v = parseInt(raw, 10);
+    if (isNaN(v)) return;
+    const clamped = Math.max(corpusYearRange.min, Math.min(v, temporalRange.endYear));
+    setTemporalRange({ ...temporalRange, startYear: clamped });
+  };
+
+  const handleEndYear = (raw: string) => {
+    const v = parseInt(raw, 10);
+    if (isNaN(v)) return;
+    const clamped = Math.min(corpusYearRange.max, Math.max(v, temporalRange.startYear));
+    setTemporalRange({ ...temporalRange, endYear: clamped });
+  };
+
+  const handleResetRange = () => {
+    setTemporalRange({ startYear: corpusYearRange.min, endYear: corpusYearRange.max });
   };
 
   return (
@@ -132,10 +157,7 @@ export function Sidebar() {
               onCheckedChange={handleAllToggle}
               className="h-3.5 w-3.5"
             />
-            <label
-              htmlFor="pw-all"
-              className="text-xs cursor-pointer select-none font-medium text-foreground"
-            >
+            <label htmlFor="pw-all" className="text-xs cursor-pointer select-none font-medium text-foreground">
               All playwrights
             </label>
           </div>
@@ -155,10 +177,7 @@ export function Sidebar() {
                   />
                   <label
                     htmlFor={`pw-${full}`}
-                    className={cn(
-                      "text-xs cursor-pointer select-none",
-                      isLast ? "text-muted-foreground" : "text-foreground"
-                    )}
+                    className={cn("text-xs cursor-pointer select-none", isLast ? "text-muted-foreground" : "text-foreground")}
                   >
                     {surname}
                   </label>
@@ -173,6 +192,55 @@ export function Sidebar() {
         {/* GLOBAL SCOPE */}
         <div className="space-y-4">
           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Global Scope</Label>
+
+          {/* DATE RANGE */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Date Range</Label>
+              {!isFullRange && (
+                <button
+                  onClick={handleResetRange}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  title="Reset to full corpus range"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 space-y-0.5">
+                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">From</span>
+                <Input
+                  type="number"
+                  value={temporalRange.startYear}
+                  min={corpusYearRange.min}
+                  max={temporalRange.endYear}
+                  onChange={e => handleStartYear(e.target.value)}
+                  onBlur={e => handleStartYear(e.target.value)}
+                  className="h-7 text-xs px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+              <span className="text-muted-foreground text-xs mt-4">–</span>
+              <div className="flex-1 space-y-0.5">
+                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">To</span>
+                <Input
+                  type="number"
+                  value={temporalRange.endYear}
+                  min={temporalRange.startYear}
+                  max={corpusYearRange.max}
+                  onChange={e => handleEndYear(e.target.value)}
+                  onBlur={e => handleEndYear(e.target.value)}
+                  className="h-7 text-xs px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+            </div>
+            <p className="text-[9px] text-muted-foreground">
+              Corpus: {corpusYearRange.min}–{corpusYearRange.max}
+            </p>
+          </div>
+
+          {/* CORPUS SCOPE */}
           <div className="space-y-1.5">
             <Label htmlFor="scope" className="text-xs">Corpus Scope</Label>
             <Select value={corpusScope} onValueChange={(v: any) => setCorpusScope(v)}>

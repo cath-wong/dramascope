@@ -1,0 +1,507 @@
+STEP 46 — Temporal Corpus Scope
+
+Goal
+
+Add a temporal filtering control to DramaScope so that users can restrict the active corpus to a selected chronological range.
+
+This should build directly on the multi-playwright infrastructure established in STEP 45/45A.
+
+The purpose is to allow users to investigate language patterns within different chronological portions of the Early Modern drama corpus while preserving the existing analytical architecture.
+
+This is a corpus-scope/filtering enhancement.
+
+Do NOT introduce new analytical methods.
+
+Cost / Agent Efficiency
+
+Keep this task targeted.
+
+- Inspect only the files/components necessary to implement temporal corpus filtering.
+- Reuse the shared filtering architecture established in STEP 45.
+- Do not perform another broad investigation of the whole codebase.
+- Do not repeatedly re-read unchanged sections of Analysis.tsx.
+- Do not take screenshots unless required to diagnose a problem.
+- Make the smallest coherent architectural change.
+- Run one final TypeScript check after implementation.
+- Do not spend time fixing pre-existing TypeScript errors unrelated to this step.
+
+---
+
+Existing Architecture to Preserve
+
+DramaScope currently loads four source files into two logical datasets:
+
+LINES:
+- corpus_lines_real.csv
+- early_modern_drama_lines.csv
+
+SPEECHES:
+- corpus_speeches_real.csv
+- early_modern_drama_speeches.csv
+
+The canonical schemas already contain:
+
+- playwright
+- year_est
+- decade
+- year_min
+- year_max
+- year_mid
+
+Playwright filtering is implemented globally through UIContext.
+
+The current analytical split must remain:
+
+- Lexical → LINES
+- Semantic → SPEECHES
+- Discursive → SPEECHES
+
+STEP 45A also introduced playwright-aware analytical cache identities.
+
+Preserve all of this.
+
+---
+
+Temporal Filtering Principle
+
+Use the existing year metadata as the basis of temporal filtering.
+
+Do NOT classify rows primarily through historical-period labels such as:
+
+- Elizabethan
+- Jacobean
+- Caroline
+
+Those may be considered later as optional convenience presets.
+
+For STEP 46, implement a transparent numerical year-range filter.
+
+Use `year_est` as the primary temporal field because this is already the application's principal estimated-date field.
+
+Do not change or reinterpret the existing date metadata.
+
+---
+
+1. Add Temporal Range to Shared UI State
+
+Extend the existing UIContext/global filtering architecture with a temporal range.
+
+Recommended conceptual state:
+
+temporalRange:
+- startYear
+- endYear
+
+Determine the minimum and maximum available `year_est` values dynamically from the loaded corpus rather than hard-coding them.
+
+The default range must include the entire available corpus.
+
+Therefore, when the application initially loads:
+
+Temporal Range = earliest available year → latest available year
+
+This means the default behaviour remains equivalent to having no temporal restriction.
+
+---
+
+2. Filtering Order
+
+Extend the shared selected-dataset architecture established in STEP 45.
+
+Conceptually:
+
+merged corpus
+→ selected playwrights
+→ selected temporal range
+→ existing corpus/play/genre/speaker filters
+→ analytical functions
+
+Both analytical datasets must respect the same temporal range:
+
+selectedLines:
+- selected playwrights
+- selected year range
+
+selectedSpeeches:
+- selected playwrights
+- selected year range
+
+Do not implement separate temporal filtering independently inside Lexical, Semantic, and Discursive tabs.
+
+The filtering should occur at the shared corpus-selection level wherever practical.
+
+---
+
+3. Date Inclusion Rule
+
+Use `year_est` for inclusion.
+
+A row should be included when:
+
+startYear <= year_est <= endYear
+
+The range must therefore be inclusive at both ends.
+
+Do not use year_min/year_max to determine inclusion in STEP 46.
+
+Do not silently substitute year_mid or decade.
+
+If rows contain missing or invalid year_est values, identify how many exist before deciding how to handle them.
+
+If there are no missing/invalid year_est values, no special handling is required.
+
+If there are missing/invalid values, report this before introducing any non-trivial fallback rule.
+
+---
+
+4. Sidebar Control
+
+Add a compact temporal control to the existing GLOBAL SCOPE area of the sidebar.
+
+Recommended label:
+
+DATE RANGE
+
+The user should be able to specify:
+
+From: [year]
+To:   [year]
+
+Use compact controls consistent with the existing DramaScope visual design.
+
+The control must:
+
+- show the currently selected start and end years;
+- prevent startYear from exceeding endYear;
+- prevent values outside the available corpus range;
+- allow the full corpus range to be restored easily.
+
+Include a compact:
+
+Reset
+
+or equivalent control that restores the full available chronological range.
+
+Do not change sidebar width.
+
+Do not redesign unrelated sidebar controls.
+
+Do not add historical-period preset buttons in this step.
+
+---
+
+5. Interaction with Playwright Selection
+
+Temporal range and playwright selection must work together.
+
+Examples:
+
+Shakespeare + full date range
+= all Shakespeare plays
+
+Marlowe + 1585–1595
+= Marlowe material whose year_est falls within 1585–1595
+
+Shakespeare + Marlowe + 1590–1600
+= material from both playwrights within that date range
+
+All playwrights + 1600–1620
+= all included playwrights represented within 1600–1620
+
+The selected temporal range should NOT automatically change merely because the user selects a different playwright.
+
+For example:
+
+If the user selects 1590–1600 and then switches from Shakespeare to Marlowe, preserve 1590–1600.
+
+Do not silently reset the temporal range.
+
+---
+
+6. Interaction with Individual Play Scope
+
+When Corpus Scope = Individual Play, the available play list must respect BOTH:
+
+- selected playwrights;
+- selected temporal range.
+
+If a currently selected play falls outside the new temporal range:
+
+- clear/reset the stale play selection safely.
+
+Do not retain an individual play that is no longer part of the active corpus.
+
+---
+
+7. Dependent Filters
+
+Existing dynamically generated options should continue to derive from the active corpus.
+
+Therefore:
+
+- available plays
+- available genres
+- available speakers
+
+should respect both playwright and temporal filtering where appropriate.
+
+Do not change the analytical meaning of these filters.
+
+---
+
+8. Dashboard
+
+Dashboard statistics must reflect the active temporal range as well as the selected playwrights.
+
+For example, selecting:
+
+All playwrights + 1600–1620
+
+should update:
+
+- Plays Included
+- Total Lines
+- Total Speeches
+- Tokens
+- TTR
+- Plays by Time Slice
+
+using only the active corpus.
+
+Do not redesign the Dashboard.
+
+---
+
+9. Corpus Browser
+
+The Corpus Browser must respect the active temporal range.
+
+Only material belonging to:
+
+- selected playwrights;
+- selected date range;
+
+should be available.
+
+Do not redesign the Corpus Browser.
+
+---
+
+10. Analytical Tabs
+
+The existing analytical functions should operate unchanged over the temporally filtered corpus.
+
+Lexical:
+- use temporally filtered LINES
+
+Semantic:
+- use temporally filtered SPEECHES
+
+Discursive:
+- use temporally filtered SPEECHES
+
+Do not change any analytical formulas or methodological definitions.
+
+---
+
+11. Cache Identity
+
+Extend the corpus identity used by persistent analytical caches so that temporal range is included.
+
+A result calculated for:
+
+Shakespeare | 1590–1600
+
+must not be reused for:
+
+Shakespeare | 1600–1610
+
+Likewise:
+
+Shakespeare + Marlowe | 1590–1600
+
+must have a distinct cache identity from:
+
+Shakespeare + Marlowe | 1595–1605
+
+Use a stable temporal representation such as:
+
+startYear-endYear
+
+alongside the existing playwrightKey.
+
+Do not rely on filtered row count as corpus identity.
+
+Preserve safe reuse when the user returns to exactly the same:
+
+- playwright selection;
+- temporal range;
+- analytical settings.
+
+---
+
+12. Method Summary / Scope Display
+
+Where Method Summary currently reports the active playwright scope, also report the temporal scope.
+
+For example:
+
+PLAYWRIGHTS
+Shakespeare, Marlowe
+
+DATE RANGE
+1590–1600
+
+When the full available range is selected, it may still display the actual range rather than simply saying "All".
+
+Keep the presentation concise.
+
+Do not redesign Method Summary.
+
+---
+
+13. Existing Time Granularity
+
+IMPORTANT:
+
+Do not confuse Temporal Range with the existing Time Granularity control.
+
+They have different purposes:
+
+Temporal Range
+= which chronological portion of the corpus is included
+
+Time Granularity
+= how temporal results are grouped/displayed within that corpus
+
+Therefore:
+
+DATE RANGE: 1590–1610
+TIME GRANULARITY: Year
+
+means analyse material dated 1590–1610 and display temporal patterns by year.
+
+DATE RANGE: 1590–1610
+TIME GRANULARITY: Decade
+
+means analyse the same material but group temporal outputs by decade.
+
+Preserve the existing Year/Decade functionality exactly.
+
+---
+
+14. Preserve Performance Optimisations
+
+Do not undo STEP 44 or STEP 44A.
+
+Preserve:
+
+- shared Semantic corpus-wide computation;
+- precomputed diachronic data;
+- deferred evidence calculations;
+- collapsed heavy Semantic sections;
+- diachronic incremental rendering/pagination;
+- existing analytical caches.
+
+Because the corpus is now substantially larger, avoid unnecessary repeated filtering or copying of large arrays.
+
+Use memoised shared filtering where appropriate.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV files
+- playwright metadata
+- playwright-selection behaviour
+- default playwright selection
+- analytical formulas
+- stoplists
+- lemmatisation
+- tokenisation
+- n-gram construction
+- collocation measures
+- expression-family methodology
+- conventionalisation methodology
+- diachronic behaviour definitions
+- quad construction
+- Sankey methodology
+- similarity calculations
+- clustering
+- existing Year/Decade granularity definitions
+- server architecture
+- deployment configuration
+- application version
+- sidebar width
+- general colour scheme
+- routing
+
+Do not add:
+
+- Elizabethan/Jacobean/Caroline presets yet
+- new analytical measures
+- AI/LLM functionality
+- server-side analysis
+
+---
+
+Validation
+
+Keep validation targeted.
+
+Confirm:
+
+1. The available minimum and maximum year_est values are derived from the corpus.
+
+2. Report those minimum and maximum years.
+
+3. Report whether any rows have missing/invalid year_est values.
+
+4. Default temporal range includes the complete corpus.
+
+5. Shakespeare + full date range reproduces the current STEP 45/45A Shakespeare corpus statistics.
+
+6. Selecting a narrower range reduces the active corpus appropriately.
+
+7. Playwright selection and temporal range operate together.
+
+8. Multiple playwrights + a restricted date range work correctly.
+
+9. Individual Play options respect both playwright and date selection.
+
+10. A stale individual-play selection is cleared if it falls outside the selected range.
+
+11. Dashboard statistics respond to temporal filtering.
+
+12. Corpus Browser responds to temporal filtering.
+
+13. Lexical uses temporally filtered lines.
+
+14. Semantic uses temporally filtered speeches.
+
+15. Discursive uses temporally filtered speeches.
+
+16. Existing Year/Decade Time Granularity still works independently of Date Range.
+
+17. Persistent analytical cache keys distinguish different temporal ranges.
+
+18. Returning to an identical playwright + date-range combination can safely reuse cached results.
+
+19. STEP 44/44A Semantic performance behaviour is preserved.
+
+20. No existing functionality is removed.
+
+21. Run one final TypeScript check and confirm that no new errors were introduced. Do not investigate or fix the existing baseline errors as part of this step.
+
+22. Summarise only:
+- files modified;
+- temporal state representation;
+- filtering order;
+- min/max corpus dates;
+- missing/invalid year_est count;
+- cache identity change;
+- validation result.
+
+STOP AFTER STEP 46.

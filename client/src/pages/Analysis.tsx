@@ -41,6 +41,7 @@ const DetailsPanel = ({ dataset, tokenCol, settings, ui, playwrights }: any) => 
   const pwLabel = playwrights && playwrights.length > 0
     ? (playwrights.length === 8 ? "All" : playwrights.map((pw: string) => pw.split(" ").pop()).join(", "))
     : "—";
+  const trLabel = ui.temporalRangeKey ? ui.temporalRangeKey.replace("-", "–") : "—";
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
       <CollapsibleTrigger asChild>
@@ -54,6 +55,7 @@ const DetailsPanel = ({ dataset, tokenCol, settings, ui, playwrights }: any) => 
         <div className="space-y-1"><span className="font-bold opacity-60">TOGGLES</span><p>Stoplist: {settings.stoplist ? 'ON' : 'OFF'} | Lemma: {settings.lemmas ? 'ON' : 'OFF'}</p></div>
         <div className="space-y-1"><span className="font-bold opacity-60">SCOPE</span><p>{ui.corpusScope} | Top-{ui.topN}</p></div>
         {playwrights && <div className="space-y-1"><span className="font-bold opacity-60">PLAYWRIGHTS</span><p>{pwLabel}</p></div>}
+        {ui.temporalRangeKey && <div className="space-y-1"><span className="font-bold opacity-60">DATE RANGE</span><p>{trLabel}</p></div>}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -107,7 +109,7 @@ const COMP_COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899"
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, selectedLines: lines, playwrightKey } = ui;
+  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, selectedLines: lines, playwrightKey, temporalRangeKey } = ui;
   const computationCache = useRef<Map<string, any>>(new Map());
   const [lexSettings, setLexSettings] = useState({ stoplist: true, lemmatization: true, ngramSize: "2", excludeStage: true, contentFocus: false });
   const [pinned, setPinned] = useState<any[]>([]);
@@ -138,7 +140,7 @@ const LexicalTab = () => {
       return true;
     });
     if (!scopedLines.length) return null;
-    const cacheKey = JSON.stringify({ pw: playwrightKey, scope: corpusScope, title: selectedPlayTitle, genre: selectedGenre, speaker: selectedSpeaker, topN, lex: lexSettings, wordView });
+    const cacheKey = JSON.stringify({ pw: playwrightKey, tr: temporalRangeKey, scope: corpusScope, title: selectedPlayTitle, genre: selectedGenre, speaker: selectedSpeaker, topN, lex: lexSettings, wordView });
     if (computationCache.current.has(cacheKey)) return computationCache.current.get(cacheKey);
 
     const isContent = wordView === "content";
@@ -2693,7 +2695,7 @@ const CorpusEvidencePanel = ({
 
 const SemanticTab = () => {
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, timeMode, selectedSpeeches: speeches, playwrightKey } = ui;
+  const { corpusScope, selectedPlayTitle, timeMode, selectedSpeeches: speeches, playwrightKey, temporalRangeKey } = ui;
   const [nodeLemma, setNodeLemma] = useState("");
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
@@ -2730,6 +2732,7 @@ const SemanticTab = () => {
 
     const cacheKey = JSON.stringify({
       pw: playwrightKey,
+      tr: temporalRangeKey,
       corpusScope,
       play: selectedPlayTitle,
       expressionScope,
@@ -3219,7 +3222,7 @@ const SemanticTab = () => {
 // --- Discursive Tab ---
 const DiscursiveTab = () => {
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, timeMode, selectedSpeeches: speeches, playwrightKey } = ui;
+  const { corpusScope, selectedPlayTitle, topN, timeMode, selectedSpeeches: speeches, playwrightKey, temporalRangeKey } = ui;
   const [nodeLemma, setNodeLemma] = useState("lord");
   const [viewMode, setViewMode] = useState<"table" | "constellation">("constellation");
   const [inventoryScope, setInventoryScope] = useState<"slice" | "all">("slice");
@@ -3298,9 +3301,10 @@ const DiscursiveTab = () => {
     // IMPORTANT: do not cache when data has not loaded yet (prevents stale empty cache)
     if (!speeches || speeches.length === 0) return null;
 
-    // include playwright key so cache invalidates on corpus selection change
+    // include playwright + temporal keys so cache invalidates on corpus selection change
     const cacheKey = JSON.stringify({
       pw: playwrightKey,
+      tr: temporalRangeKey,
       scope: corpusScope,
       play: selectedPlayTitle,
       node: nodeLemma,
