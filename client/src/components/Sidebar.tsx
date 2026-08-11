@@ -6,7 +6,8 @@ import {
   BarChart3, 
   Database,
   Filter,
-  BookOpen
+  BookOpen,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +20,19 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+
+// Display surname → full name mapping (order controls sidebar order)
+const PLAYWRIGHT_DISPLAY: { surname: string; full: string }[] = [
+  { surname: "Shakespeare", full: "William Shakespeare" },
+  { surname: "Marlowe",     full: "Christopher Marlowe" },
+  { surname: "Kyd",         full: "Thomas Kyd" },
+  { surname: "Jonson",      full: "Ben Jonson" },
+  { surname: "Middleton",   full: "Thomas Middleton" },
+  { surname: "Webster",     full: "John Webster" },
+  { surname: "Massinger",   full: "Philip Massinger" },
+  { surname: "Ford",        full: "John Ford" },
+];
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -30,7 +44,9 @@ export function Sidebar() {
     selectedGenre, setSelectedGenre,
     selectedSpeaker, setSelectedSpeaker,
     excludeStageDirections, setExcludeStageDirections,
-    availablePlays, availableGenres, availableSpeakers
+    availablePlays, availableGenres, availableSpeakers,
+    selectedPlaywrights, setSelectedPlaywrights,
+    availablePlaywrights,
   } = useUI();
 
   const navItems = [
@@ -39,6 +55,38 @@ export function Sidebar() {
     { href: "/analysis", label: "Linguistic Analysis", icon: BarChart3 },
     { href: "/docs", label: "Docs / Methods", icon: BookOpen },
   ];
+
+  // Compute the set of playwrights to display — show all 8 canonical ones first,
+  // then any extras found in the corpus that aren't in the canonical list.
+  const canonicalFullNames = PLAYWRIGHT_DISPLAY.map(p => p.full);
+  const extraPlaywrights = availablePlaywrights.filter(pw => !canonicalFullNames.includes(pw));
+  const displayPlaywrights = [
+    ...PLAYWRIGHT_DISPLAY.filter(p => availablePlaywrights.includes(p.full) || availablePlaywrights.length === 0),
+    ...extraPlaywrights.map(pw => ({ surname: pw.split(" ").pop() || pw, full: pw })),
+  ];
+
+  const allPlaywrightFullNames = displayPlaywrights.map(p => p.full);
+  const allSelected = allPlaywrightFullNames.length > 0 &&
+    allPlaywrightFullNames.every(pw => selectedPlaywrights.includes(pw));
+
+  const handleAllToggle = () => {
+    if (allSelected) {
+      // Can't deselect all — keep the first one
+      setSelectedPlaywrights([allPlaywrightFullNames[0]]);
+    } else {
+      setSelectedPlaywrights(allPlaywrightFullNames);
+    }
+  };
+
+  const handlePlaywrightToggle = (full: string) => {
+    if (selectedPlaywrights.includes(full)) {
+      // Guard: never go to zero
+      if (selectedPlaywrights.length === 1) return;
+      setSelectedPlaywrights(selectedPlaywrights.filter(pw => pw !== full));
+    } else {
+      setSelectedPlaywrights([...selectedPlaywrights, full]);
+    }
+  };
 
   return (
     <aside className="w-80 border-r bg-sidebar flex flex-col h-screen overflow-y-auto shrink-0">
@@ -69,6 +117,60 @@ export function Sidebar() {
       <Separator />
 
       <div className="p-4 space-y-6 flex-1">
+
+        {/* PLAYWRIGHTS */}
+        <div className="space-y-3">
+          <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2">
+            <Users className="w-3 h-3" /> Playwrights
+          </Label>
+
+          {/* All playwrights toggle */}
+          <div className="flex items-center gap-2 py-0.5">
+            <Checkbox
+              id="pw-all"
+              checked={allSelected}
+              onCheckedChange={handleAllToggle}
+              className="h-3.5 w-3.5"
+            />
+            <label
+              htmlFor="pw-all"
+              className="text-xs cursor-pointer select-none font-medium text-foreground"
+            >
+              All playwrights
+            </label>
+          </div>
+
+          <div className="space-y-1.5 pl-0.5">
+            {displayPlaywrights.map(({ surname, full }) => {
+              const checked = selectedPlaywrights.includes(full);
+              const isLast = selectedPlaywrights.length === 1 && checked;
+              return (
+                <div key={full} className="flex items-center gap-2 py-0.5">
+                  <Checkbox
+                    id={`pw-${full}`}
+                    checked={checked}
+                    onCheckedChange={() => handlePlaywrightToggle(full)}
+                    disabled={isLast}
+                    className="h-3.5 w-3.5"
+                  />
+                  <label
+                    htmlFor={`pw-${full}`}
+                    className={cn(
+                      "text-xs cursor-pointer select-none",
+                      isLast ? "text-muted-foreground" : "text-foreground"
+                    )}
+                  >
+                    {surname}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <Separator className="opacity-50" />
+
+        {/* GLOBAL SCOPE */}
         <div className="space-y-4">
           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Global Scope</Label>
           <div className="space-y-1.5">
@@ -102,7 +204,10 @@ export function Sidebar() {
             </Select>
           </div>
         </div>
+
         <Separator className="opacity-50" />
+
+        {/* FILTERS */}
         <div className="space-y-4">
           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2"><Filter className="w-3 h-3" /> Filters</Label>
           <div className="space-y-1.5">

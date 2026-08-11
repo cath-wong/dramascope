@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useTransition } from "react";
 import { MainLayout } from "@/components/MainLayout";
-import { useData } from "@/contexts/DataContext";
 import { useUI } from "@/contexts/UIContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,8 +36,11 @@ import { FUNCTION_WORDS, isContentWord } from "@/utils/discursiveFilter";
 import { computeSimilarityMatrix } from "@/utils/constellationMatrix";
 import { computeClusters } from "@/utils/constellationClustering";
 
-const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
+const DetailsPanel = ({ dataset, tokenCol, settings, ui, playwrights }: any) => {
   const [isOpen, setIsOpen] = useState(false);
+  const pwLabel = playwrights && playwrights.length > 0
+    ? (playwrights.length === 8 ? "All" : playwrights.map((pw: string) => pw.split(" ").pop()).join(", "))
+    : "—";
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
       <CollapsibleTrigger asChild>
@@ -51,6 +53,7 @@ const DetailsPanel = ({ dataset, tokenCol, settings, ui }: any) => {
         <div className="space-y-1"><span className="font-bold opacity-60">TOKEN SOURCE</span><p>{tokenCol}</p></div>
         <div className="space-y-1"><span className="font-bold opacity-60">TOGGLES</span><p>Stoplist: {settings.stoplist ? 'ON' : 'OFF'} | Lemma: {settings.lemmas ? 'ON' : 'OFF'}</p></div>
         <div className="space-y-1"><span className="font-bold opacity-60">SCOPE</span><p>{ui.corpusScope} | Top-{ui.topN}</p></div>
+        {playwrights && <div className="space-y-1"><span className="font-bold opacity-60">PLAYWRIGHTS</span><p>{pwLabel}</p></div>}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -103,9 +106,8 @@ const COMP_COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899"
 
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
-  const { lines } = useData();
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker } = ui;
+  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, selectedLines: lines } = ui;
   const computationCache = useRef<Map<string, any>>(new Map());
   const [lexSettings, setLexSettings] = useState({ stoplist: true, lemmatization: true, ngramSize: "2", excludeStage: true, contentFocus: false });
   const [pinned, setPinned] = useState<any[]>([]);
@@ -423,7 +425,7 @@ const LexicalTab = () => {
 
   return (
     <div className="space-y-6">
-      <DetailsPanel dataset="LINES ONLY" tokenCol="text_norm" settings={{ stoplist: lexSettings.stoplist, lemmas: lexSettings.lemmatization }} ui={ui} />
+      <DetailsPanel dataset="LINES ONLY" tokenCol="text_norm" settings={{ stoplist: lexSettings.stoplist, lemmas: lexSettings.lemmatization }} ui={ui} playwrights={ui.selectedPlaywrights} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
 
       <Card className="shadow-none border-muted/60">
@@ -2690,9 +2692,8 @@ const CorpusEvidencePanel = ({
 };
 
 const SemanticTab = () => {
-  const { speeches } = useData();
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, timeMode } = ui;
+  const { corpusScope, selectedPlayTitle, timeMode, selectedSpeeches: speeches } = ui;
   const [nodeLemma, setNodeLemma] = useState("");
   const [useStoplist, setUseStoplist] = useState(true);
   const [useLemmas, setUseLemmas] = useState(true);
@@ -2902,7 +2903,7 @@ const SemanticTab = () => {
 
   return (
     <div className="space-y-6">
-      <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw (norm)" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
+      <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw (norm)" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} playwrights={ui.selectedPlaywrights} />
 
       <Card className="shadow-none border-muted/60">
         <CardHeader className="pb-3 bg-muted/5 border-b">
@@ -3217,9 +3218,8 @@ const SemanticTab = () => {
 
 // --- Discursive Tab ---
 const DiscursiveTab = () => {
-  const { speeches } = useData();
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, timeMode } = ui;
+  const { corpusScope, selectedPlayTitle, topN, timeMode, selectedSpeeches: speeches } = ui;
   const [nodeLemma, setNodeLemma] = useState("lord");
   const [viewMode, setViewMode] = useState<"table" | "constellation">("constellation");
   const [inventoryScope, setInventoryScope] = useState<"slice" | "all">("slice");
@@ -4192,7 +4192,7 @@ const DiscursiveTab = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} />
+      <DetailsPanel dataset="SPEECHES ONLY" tokenCol="text_raw" settings={{ stoplist: useStoplist, lemmas: useLemmas }} ui={ui} playwrights={ui.selectedPlaywrights} />
       <PinnedPanel pinned={pinned} onRemove={(idx: number) => setPinned(p => p.filter((_, i) => i !== idx))} />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

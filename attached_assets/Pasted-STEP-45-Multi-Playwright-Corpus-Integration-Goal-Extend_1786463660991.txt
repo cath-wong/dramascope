@@ -1,0 +1,565 @@
+STEP 45 — Multi-Playwright Corpus Integration
+
+Goal
+
+Extend DramaScope so that the existing analytical infrastructure can operate across Shakespeare and seven additional Early Modern playwrights.
+
+This is a corpus-infrastructure expansion.
+
+Do NOT introduce new analytical methods.
+
+The existing Lexical, Semantic, and Discursive analyses must remain methodologically unchanged and should operate over whichever playwrights the user selects.
+
+The application should support:
+
+- Shakespeare only
+- any one additional playwright
+- any combination of playwrights
+- all playwrights together
+- individual plays within the selected playwright scope
+
+The purpose of this step is to expand the underlying corpus while preserving the existing analytical architecture.
+
+---
+
+Corpus Files
+
+The following four CSV files are already present in the project.
+
+Shakespeare:
+
+- corpus_lines_real.csv
+- corpus_speeches_real.csv
+
+Additional Early Modern playwrights:
+
+- early_modern_drama_lines.csv
+- early_modern_drama_speeches.csv
+
+Do not rename, regenerate, or modify these CSV files.
+
+---
+
+Canonical Data Schema
+
+All four files now use compatible schemas.
+
+LINES schema:
+
+play_id
+title
+playwright
+genre
+year_est
+decade
+year_min
+year_max
+year_mid
+act
+scene
+speaker
+unit
+line_id
+text_norm
+text_raw
+
+SPEECHES schema:
+
+play_id
+title
+playwright
+genre
+year_est
+decade
+year_min
+year_max
+year_mid
+act
+scene
+speaker
+text_raw
+text_norm
+
+The playwright field is now explicit in both Shakespeare and non-Shakespeare datasets.
+
+Do not infer playwright from title or play_id.
+
+---
+
+Playwrights
+
+The corpus now contains:
+
+- William Shakespeare
+- Christopher Marlowe
+- Thomas Kyd
+- Ben Jonson
+- Thomas Middleton
+- John Webster
+- Philip Massinger
+- John Ford
+
+Use the exact values stored in the playwright column as the source of truth.
+
+Do not hard-code alternative spellings.
+
+---
+
+Existing Analytical Data Split
+
+Preserve the current analytical architecture:
+
+- Lexical tab uses the LINES dataset.
+- Semantic tab uses the SPEECHES dataset.
+- Discursive tab uses the SPEECHES dataset.
+
+Do not change this division.
+
+---
+
+Investigation
+
+Before implementing:
+
+1. Identify where the current Shakespeare lines and speeches CSVs are loaded.
+
+2. Identify the current DataContext or equivalent shared data-loading layer.
+
+3. Identify how the sidebar/global UI state currently stores:
+
+- Corpus Scope
+- selected play
+- Time Granularity
+- Top-N
+- Genre
+- Speaker
+- Exclude Stage Directions
+
+4. Identify every existing analysis that currently filters by:
+
+- corpus scope
+- selected play
+- genre
+- speaker
+
+5. Confirm that both new CSV files parse successfully using the same parsing logic as the Shakespeare files.
+
+6. Report the row counts loaded from each of the four files before merging.
+
+Use the investigation findings to make the smallest coherent architectural change.
+
+---
+
+Required Changes
+
+1. Load and merge the corpus sources
+
+Update the shared data-loading layer so that DramaScope loads:
+
+LINES =
+corpus_lines_real.csv
++
+early_modern_drama_lines.csv
+
+and:
+
+SPEECHES =
+corpus_speeches_real.csv
++
+early_modern_drama_speeches.csv
+
+The merged collections should become the shared source used by the existing analyses.
+
+Do not duplicate rows.
+
+Do not alter row contents.
+
+Preserve all metadata fields.
+
+Confirm that every merged row retains its playwright value.
+
+---
+
+2. Add playwright selection to global UI state
+
+Introduce a global playwright-selection state.
+
+It must support multiple simultaneous playwright selections.
+
+Recommended state model:
+
+selectedPlaywrights: string[]
+
+Do not implement playwright scope independently inside each analytical tab.
+
+The playwright selection must be part of the same shared UI/filtering architecture as the existing corpus controls.
+
+---
+
+3. Default selection
+
+For this step, default to:
+
+William Shakespeare
+
+only.
+
+This is intentional for backwards compatibility and regression testing.
+
+When the application first loads after STEP 45, the visible corpus and analytical outputs should therefore correspond to Shakespeare alone, as in the existing application.
+
+Do not default to all playwrights yet.
+
+---
+
+4. Add a Playwrights control to the sidebar
+
+Add a new permanently visible sidebar section:
+
+PLAYWRIGHTS
+
+Place it logically with the existing corpus-selection controls.
+
+Use checkboxes for individual playwrights.
+
+Display compact surname labels in the UI where appropriate:
+
+- Shakespeare
+- Marlowe
+- Kyd
+- Jonson
+- Middleton
+- Webster
+- Massinger
+- Ford
+
+The underlying filter must continue to use the full playwright metadata values.
+
+Also include:
+
+All playwrights
+
+as a convenient control.
+
+Behaviour:
+
+- selecting All playwrights selects all eight playwrights
+- deselecting one playwright after All playwrights was active should result in the remaining seven being selected
+- selecting individual playwrights should support any combination
+- if all eight are manually selected, the UI may reflect All playwrights as active
+- do not allow the analytical corpus to enter an invalid state with zero playwrights selected
+
+If the user attempts to deselect the final remaining playwright, preserve that selection rather than leaving the corpus empty.
+
+Keep the control compact and consistent with the existing sidebar visual design.
+
+Do not change sidebar width in this step.
+
+---
+
+5. Apply playwright filtering globally
+
+The selected playwrights must filter both shared analytical datasets consistently.
+
+Conceptually:
+
+selectedLines =
+mergedLines filtered by selectedPlaywrights
+
+selectedSpeeches =
+mergedSpeeches filtered by selectedPlaywrights
+
+The existing analyses should then operate on these selected datasets.
+
+This must apply consistently to:
+
+- Dashboard corpus statistics
+- Corpus Browser
+- Lexical tab
+- Semantic tab
+- Discursive tab
+- play lists
+- genre filters
+- speaker filters
+- exports where scope is represented
+
+Do not add different playwright-filtering logic separately to every individual analytical function if it can be applied cleanly through shared state/data preparation.
+
+---
+
+6. Preserve Corpus Scope behaviour
+
+Do not replace the existing Corpus Scope control.
+
+Playwright selection and Corpus Scope represent different levels:
+
+Playwright selection = whose works are included?
+
+Corpus Scope = full selected corpus or individual play
+
+When Corpus Scope = Full Corpus:
+
+- analyse all plays belonging to the selected playwrights
+
+When Corpus Scope = Individual Play:
+
+- the available play list must contain only plays belonging to the currently selected playwrights
+
+If the user changes playwright selection and the currently selected play is no longer valid:
+
+- clear or reset the selected play safely
+- do not retain a stale play selection
+
+---
+
+7. Update dependent filter options
+
+Where Genre and Speaker options are dynamically generated, they should reflect the currently selected playwright corpus rather than showing values that cannot occur in the active selection.
+
+For example:
+
+- Shakespeare selected → Shakespeare genres/speakers/plays
+- Marlowe selected → Marlowe genres/speakers/plays
+- Shakespeare + Marlowe → combined valid options
+- All playwrights → all valid options
+
+Do not change the analytical meaning of these filters.
+
+---
+
+8. Preserve all existing analytical methods
+
+All current analytical functions must operate exactly as before.
+
+This includes, but is not limited to:
+
+Lexical:
+
+- Corpus Overview
+- Frequency Lists
+- N-grams
+- Word Explorer
+- KWIC
+- Word Comparison
+- Play Distribution
+- Collocates / LogDice
+
+Semantic:
+
+- Expression Snapshot
+- Expression Families
+- Conventionalisation Indicators
+- Diachronic Expression Change
+- Corpus Evidence
+- Context Evidence
+
+Discursive:
+
+- all existing v1.0 discursive analyses and visualisations
+
+The existing:
+
+- stoplists
+- lemmatisation
+- content-word filtering
+- stage-direction exclusion
+- tokenisation
+- n-gram construction
+- collocation calculations
+- expression-family construction
+- conventionalisation calculations
+- temporal classifications
+- quad construction
+- Sankey logic
+- similarity calculations
+- clustering
+
+must remain unchanged.
+
+---
+
+9. Preserve performance improvements from STEP 44 and STEP 44A
+
+Do not undo the Semantic performance optimisations.
+
+In particular preserve:
+
+- shared Semantic corpus-wide computation
+- reuse of precomputed diachronic data
+- collapsed heavy Semantic sections
+- deferred corpus evidence
+- diachronic pagination / incremental rendering
+- caching behaviour introduced during STEP 44 and STEP 44A
+
+The larger corpus must not cause the application to revert to rendering tens of thousands of rows simultaneously.
+
+---
+
+10. Corpus identity and caching
+
+Review cache keys throughout the analytical tabs.
+
+Any cached result that depends on corpus contents must include sufficient information to distinguish different playwright selections.
+
+For example:
+
+Shakespeare
+
+must not reuse a cached result created for:
+
+Shakespeare + Marlowe
+
+or:
+
+All playwrights
+
+Use a stable representation of selected playwrights in cache keys.
+
+Changing playwright selection must invalidate relevant analytical results correctly.
+
+Do not return stale results.
+
+---
+
+11. Dashboard corpus statistics
+
+Update the Dashboard so that its summary statistics reflect the active playwright selection.
+
+When Shakespeare alone is selected, the Dashboard should reproduce the existing Shakespeare corpus statistics.
+
+When additional playwrights are selected, the statistics should update accordingly.
+
+Do not redesign the Dashboard in this step.
+
+---
+
+12. Method Summary / Scope display
+
+Where the application currently displays analytical scope in Method Summary or similar metadata, include the active playwright scope where useful.
+
+For example:
+
+Playwrights: Shakespeare
+
+or:
+
+Playwrights: Shakespeare, Marlowe
+
+or:
+
+Playwrights: All
+
+Keep this concise.
+
+Do not redesign the Method Summary component.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- any corpus CSV contents
+- analytical formulas
+- stoplists
+- lemmatisation rules
+- tokenisation rules
+- expression-family methodology
+- conventionalisation methodology
+- diachronic behaviour definitions
+- discursive quad methodology
+- visualisation methodology
+- existing time-granularity definitions
+- server architecture
+- deployment configuration
+- application version
+- sidebar width
+- general colour scheme
+- routing
+
+Do not introduce:
+
+- AI or LLM functionality
+- server-side analysis
+- new analytical measures
+- playwright-specific analytical algorithms
+- special-case logic for individual authors unless technically unavoidable
+
+Do not split the new combined CSV files by playwright.
+
+---
+
+Validation
+
+Confirm:
+
+1. All four CSV files load successfully.
+
+2. Report the loaded row counts for:
+
+- Shakespeare lines
+- Shakespeare speeches
+- additional-playwright lines
+- additional-playwright speeches
+- merged lines
+- merged speeches
+
+3. Every merged row contains a valid playwright value.
+
+4. The application defaults to William Shakespeare only.
+
+5. With Shakespeare selected, existing Dashboard statistics match the pre-STEP-45 Shakespeare application.
+
+6. With Shakespeare selected, representative Lexical results match the previous application.
+
+7. With Shakespeare selected, representative Semantic results match the previous application.
+
+8. With Shakespeare selected, representative Discursive results match the previous application.
+
+9. Each of the eight playwrights can be selected independently.
+
+10. Multiple playwrights can be selected simultaneously.
+
+11. All playwrights selects all eight playwrights.
+
+12. The app never enters a zero-playwright analytical state.
+
+13. Corpus Scope = Full Corpus analyses all plays from the selected playwrights.
+
+14. Corpus Scope = Individual Play displays only plays from the selected playwrights.
+
+15. Changing playwright selection clears any stale invalid play selection.
+
+16. Genre and Speaker options remain valid for the active corpus selection.
+
+17. Lexical analyses use the filtered LINES data.
+
+18. Semantic analyses use the filtered SPEECHES data.
+
+19. Discursive analyses use the filtered SPEECHES data.
+
+20. Changing playwright selection invalidates analytical caches correctly.
+
+21. Switching repeatedly between previously analysed playwright combinations does not produce stale results.
+
+22. Semantic Corpus-wide mode remains responsive.
+
+23. Diachronic Expression Change retains the STEP 44A pagination/performance behaviour.
+
+24. No rows are duplicated during merging.
+
+25. No existing analytical functionality is removed.
+
+26. No new TypeScript, React, runtime, or browser-console errors are introduced.
+
+27. Summarise:
+
+- files modified
+- how the four CSVs are loaded and merged
+- how playwright state is represented
+- how playwright filtering propagates through the app
+- how play/genre/speaker options respond to selection
+- how cache invalidation was updated
+- confirmation that Shakespeare-only outputs remain backward compatible
+
+STOP AFTER STEP 45.

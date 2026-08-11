@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/MainLayout";
-import { useData } from "@/contexts/DataContext";
 import { useUI } from "@/contexts/UIContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -23,10 +22,10 @@ import {
 import { formatTimeValue } from "@/utils/formatTimeValue";
 
 export default function Dashboard() {
-  const { lines, speeches } = useData();
   const { 
     corpusScope, selectedPlayTitle, timeMode, 
-    selectedGenre, excludeStageDirections 
+    selectedGenre, excludeStageDirections,
+    selectedLines: lines, selectedSpeeches: speeches,
   } = useUI();
 
   const dashboardData = useMemo(() => {

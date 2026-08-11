@@ -1,22 +1,28 @@
 import React from 'react';
 import { useData } from '@/contexts/DataContext';
-import { CheckCircle2, AlertCircle, FileWarning, Loader2, Database } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { CheckCircle2, AlertCircle, FileWarning, Loader2 } from 'lucide-react';
 
 export function LoadingStatus() {
-  const { status, lines, speeches, errors } = useData();
+  const { status, lines, speeches, rowCounts, errors } = useData();
 
-  const isLinesLoading = status.lines === 'loading' || status.lines === 'idle';
-  const isSpeechesLoading = status.speeches === 'loading' || status.speeches === 'idle';
-  const isLoading = isLinesLoading || isSpeechesLoading;
+  const isLoading =
+    status.shakespeareLines === 'loading' || status.shakespeareLines === 'idle' ||
+    status.shakespeareSpeeches === 'loading' || status.shakespeareSpeeches === 'idle' ||
+    status.earlyModernLines === 'loading' || status.earlyModernLines === 'idle' ||
+    status.earlyModernSpeeches === 'loading' || status.earlyModernSpeeches === 'idle';
 
-  const isLinesMissing = status.lines === 'missing';
-  const isSpeechesMissing = status.speeches === 'missing';
-  const isMissing = isLinesMissing || isSpeechesMissing;
+  const isMissing =
+    status.shakespeareLines === 'missing' || status.shakespeareSpeeches === 'missing' ||
+    status.earlyModernLines === 'missing' || status.earlyModernSpeeches === 'missing';
 
-  const hasErrors = status.lines === 'error' || status.speeches === 'error';
-  
-  const isLoaded = status.lines === 'loaded' && status.speeches === 'loaded';
+  const hasErrors =
+    status.shakespeareLines === 'error' || status.shakespeareSpeeches === 'error' ||
+    status.earlyModernLines === 'error' || status.earlyModernSpeeches === 'error';
+
+  const isLoaded =
+    status.shakespeareLines === 'loaded' && status.shakespeareSpeeches === 'loaded' &&
+    status.earlyModernLines === 'loaded' && status.earlyModernSpeeches === 'loaded';
+
   const hasData = lines.length > 0 && speeches.length > 0;
 
   if (isLoading && !isMissing && !hasErrors) {

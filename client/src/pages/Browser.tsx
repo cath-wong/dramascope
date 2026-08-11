@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/MainLayout";
-import { useData } from "@/contexts/DataContext";
 import { useUI } from "@/contexts/UIContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,8 +19,7 @@ import { exportToCsv } from "@/utils/exportCsv";
 import { formatTimeValue } from "@/utils/formatTimeValue";
 
 export default function Browser() {
-  const { lines, speeches } = useData();
-  const { corpusScope, selectedPlayTitle, timeMode, selectedGenre } = useUI();
+  const { corpusScope, selectedPlayTitle, timeMode, selectedGenre, selectedLines: lines, selectedSpeeches: speeches } = useUI();
 
   const [datasetType, setDatasetType] = useState<"lines" | "speeches">("lines");
   const [searchTerm, setSearchTerm] = useState("");
