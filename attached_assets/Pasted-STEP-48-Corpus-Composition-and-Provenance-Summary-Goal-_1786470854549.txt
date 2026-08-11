@@ -1,0 +1,410 @@
+STEP 48 — Corpus Composition and Provenance Summary
+
+Goal
+
+Add a transparent corpus-composition summary so that users can see how the currently selected corpus is distributed across playwrights before interpreting analytical results.
+
+This is a methodological-transparency and provenance enhancement.
+
+Do NOT introduce new analytical methods.
+
+The purpose is to make corpus imbalance and source composition visible, especially when multiple playwrights are selected.
+
+Cost / Agent Efficiency
+
+Keep this task targeted.
+
+- Reuse the playwright and temporal filtering architecture established in STEP 45–47.
+- Inspect only Dashboard, shared scope/filter state, and any small reusable summary component needed.
+- Do not perform a broad codebase investigation.
+- Do not re-read Analysis.tsx unless a shared scope display genuinely requires it.
+- Do not take screenshots unless needed to diagnose a UI issue.
+- Make the smallest coherent change.
+- Run one final TypeScript check only if code is modified.
+- Do not fix unrelated pre-existing TypeScript errors.
+
+---
+
+Current Corpus Context
+
+DramaScope currently contains eight playwrights:
+
+- William Shakespeare
+- Christopher Marlowe
+- Thomas Kyd
+- Ben Jonson
+- Thomas Middleton
+- John Webster
+- Philip Massinger
+- John Ford
+
+Current full merged corpus totals:
+
+- 280,546 lines
+- 96,514 speeches
+- date range 1585–1638
+
+The corpus is unevenly distributed across playwrights.
+
+Representative full-corpus counts already confirmed in STEP 47 include:
+
+William Shakespeare
+- 101,502 lines
+- 31,019 speeches
+
+Ben Jonson
+- 45,277 lines
+- 20,875 speeches
+
+Thomas Middleton
+- 42,979 lines
+- 19,761 speeches
+
+Philip Massinger
+- 37,809 lines
+- 8,927 speeches
+
+John Ford
+- 22,390 lines
+- 7,056 speeches
+
+Christopher Marlowe
+- 14,169 lines
+- 3,672 speeches
+
+John Webster
+- 11,185 lines
+- 3,916 speeches
+
+Thomas Kyd
+- 5,235 lines
+- 1,288 speeches
+
+Do not hard-code these counts into the UI.
+
+All displayed composition values must be calculated dynamically from the currently active corpus.
+
+---
+
+1. Add Corpus Composition to the Dashboard
+
+Add a new Dashboard section titled:
+
+CORPUS COMPOSITION
+
+or:
+
+Corpus Composition
+
+Place it after the existing top-level corpus summary cards and before detailed analytical or time-distribution sections, whichever fits the current Dashboard hierarchy best.
+
+Do not redesign the overall Dashboard.
+
+The section should show the composition of the active corpus by playwright.
+
+---
+
+2. Active-Scope Behaviour
+
+The composition summary must respect the current shared corpus filters.
+
+It must update when the user changes:
+
+- selected playwrights;
+- date range;
+- Corpus Scope where applicable;
+- individual play selection where applicable.
+
+For example:
+
+All playwrights + full range
+→ show all eight playwrights.
+
+Shakespeare + Marlowe
+→ show only Shakespeare and Marlowe.
+
+All playwrights + 1590–1600
+→ show only playwrights represented in that temporal range.
+
+Individual Play
+→ show the single relevant playwright/play scope appropriately.
+
+Do not calculate composition from raw unfiltered DataContext arrays if the active scope is narrower.
+
+Reuse the existing selectedLines / selectedSpeeches architecture.
+
+---
+
+3. Metrics by Playwright
+
+For each playwright represented in the active corpus, show:
+
+- Playwright
+- Number of plays
+- Lines
+- Speeches
+- Share of active lines (%)
+- Share of active speeches (%)
+
+Where practical, also show:
+
+- earliest year_est represented
+- latest year_est represented
+
+Use dynamically calculated values.
+
+Do not add token totals by playwright in this step unless they are already readily available without requiring another expensive full-corpus tokenisation pass.
+
+Avoid introducing unnecessary computation.
+
+---
+
+4. Relative Shares
+
+Calculate:
+
+Line Share % =
+playwright lines / total active lines × 100
+
+Speech Share % =
+playwright speeches / total active speeches × 100
+
+Round sensibly for display, for example to one decimal place.
+
+Do not use these shares as analytical normalisation elsewhere in this step.
+
+They are descriptive corpus-composition indicators only.
+
+---
+
+5. Visual Representation
+
+Use a compact and transparent visualisation.
+
+Preferred approach:
+
+- a sortable table;
+- plus simple proportional bars inside the share columns if this fits the current Dashboard style.
+
+Do not add a complex charting library.
+
+Do not add pie charts unless the existing Dashboard design strongly favours them.
+
+The user should be able to compare corpus contribution across playwrights at a glance.
+
+Keep the visual design consistent with existing DramaScope tables and summary cards.
+
+---
+
+6. Sorting
+
+Allow the composition table to be sorted by at least:
+
+- Playwright
+- Number of plays
+- Lines
+- Speeches
+- Line Share %
+- Speech Share %
+
+Default sort:
+
+Lines descending
+
+or, if more consistent with the existing Dashboard:
+
+largest corpus contribution first.
+
+Do not add unnecessary filtering controls within this table.
+
+---
+
+7. Provenance / Interpretation Note
+
+Add a concise methodological note immediately below or above the table.
+
+Suggested meaning:
+
+Corpus size varies across playwrights. Composition should be considered when interpreting raw frequency and distributional results; relative-frequency measures are preferable for direct comparison across unequal corpus subsets.
+
+Do not present this as a warning or error.
+
+Keep it concise and neutral.
+
+Do not claim that corpus imbalance invalidates comparison.
+
+---
+
+8. Play-Level Provenance
+
+Do not add a full second play-level composition table in this step.
+
+However, ensure that the playwright-level “Number of plays” is based on unique play_id values.
+
+Do not count titles by string alone if play_id is available.
+
+---
+
+9. Data Integrity
+
+Use:
+
+playwright
+play_id
+year_est
+
+from the canonical metadata.
+
+Do not infer playwright from title.
+
+Do not modify the corpus CSV files.
+
+Do not aggregate Shakespeare or any other playwright differently from the others.
+
+All eight playwrights must use the same computation.
+
+---
+
+10. Performance
+
+The composition summary should be lightweight.
+
+Use memoised aggregation over the already filtered selectedLines / selectedSpeeches.
+
+Do not:
+
+- tokenise text;
+- generate n-grams;
+- call Semantic or Discursive analytical functions;
+- perform expensive corpus rescans beyond simple metadata aggregation.
+
+The Dashboard must remain responsive for All playwrights.
+
+---
+
+11. Export
+
+Add a CSV export for the Corpus Composition table if this can reuse the existing export utility cleanly.
+
+Suggested filename:
+
+corpus_composition.csv
+
+Export fields:
+
+- playwright
+- plays
+- lines
+- speeches
+- line_share_pct
+- speech_share_pct
+- first_year
+- last_year
+
+If export requires substantial new architecture, omit it and report that decision.
+
+Do not create a new export framework.
+
+---
+
+12. Existing Dashboard Behaviour
+
+Preserve all existing Dashboard statistics and visualisations.
+
+Do not change:
+
+- Plays Included
+- Total Lines
+- Total Speeches
+- Tokens
+- Types
+- TTR
+- Plays by Time Slice
+- existing scope filtering
+- existing date-range behaviour
+
+The new composition section should supplement the Dashboard, not replace existing information.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV files
+- playwright-selection behaviour
+- temporal filtering behaviour
+- analytical formulas
+- Lexical analysis
+- Semantic analysis
+- Discursive analysis
+- stoplists
+- lemmatisation
+- tokenisation
+- cache architecture
+- Time Granularity
+- sidebar layout
+- routing
+- server architecture
+- deployment configuration
+- application version
+
+Do not introduce:
+
+- new analytical measures
+- statistical significance testing
+- automatic corpus balancing
+- weighting
+- resampling
+- AI/LLM functionality
+- server-side analysis
+
+---
+
+Validation
+
+Keep validation focused.
+
+Confirm:
+
+1. Corpus Composition appears on the Dashboard.
+
+2. With Shakespeare only selected, the table shows one playwright.
+
+3. With Shakespeare + Marlowe selected, the table shows exactly two playwrights.
+
+4. With All playwrights selected, the table shows all eight playwrights.
+
+5. The sum of playwright line counts equals the active total lines.
+
+6. The sum of playwright speech counts equals the active total speeches.
+
+7. Line Share % sums to approximately 100%, subject to rounding.
+
+8. Speech Share % sums to approximately 100%, subject to rounding.
+
+9. Number of plays is calculated from unique play_id values.
+
+10. Date range filtering updates composition correctly.
+
+11. Playwright selection updates composition correctly.
+
+12. All-playwright Dashboard remains responsive.
+
+13. Existing Dashboard statistics remain unchanged.
+
+14. No analytical tab behaviour is modified.
+
+15. If CSV export is added, confirm exported values match the displayed table.
+
+16. No new TypeScript, React, runtime, or browser-console errors are introduced.
+
+17. Summarise only:
+
+- files modified;
+- composition metrics added;
+- how aggregation is calculated;
+- whether CSV export was added;
+- validation result.
+
+STOP AFTER STEP 48.
