@@ -1,0 +1,227 @@
+STEP 45A — Playwright-Aware Analytical Cache Validation and Fix
+
+Goal
+
+Complete the STEP 45 multi-playwright integration by ensuring that all analytical caches correctly distinguish between different playwright selections.
+
+STEP 45 successfully added:
+
+- merged Shakespeare + Early Modern corpus loading;
+- global multi-playwright selection;
+- playwright-scoped lines and speeches;
+- playwright-aware Dashboard, Corpus Browser, Lexical, Semantic, and Discursive data;
+- a stable `playwrightKey` in UIContext.
+
+However, some analytical components use persistent `useRef` caches whose cache keys were designed for the original Shakespeare-only corpus.
+
+React useMemo dependencies correctly update when selectedLines or selectedSpeeches change, but this does NOT automatically invalidate entries already stored inside persistent Map caches.
+
+This step must make those caches explicitly aware of the selected playwright corpus.
+
+Do NOT change any analytical methodology or UI behaviour.
+
+---
+
+Investigation
+
+Before implementing:
+
+1. Identify every persistent analytical cache in the application, especially Map caches stored in `useRef`.
+
+2. Inspect the cache keys used by:
+
+- Lexical analysis;
+- Semantic expression analysis;
+- Discursive / quad analysis;
+- any other analytical component using persistent manual caching.
+
+3. Confirm whether each cache key currently contains a stable identifier for the active playwright selection.
+
+4. Do not rely on:
+
+- selectedLines.length;
+- selectedSpeeches.length;
+- speechesLen;
+- row count alone;
+
+as the identity of the active corpus.
+
+Two different playwright selections may theoretically contain the same number of rows.
+
+---
+
+Required Changes
+
+1. Use the existing stable `playwrightKey`
+
+Use the `playwrightKey` already created in UIContext as part of every analytical cache key whose result depends on corpus contents.
+
+The key should distinguish, for example:
+
+Shakespeare
+
+from:
+
+Marlowe
+
+from:
+
+Shakespeare + Marlowe
+
+from:
+
+All playwrights
+
+The representation must be stable regardless of checkbox selection order.
+
+---
+
+2. Update Lexical cache identity
+
+Ensure the Lexical computation cache includes `playwrightKey`.
+
+Do not otherwise alter:
+
+- lexical frequency calculations;
+- n-gram calculations;
+- tokenisation;
+- Word Explorer;
+- KWIC;
+- Word Comparison;
+- Collocates;
+- LogDice.
+
+---
+
+3. Update Semantic cache identity
+
+Ensure all persistent Semantic caches include `playwrightKey`.
+
+Do not rely on `filteredSpeeches.length` or `speechesLen` as a substitute for corpus identity.
+
+Preserve all STEP 44 and STEP 44A performance optimisations.
+
+Do not alter:
+
+- Expression Snapshot;
+- Expression Families;
+- Conventionalisation Indicators;
+- Diachronic Expression Change;
+- Corpus Evidence;
+- Context Evidence.
+
+---
+
+4. Update Discursive cache identity
+
+Ensure the Discursive / quad cache includes `playwrightKey`.
+
+Do not rely on `speeches.length` alone to distinguish corpus selections.
+
+Do not alter:
+
+- quad construction;
+- node windows;
+- constellation calculations;
+- Sankey construction;
+- similarity matrix;
+- clustering;
+- temporal flow;
+- core/peripheral calculations.
+
+---
+
+5. Review any other persistent caches
+
+If other manual caches are found whose output depends on corpus contents, update them using the same corpus identity principle.
+
+Do not introduce unnecessary new caches.
+
+---
+
+6. Cache behaviour
+
+Changing playwright selection must never return a cached result calculated for a different playwright combination.
+
+Previously calculated combinations may remain cached and may be reused when the user returns to exactly the same combination and analytical settings.
+
+Do not clear the entire cache on every playwright change unless necessary.
+
+Preserve the performance benefits of caching.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV files;
+- DataContext loading architecture;
+- playwright checkbox behaviour;
+- default Shakespeare selection;
+- Dashboard design;
+- Corpus Browser design;
+- sidebar layout;
+- analytical formulas;
+- tokenisation;
+- stoplists;
+- lemmatisation;
+- temporal classifications;
+- visualisations;
+- application version;
+- routing;
+- server architecture.
+
+Do not add new analytical functionality.
+
+---
+
+Validation
+
+Confirm:
+
+1. Shakespeare-only analysis produces the same results as STEP 45.
+
+2. Select Shakespeare and run a representative Lexical query.
+
+3. Switch to Marlowe using identical analytical settings and confirm the result changes appropriately rather than returning the Shakespeare cached result.
+
+4. Switch back to Shakespeare and confirm the previously calculated Shakespeare result can be reused safely.
+
+5. Repeat the same test for Semantic analysis.
+
+6. Repeat the same test for Discursive analysis.
+
+7. Test at least one multi-playwright combination such as:
+
+Shakespeare + Marlowe
+
+and confirm it receives its own cache identity.
+
+8. Test All playwrights and confirm it receives its own cache identity.
+
+9. Confirm that playwright selection order does not create different cache identities for the same combination.
+
+For example:
+
+Shakespeare + Marlowe
+
+must have the same stable corpus identity as:
+
+Marlowe + Shakespeare
+
+10. Confirm no stale analytical results appear when switching between playwright combinations.
+
+11. Preserve all STEP 44 and STEP 44A Semantic performance improvements.
+
+12. No new TypeScript, React, runtime, or browser-console errors.
+
+13. Summarise:
+
+- persistent caches identified;
+- cache keys changed;
+- how `playwrightKey` is constructed;
+- confirmation that different playwright selections cannot collide;
+- confirmation that previously calculated identical selections can still reuse cached results.
+
+STOP AFTER STEP 45A.
