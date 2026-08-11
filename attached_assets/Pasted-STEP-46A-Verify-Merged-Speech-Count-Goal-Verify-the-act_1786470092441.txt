@@ -1,0 +1,76 @@
+STEP 46A — Verify Merged Speech Count
+
+Goal
+
+Verify the actual merged SPEECHES row count after STEP 45/46.
+
+There is a discrepancy in the previous Agent summaries:
+
+- Shakespeare speeches: 31,019
+- Additional Early Modern speeches: 65,495
+
+These should sum to:
+
+96,514
+
+However, previous summaries reported the merged speeches total as:
+
+86,514
+
+This step is investigation only unless a genuine loading bug is found.
+
+Keep the task very small and targeted.
+
+Cost / Agent Efficiency
+
+- Inspect only DataContext and the current runtime/load-status values needed to verify the speech count.
+- Do not perform a broad codebase investigation.
+- Do not re-read Analysis.tsx.
+- Do not take screenshots unless necessary.
+- Do not modify any unrelated files.
+- Run only the minimum checks required.
+
+Investigation
+
+1. Confirm the row counts actually loaded from:
+
+- corpus_speeches_real.csv
+- early_modern_drama_speeches.csv
+
+2. Confirm the merged speeches array length exposed by DataContext after both files finish loading.
+
+3. Confirm whether the merged speeches array is created by direct concatenation or whether any filtering, deduplication, slicing, or transformation occurs before it is exposed.
+
+4. Check whether LoadingStatus or any summary display reports a different count from DataContext.
+
+Expected arithmetic:
+
+31,019 + 65,495 = 96,514
+
+Required Outcome
+
+If DataContext actually exposes 96,514 speeches:
+
+- make no code changes;
+- report that 86,514 was only a documentation/reporting typo.
+
+If DataContext exposes anything other than 96,514:
+
+- identify the exact reason;
+- fix only the loading/merging bug responsible;
+- do not modify analytical logic.
+
+Validation
+
+Confirm:
+
+1. corpus_speeches_real.csv row count
+2. early_modern_drama_speeches.csv row count
+3. merged speeches array length
+4. whether any rows are filtered or removed during merging
+5. whether any duplicate-removal logic exists
+6. whether the previous 86,514 figure was a reporting typo or a real application bug
+
+If a code fix is required, run one final TypeScript check and confirm no new errors.
+
+STOP AFTER STEP 46A.
