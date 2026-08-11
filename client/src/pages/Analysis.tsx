@@ -109,7 +109,7 @@ const COMP_COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#ec4899"
 // --- Lexical Tab Component ---
 const LexicalTab = () => {
   const ui = useUI();
-  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, selectedLines: lines, playwrightKey, temporalRangeKey } = ui;
+  const { corpusScope, selectedPlayTitle, topN, selectedGenre, selectedSpeaker, selectedLines: lines, playwrightKey, temporalRangeKey, selectedPlaywrights } = ui;
   const computationCache = useRef<Map<string, any>>(new Map());
   const [lexSettings, setLexSettings] = useState({ stoplist: true, lemmatization: true, ngramSize: "2", excludeStage: true, contentFocus: false });
   const [pinned, setPinned] = useState<any[]>([]);
@@ -130,6 +130,11 @@ const LexicalTab = () => {
   const [drillSearch, setDrillSearch] = useState("");
   const [drillLimit, setDrillLimit] = useState<"20"|"50"|"all">("20");
   const [drillSort, setDrillSort] = useState("-freq");
+
+  // ── Playwright Comparison state ──────────────────────────────────────────
+  const [pwCompQueryInput, setPwCompQueryInput] = useState("");
+  const [pwCompQuery, setPwCompQuery] = useState("");
+  const [pwCompSort, setPwCompSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "per10k", dir: "desc" });
 
   const results = useMemo(() => {
     const scopedLines = lines.filter(l => {
@@ -414,6 +419,77 @@ const LexicalTab = () => {
   useEffect(() => {
     if (drillWord && !comparisonWords.includes(drillWord)) setDrillWord("");
   }, [comparisonWords, drillWord]);
+
+  // ── Playwright Comparison computation ────────────────────────────────────
+  const pwCompData = useMemo(() => {
+    if (selectedPlaywrights.length < 2 || !pwCompQuery.trim()) return null;
+    if (corpusScope === "play") return { playScope: true as const };
+
+    const queryTokens = processTokens(pwCompQuery.trim(), { useStoplist: false, useLemmas: lexSettings.lemmatization });
+    const query = queryTokens[0] || pwCompQuery.trim().toLowerCase();
+
+    type PwStats = { tokens: number; rawFreq: number; plays: Set<string>; playsWithItem: Set<string> };
+    const byPw = new Map<string, PwStats>();
+    selectedPlaywrights.forEach(pw => byPw.set(pw, { tokens: 0, rawFreq: 0, plays: new Set(), playsWithItem: new Set() }));
+
+    // Single pass — lines is already playwright+temporal filtered
+    lines.forEach(l => {
+      if (selectedGenre && l.genre !== selectedGenre) return;
+      if (selectedSpeaker && l.speaker !== selectedSpeaker) return;
+      if (lexSettings.excludeStage && (l.unit === "stage" || l.unit === "stage_direction")) return;
+      const pw: string = l.playwright;
+      if (!byPw.has(pw)) return;
+      const st = byPw.get(pw)!;
+      if (l.play_id) st.plays.add(l.play_id);
+      const tokens = processTokens(l.text_norm || "", { useStoplist: false, useLemmas: lexSettings.lemmatization });
+      st.tokens += tokens.length;
+      const matchCount = tokens.filter(t => t === query).length;
+      if (matchCount > 0) { st.rawFreq += matchCount; if (l.play_id) st.playsWithItem.add(l.play_id); }
+    });
+
+    const rows = selectedPlaywrights.map(pw => {
+      const s = byPw.get(pw)!;
+      const noMaterial = s.tokens === 0;
+      return {
+        playwright: pw,
+        rawFreq: s.rawFreq,
+        tokens: s.tokens,
+        per10k: noMaterial ? -1 : parseFloat(((s.rawFreq / s.tokens) * 10000).toFixed(2)),
+        plays: s.plays.size,
+        playsWithItem: s.playsWithItem.size,
+        noMaterial,
+      };
+    });
+
+    return { query, rows };
+  }, [lines, pwCompQuery, lexSettings.lemmatization, lexSettings.excludeStage, corpusScope, selectedGenre, selectedSpeaker, playwrightKey, temporalRangeKey, selectedPlaywrights]);
+
+  const sortedPwComp = useMemo(() => {
+    if (!pwCompData || !("rows" in pwCompData)) return [] as any[];
+    const rows = (pwCompData as { query: string; rows: any[] }).rows;
+    return [...rows].sort((a, b) => {
+      const av: any = a[pwCompSort.key] ?? -1;
+      const bv: any = b[pwCompSort.key] ?? -1;
+      if (typeof av === "number" && typeof bv === "number") return pwCompSort.dir === "asc" ? av - bv : bv - av;
+      return pwCompSort.dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }, [pwCompData, pwCompSort]);
+
+  const togglePwCompSort = (key: string) =>
+    setPwCompSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
+
+  const handlePwCompExport = () => {
+    if (!pwCompData || !("rows" in pwCompData)) return;
+    const exportRows = (pwCompData as { query: string; rows: any[] }).rows;
+    exportToCsv("playwright_comparison.csv", exportRows.map((r: any) => ({
+      playwright: r.playwright,
+      raw_frequency: r.rawFreq,
+      tokens: r.tokens,
+      frequency_per_10000: r.per10k >= 0 ? r.per10k : "",
+      plays: r.plays,
+      plays_with_item: r.playsWithItem,
+    })));
+  };
 
   const addCompWord = () => {
     const trimmed = comparisonInput.trim().toLowerCase();
@@ -1199,6 +1275,162 @@ const LexicalTab = () => {
           </CardContent>
         </Card>
       </section>
+
+      {/* ── D. Playwright Comparison ─────────────────────────────────────── */}
+      <section className="space-y-3" data-testid="section-playwright-comparison">
+        <div>
+          <h3 className="text-sm font-bold">D. Playwright Comparison</h3>
+          <p className="text-xs text-muted-foreground">
+            Compare a word or lemma across selected playwrights using normalised frequency per 10,000 tokens.
+          </p>
+        </div>
+        <Card className="shadow-none border-muted/60">
+          <CardContent className="pt-6 space-y-4">
+            {selectedPlaywrights.length < 2 ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-pwcomp-prompt">
+                Select two or more playwrights in the sidebar to enable comparison.
+              </p>
+            ) : corpusScope === "play" ? (
+              <p className="text-xs text-muted-foreground" data-testid="text-pwcomp-playscope">
+                Playwright Comparison requires Full Corpus scope. Switch Corpus Scope to "Full Corpus" to compare playwrights directly.
+              </p>
+            ) : (
+              <>
+                {/* Query input */}
+                <div className="flex gap-2 items-center flex-wrap">
+                  <input
+                    className="h-8 rounded-md border bg-background px-3 text-xs w-52 focus:outline-none focus:ring-1 focus:ring-ring"
+                    placeholder="Enter word or lemma…"
+                    value={pwCompQueryInput}
+                    onChange={e => setPwCompQueryInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { const q = pwCompQueryInput.trim().toLowerCase(); if (q) { setPwCompQuery(q); } } }}
+                    data-testid="input-pwcomp-query"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => { const q = pwCompQueryInput.trim().toLowerCase(); if (q) setPwCompQuery(q); }}
+                    data-testid="button-pwcomp-compare"
+                  >
+                    Compare
+                  </Button>
+                  {pwCompQuery && (
+                    <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setPwCompQuery(""); setPwCompQueryInput(""); }}>
+                      Clear
+                    </Button>
+                  )}
+                  {pwCompQuery && (
+                    <span className="text-xs text-muted-foreground">
+                      Comparing: <span className="font-mono font-semibold">{pwCompData && "query" in pwCompData ? pwCompData.query : pwCompQuery}</span>
+                      {lexSettings.lemmatization ? " (lemmatised)" : " (surface form)"}
+                    </span>
+                  )}
+                </div>
+
+                {!pwCompQuery ? (
+                  <p className="text-xs text-muted-foreground">Enter a word and click Compare to begin.</p>
+                ) : pwCompData && "rows" in pwCompData ? (
+                  <>
+                    {/* Comparison table */}
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="text-xs bg-muted/30">
+                            <TableHead className="h-8 text-[10px] pl-4">
+                              Playwright
+                              <button onClick={() => togglePwCompSort("playwright")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                            <TableHead className="h-8 text-[10px] text-right">
+                              Raw Freq
+                              <button onClick={() => togglePwCompSort("rawFreq")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                            <TableHead className="h-8 text-[10px] text-right">
+                              Tokens
+                              <button onClick={() => togglePwCompSort("tokens")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                            <TableHead className="h-8 text-[10px] text-right">
+                              Per 10k Tokens
+                              <button onClick={() => togglePwCompSort("per10k")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                            <TableHead className="h-8 text-[10px] text-right">
+                              Plays
+                              <button onClick={() => togglePwCompSort("plays")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                            <TableHead className="h-8 text-[10px] text-right pr-4">
+                              Plays w/ Item
+                              <button onClick={() => togglePwCompSort("playsWithItem")} className="ml-1 opacity-50 hover:opacity-100"><ArrowUpDown className="inline h-3 w-3" /></button>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedPwComp.map((r, i) => (
+                            <TableRow key={r.playwright} className={i % 2 === 0 ? "bg-muted/10" : ""}>
+                              {r.noMaterial ? (
+                                <>
+                                  <TableCell className="py-2 text-xs pl-4 font-medium">{r.playwright}</TableCell>
+                                  <TableCell className="py-2 text-xs text-muted-foreground" colSpan={5}>
+                                    No material in active scope
+                                  </TableCell>
+                                </>
+                              ) : (
+                                <>
+                                  <TableCell className="py-2 text-xs pl-4 font-medium">{r.playwright}</TableCell>
+                                  <TableCell className="py-2 text-xs text-right tabular-nums">{r.rawFreq.toLocaleString()}</TableCell>
+                                  <TableCell className="py-2 text-xs text-right tabular-nums">{r.tokens.toLocaleString()}</TableCell>
+                                  <TableCell className="py-2 text-xs text-right tabular-nums font-semibold">{r.per10k.toFixed(2)}</TableCell>
+                                  <TableCell className="py-2 text-xs text-right tabular-nums">{r.plays}</TableCell>
+                                  <TableCell className="py-2 text-xs text-right tabular-nums pr-4">{r.playsWithItem}</TableCell>
+                                </>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Horizontal bar chart — normalised frequency only */}
+                    {sortedPwComp.some(r => !r.noMaterial) && (() => {
+                      const chartRows = [...sortedPwComp]
+                        .filter(r => !r.noMaterial)
+                        .sort((a, b) => a.per10k - b.per10k) // ascending for horizontal chart (last = longest bar at top)
+                        .map(r => ({ name: r.playwright.split(" ").pop() || r.playwright, per10k: r.per10k, fullName: r.playwright }));
+                      const chartH = Math.max(160, chartRows.length * 36 + 40);
+                      return (
+                        <div style={{ height: chartH }}>
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Frequency per 10,000 Tokens</div>
+                          <ResponsiveContainer width="100%" height={chartH - 20}>
+                            <BarChart data={chartRows} layout="vertical" margin={{ top: 2, right: 32, left: 8, bottom: 2 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />
+                              <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => v.toFixed(1)} />
+                              <YAxis type="category" dataKey="name" width={90} fontSize={10} tickLine={false} axisLine={false} />
+                              <Tooltip
+                                contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}
+                                formatter={(v: any, _: any, props: any) => [`${Number(v).toFixed(2)} per 10k`, props.payload.fullName]}
+                              />
+                              <Bar dataKey="per10k" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} name="Per 10k Tokens" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Note + Export */}
+                    <div className="flex flex-wrap justify-between items-start gap-3 pt-1 border-t">
+                      <p className="text-[10px] text-muted-foreground max-w-xl leading-relaxed">
+                        Raw frequency shows observed occurrences. Per 10,000 tokens allows comparison across unequal corpus sizes and respects the active playwright and date-range selection. Normalisation does not by itself establish statistical significance. See Dashboard → Corpus Composition for full corpus provenance.
+                      </p>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 shrink-0" onClick={handlePwCompExport}>
+                        <Download className="h-3 w-3" />Export CSV
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
     </div>
   );
 };

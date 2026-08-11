@@ -1,0 +1,607 @@
+STEP 49 — Playwright Comparison Workflow
+
+Goal
+
+Add an explicit playwright-comparison workflow to DramaScope so that users can compare selected playwrights directly rather than only analysing them as one combined corpus.
+
+This should build on the existing multi-playwright infrastructure established in STEP 45–48.
+
+The purpose is to support transparent comparative corpus analysis while accounting for the substantial differences in corpus size between playwrights.
+
+This step should focus on a small, methodologically sound comparison layer.
+
+Do NOT create a new dashboard or introduce complex new statistical methods.
+
+---
+
+Cost / Agent Efficiency
+
+Keep this task targeted.
+
+- Reuse the existing playwright-selection, temporal-filtering, and corpus-composition infrastructure.
+- Inspect only the files/components necessary for the comparison workflow.
+- Do not perform another broad codebase investigation.
+- Do not repeatedly re-read unchanged sections of Analysis.tsx.
+- Do not take screenshots unless required to diagnose a UI problem.
+- Do not refactor unrelated code.
+- Run one final TypeScript check after implementation.
+- Do not investigate or fix unrelated pre-existing TypeScript errors.
+
+---
+
+Current Behaviour
+
+DramaScope currently allows users to select:
+
+- one playwright;
+- multiple playwrights;
+- all playwrights.
+
+When multiple playwrights are selected, the existing analytical tabs treat them as one combined active corpus.
+
+For example:
+
+Shakespeare + Marlowe
+
+currently means:
+
+analyse the combined Shakespeare + Marlowe material.
+
+Preserve this behaviour.
+
+Do NOT replace combined-corpus analysis with comparative analysis.
+
+The new comparison workflow must supplement the existing behaviour.
+
+---
+
+Methodological Principle
+
+Direct comparison between playwrights must account for unequal corpus sizes.
+
+Do NOT compare playwrights primarily using raw frequency counts.
+
+Use normalised frequency for direct frequency comparison.
+
+For STEP 49, use:
+
+frequency per 10,000 tokens
+
+Formula:
+
+normalised frequency =
+(raw frequency / total tokens for that playwright's active corpus) × 10,000
+
+Raw frequency should still be displayed alongside the normalised value for transparency.
+
+Do not introduce:
+
+- significance testing;
+- log-likelihood;
+- effect sizes;
+- automatic corpus balancing;
+- sampling;
+- weighting;
+- machine-learning classification.
+
+These can be considered separately later if genuinely useful.
+
+---
+
+Scope of STEP 49
+
+Implement explicit comparison first at the LEXICAL level.
+
+Do NOT attempt to build equivalent comparative systems for Semantic and Discursive analyses in the same step.
+
+Semantic and Discursive comparison raise different methodological questions and should be considered separately after the lexical comparison workflow has been tested.
+
+The existing Semantic and Discursive tabs must remain unchanged.
+
+---
+
+1. Add Playwright Comparison to the Lexical Tab
+
+Add a new clearly identified section within the existing Lexical dashboard:
+
+PLAYWRIGHT COMPARISON
+
+Place it where it fits logically within the existing Lexical workflow.
+
+Do not create a new top-level navigation tab.
+
+Do not redesign the Lexical dashboard.
+
+The section should compare the playwrights currently selected in the sidebar.
+
+---
+
+2. Activation Behaviour
+
+The comparison section should become useful when two or more playwrights are selected.
+
+If only one playwright is selected, show a concise neutral message such as:
+
+"Select two or more playwrights to compare."
+
+Do not automatically select additional playwrights.
+
+If two or more playwrights are selected, compare those playwrights individually.
+
+For example:
+
+Selected:
+
+Shakespeare
+Marlowe
+Kyd
+
+Comparison output:
+
+Shakespeare
+Marlowe
+Kyd
+
+Do NOT collapse them into one combined corpus within the comparison section.
+
+The rest of the Lexical tab should continue analysing the combined selected corpus exactly as it currently does.
+
+---
+
+3. Comparison Query
+
+Allow the user to enter one lexical item for comparison.
+
+Reuse existing lexical normalisation / tokenisation / lemmatisation behaviour wherever possible.
+
+Do not create a second incompatible word-processing pipeline.
+
+The comparison query should follow the same lexical interpretation as the existing Word Explorer wherever methodologically appropriate.
+
+If the existing Word Explorer distinguishes between surface-form and lemma views, reuse that existing setting rather than inventing a new one.
+
+Do not change the existing Word Explorer.
+
+---
+
+4. Per-Playwright Metrics
+
+For the queried lexical item, calculate separately for each selected playwright:
+
+- Playwright
+- Raw frequency
+- Total tokens in the active playwright corpus
+- Frequency per 10,000 tokens
+- Number of plays represented
+
+Where straightforward using existing metadata, also include:
+
+- number of plays containing the queried item
+
+Do not add this last metric if it requires substantial new computation.
+
+Use the active corpus scope.
+
+Therefore calculations must respect:
+
+- selected playwrights;
+- selected date range;
+- existing genre filter;
+- existing speaker filter;
+- Exclude Stage Directions;
+- relevant existing lexical settings.
+
+If Corpus Scope = Individual Play, handle this coherently:
+
+- comparison is not meaningful across playwrights when one individual play is selected;
+- display a concise message explaining that Playwright Comparison requires Full Corpus scope.
+
+Do not silently override Corpus Scope.
+
+---
+
+5. Token Denominator
+
+The denominator for normalised frequency must be the total number of tokens belonging to that playwright within the ACTIVE comparison corpus.
+
+For example:
+
+Selected playwrights:
+Shakespeare + Marlowe
+
+Date range:
+1590–1593
+
+Then:
+
+Shakespeare denominator =
+tokens from Shakespeare material within 1590–1593
+
+Marlowe denominator =
+tokens from Marlowe material within 1590–1593
+
+Do NOT use each playwright's complete historical corpus when a narrower temporal/filter scope is active.
+
+Do NOT use lines or speeches as the denominator.
+
+Use tokens.
+
+Reuse the existing lexical tokenisation rules.
+
+---
+
+6. Comparison Table
+
+Display the results in a compact table.
+
+Recommended columns:
+
+Playwright
+Raw Frequency
+Tokens
+Per 10k Tokens
+Plays
+
+If "plays containing item" is implemented cleanly, include:
+
+Plays with Item
+
+Default sort:
+
+Per 10k Tokens descending
+
+Allow sorting by:
+
+- Playwright
+- Raw Frequency
+- Tokens
+- Per 10k Tokens
+- Plays
+
+If Plays with Item is present, allow sorting by it as well.
+
+Use the existing DramaScope table styling.
+
+---
+
+7. Comparative Visualisation
+
+Add one simple visual representation beneath or alongside the table.
+
+Preferred:
+
+horizontal bar chart showing frequency per 10,000 tokens by playwright.
+
+Use the existing charting library already present in DramaScope.
+
+Do not introduce a new visualisation dependency.
+
+The chart must use NORMALISED frequency, not raw frequency.
+
+Label the measure clearly:
+
+Frequency per 10,000 tokens
+
+Keep the chart simple.
+
+Do not add confidence intervals, significance markers, or statistical interpretation.
+
+---
+
+8. Corpus-Size Transparency
+
+Include the token denominator visibly in the comparison table.
+
+This is essential.
+
+Users must be able to see that, for example:
+
+Shakespeare may have a much larger active corpus than Marlowe.
+
+The comparison should therefore expose both:
+
+raw evidence
++
+normalised frequency
+
+Do not hide corpus-size differences.
+
+---
+
+9. Relationship to Corpus Composition
+
+Do not duplicate the full STEP 48 Corpus Composition table inside the Lexical tab.
+
+Instead, where useful, include a concise note such as:
+
+"Frequencies are normalised per 10,000 tokens to account for differences in active corpus size. See Dashboard → Corpus Composition for corpus provenance."
+
+Keep this concise.
+
+Do not add navigation complexity unless an existing link pattern makes this trivial.
+
+---
+
+10. Existing Combined-Corpus Analysis
+
+IMPORTANT:
+
+Preserve the current behaviour of every existing Lexical analysis.
+
+If Shakespeare + Marlowe are selected:
+
+Existing Lexical tools:
+analyse Shakespeare + Marlowe as one combined corpus.
+
+New Playwright Comparison:
+shows Shakespeare and Marlowe separately.
+
+Both behaviours are required.
+
+Do not change:
+
+- Corpus Overview
+- Frequency Lists
+- N-grams
+- Word Explorer
+- KWIC
+- Word Comparison
+- Play Distribution
+- Collocates / LogDice
+
+---
+
+11. Temporal Scope
+
+The comparison must respect STEP 46 Date Range.
+
+For example:
+
+All playwrights
+1585–1638
+
+and:
+
+All playwrights
+1600–1620
+
+must produce different per-playwright denominators and frequencies.
+
+Playwrights with no material in the active temporal range should not produce misleading zero-frequency comparison rows with zero-token denominators.
+
+If a selected playwright has zero active tokens because the selected date range contains none of their material:
+
+- either omit that playwright from the comparison table;
+- or show it clearly as "No material in active scope".
+
+Prefer whichever behaviour best fits the existing UI architecture.
+
+Never calculate a frequency by dividing by zero.
+
+---
+
+12. Genre and Speaker Scope
+
+Respect the existing active Genre and Speaker filters.
+
+For example:
+
+Selected:
+Shakespeare + Marlowe
+
+Genre:
+Tragedy
+
+must compare only material belonging to the active Tragedy scope according to the existing corpus metadata/filter logic.
+
+Do not introduce playwright-specific genre mappings.
+
+Use existing metadata exactly as stored.
+
+---
+
+13. Stage Directions
+
+Respect the existing Exclude Stage Directions setting exactly as the rest of the Lexical dashboard does.
+
+Do not create separate stage-direction logic for comparison.
+
+---
+
+14. Lemma / Surface-Form Behaviour
+
+Reuse the existing lexical view/settings.
+
+If the Lexical tab currently allows analysis by:
+
+- surface form;
+- lemma;
+
+the comparison must follow the same active setting.
+
+Do not independently lemmatise the comparison query using a different procedure.
+
+The same query under the same lexical settings should have the same interpretation in Word Explorer and Playwright Comparison.
+
+---
+
+15. Performance
+
+The comparison should be efficient for all eight playwrights.
+
+Avoid running a separate full-corpus scan eight times if the same result can be calculated in one pass over the already filtered active lines.
+
+Preferred approach:
+
+one pass over active lexical material
+→ group token totals and query frequencies by playwright
+
+Reuse existing tokenisation utilities and memoisation where practical.
+
+Do not introduce a Web Worker unless a genuine performance problem is demonstrated.
+
+Do not modify STEP 44/44A Semantic performance architecture.
+
+---
+
+16. Cache Identity
+
+If the new comparison computation uses persistent caching, its identity must include all settings that affect the result, including where applicable:
+
+- selected playwrights / playwrightKey
+- temporal range / temporalRangeKey
+- genre
+- speaker
+- stage-direction setting
+- lexical view / lemma setting
+- query
+
+Do not rely on row count as corpus identity.
+
+If simple useMemo computation is sufficient, do not introduce a persistent cache unnecessarily.
+
+---
+
+17. CSV Export
+
+Add CSV export for the comparison table using the existing export utility.
+
+Suggested filename:
+
+playwright_comparison.csv
+
+Export fields:
+
+- playwright
+- raw_frequency
+- tokens
+- frequency_per_10000
+- plays
+
+If implemented:
+
+- plays_with_item
+
+The export must reflect the currently active comparison query and scope.
+
+Do not create a new export framework.
+
+---
+
+18. Methodological Note
+
+Add a concise note within the section explaining:
+
+- raw frequency shows the number of observed occurrences;
+- frequency per 10,000 tokens allows comparison across unequal corpus sizes;
+- normalisation does not by itself establish statistical significance.
+
+Keep this short and neutral.
+
+Do not provide automated interpretation of which playwright "uses the word more significantly".
+
+DramaScope should present evidence for scholarly interpretation, not generate conclusions.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV files
+- DataContext loading
+- playwright-selection architecture
+- temporal filtering architecture
+- Dashboard Corpus Composition
+- Semantic analysis
+- Discursive analysis
+- existing lexical formulas
+- existing tokenisation rules
+- existing lemmatisation rules
+- stoplists
+- n-gram methodology
+- collocation / LogDice methodology
+- Time Granularity
+- cache architecture outside what is necessary for the new comparison
+- sidebar layout
+- routing
+- server architecture
+- deployment configuration
+- application version
+
+Do not introduce:
+
+- statistical significance testing
+- log-likelihood
+- effect sizes
+- automatic interpretation
+- corpus balancing
+- sampling
+- AI/LLM functionality
+- server-side analysis
+
+---
+
+Validation
+
+Keep validation targeted.
+
+Confirm:
+
+1. One selected playwright shows the comparison guidance message rather than a misleading comparison.
+
+2. Two selected playwrights produce two separate comparison rows.
+
+3. All playwrights produces one comparison row for each playwright with material in the active scope.
+
+4. Raw frequency is calculated separately by playwright.
+
+5. Token denominator is calculated separately by playwright.
+
+6. Frequency per 10,000 tokens uses:
+
+(raw frequency / playwright active tokens) × 10,000
+
+7. Normalised values are not calculated from lines or speeches.
+
+8. Date Range changes both the numerator and denominator appropriately.
+
+9. Genre filter is respected.
+
+10. Speaker filter is respected.
+
+11. Exclude Stage Directions is respected.
+
+12. Surface-form / lemma behaviour matches the existing lexical settings.
+
+13. Corpus Scope = Individual Play does not produce a misleading playwright comparison.
+
+14. Existing Lexical tools continue to analyse the combined selected corpus unchanged.
+
+15. Comparison table sorting works.
+
+16. Bar chart displays normalised frequency rather than raw counts.
+
+17. CSV export matches the displayed comparison values.
+
+18. Playwrights with no active material do not cause divide-by-zero or misleading results.
+
+19. All-eight-playwright comparison remains responsive.
+
+20. No Semantic or Discursive code is modified.
+
+21. No existing analytical functionality is removed.
+
+22. Run one final TypeScript check and confirm no new errors were introduced. Do not investigate or fix unrelated baseline errors.
+
+23. Summarise only:
+
+- files modified;
+- comparison computation;
+- normalisation formula;
+- filters respected;
+- visualisation added;
+- CSV export;
+- validation result.
+
+STOP AFTER STEP 49.
