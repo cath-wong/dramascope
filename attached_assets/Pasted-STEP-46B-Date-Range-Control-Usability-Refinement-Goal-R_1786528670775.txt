@@ -1,0 +1,416 @@
+STEP 46B — Date Range Control Usability Refinement
+
+Goal
+
+Refine the Date Range control introduced in STEP 46 so that its default behaviour is intuitive and clearly distinguishes:
+
+- the full available corpus range;
+- a deliberately selected custom date range.
+
+This is a UI/state refinement only.
+
+Do NOT change the temporal filtering methodology.
+
+Do NOT change how year_est is interpreted.
+
+Do NOT change any analytical functions.
+
+Cost / Agent Efficiency
+
+Keep this task very targeted.
+
+- Inspect only UIContext.tsx and Sidebar.tsx unless another directly dependent file is required.
+- Do not perform a broad codebase investigation.
+- Do not re-read Analysis.tsx.
+- Do not take screenshots unless needed to diagnose a UI issue.
+- Make the smallest coherent change.
+- Run one final TypeScript check after implementation.
+- Do not investigate or fix unrelated pre-existing TypeScript errors.
+
+---
+
+Current Problem
+
+STEP 46 introduced a Date Range control based on the full corpus year_est range.
+
+The current corpus range is:
+
+1585–1638
+
+However, the current interaction is confusing.
+
+The application can initialise with Shakespeare selected, which means the visible dates may effectively appear tied to Shakespeare's 1590–1612 range.
+
+When the user later changes playwright selection, the selected dates remain unchanged.
+
+This creates ambiguity between:
+
+- a range the user deliberately selected;
+- a range that happened to be present because of the initial corpus state.
+
+The current number inputs are also inconvenient because editing them directly is not intuitive and the user may need to use cursor/spinner controls to adjust years.
+
+The purpose of this step is to separate default full-range behaviour from explicit custom temporal filtering.
+
+---
+
+Required Behaviour
+
+Introduce two Date Range modes:
+
+1. Full corpus
+2. Selected range
+
+Default mode:
+
+Full corpus
+
+This must mean:
+
+- no deliberate temporal restriction is active;
+- the effective active range is the full global DramaScope corpus range;
+- currently 1585–1638, derived dynamically from corpusYearRange.
+
+Do not hard-code 1585 or 1638.
+
+---
+
+1. Add Date Range Mode State
+
+Extend the existing temporal state architecture with a simple mode.
+
+Recommended conceptual state:
+
+dateRangeMode:
+- "full"
+- "custom"
+
+or equivalent.
+
+Default:
+
+"full"
+
+Preserve the existing temporalRange object for actual start/end values.
+
+Do not remove temporalRange.
+
+---
+
+2. Full Corpus Mode
+
+When Date Range mode = Full corpus:
+
+- effective temporal range must equal corpusYearRange;
+- the active corpus must include all available dates;
+- changing playwright selection must NOT alter the global Date Range display;
+- changing from Shakespeare to Marlowe, Jonson, All playwrights, etc. must continue to show the full DramaScope range.
+
+For the current corpus, this should display:
+
+1585–1638
+
+even when only Shakespeare is selected.
+
+The actual Shakespeare material will still naturally be limited to its available dates through the data itself.
+
+Do not dynamically shrink the displayed global range to the currently selected playwright.
+
+---
+
+3. Selected Range Mode
+
+When the user chooses Selected range:
+
+- enable From and To year inputs;
+- allow the user to enter a custom inclusive year range;
+- preserve the selected custom range when switching playwrights.
+
+Example:
+
+Selected range:
+1590–1600
+
+Switch:
+
+Shakespeare → Marlowe → Shakespeare + Marlowe
+
+The custom range must remain:
+
+1590–1600
+
+Do not silently reset it.
+
+---
+
+4. Sidebar UI
+
+Replace the current Date Range interaction with a compact two-mode control.
+
+Recommended layout:
+
+DATE RANGE
+
+[ Full corpus ] [ Selected range ]
+
+When Full corpus is active:
+
+- show the effective corpus range, e.g. 1585–1638;
+- disable or hide the editable From / To controls.
+
+When Selected range is active:
+
+- show editable From and To fields;
+- display the corpus bounds for reference;
+- allow direct typed year entry.
+
+Keep the control compact and consistent with existing sidebar styling.
+
+Do not change sidebar width.
+
+Do not add Elizabethan / Jacobean / Caroline presets in this step.
+
+---
+
+5. Year Input Editing
+
+Improve the usability of the From and To fields.
+
+The user must be able to:
+
+- click into the field;
+- select the current value;
+- type a four-digit year normally;
+- confirm by blur and/or Enter.
+
+Do not force the user to increment/decrement years using spinner arrows.
+
+Do not clamp the value on every individual keystroke if that prevents normal typing.
+
+Instead:
+
+- allow temporary input state while editing;
+- validate/clamp when the edit is committed.
+
+For example:
+
+User wants to replace 1590 with 1600.
+
+The field must allow them to type 1600 normally without fighting intermediate values such as "1", "16", or "160".
+
+---
+
+6. Validation Rules
+
+For a committed custom range:
+
+- minimum = corpusYearRange minimum;
+- maximum = corpusYearRange maximum;
+- startYear must not exceed endYear;
+- endYear must not be lower than startYear.
+
+Use the simplest predictable behaviour.
+
+If a typed value falls outside the corpus bounds:
+
+- clamp it on commit.
+
+If start > end:
+
+- resolve safely and consistently;
+- do not create an invalid active range.
+
+Do not silently switch back to Full corpus mode.
+
+---
+
+7. Switching Modes
+
+Full corpus → Selected range:
+
+- initialise the custom fields sensibly.
+
+Preferred behaviour:
+
+If the user previously had a valid custom range, restore it.
+
+Otherwise initialise to the full corpus range.
+
+Selected range → Full corpus:
+
+- effective filtering immediately returns to the full corpus range;
+- preserve the previous custom range internally so it can be restored if the user selects Selected range again.
+
+This avoids making users re-enter their custom dates repeatedly.
+
+---
+
+8. Effective Temporal Range
+
+The rest of the application should continue receiving an effective temporal range exactly as before.
+
+Conceptually:
+
+if dateRangeMode === "full":
+    effectiveTemporalRange = corpusYearRange
+else:
+    effectiveTemporalRange = temporalRange
+
+Use the effective range for:
+
+- selectedLines
+- selectedSpeeches
+- Dashboard
+- Corpus Browser
+- Lexical
+- Semantic
+- Discursive
+- available plays
+- available genres
+- available speakers
+- analytical cache identity
+
+Do not duplicate filtering logic in individual tabs.
+
+---
+
+9. Cache Identity
+
+Ensure temporal cache identity reflects the EFFECTIVE range.
+
+Examples:
+
+Full corpus
+→ temporalRangeKey = "1585-1638"
+
+Selected range 1590–1600
+→ temporalRangeKey = "1590-1600"
+
+If Full corpus mode and Selected range happen to use the same numerical range, they may safely share the same analytical cache result because the active corpus is identical.
+
+Do not add mode itself to the cache key unless technically necessary.
+
+---
+
+10. Method Summary
+
+Where Date Range is shown in Method Summary:
+
+Full corpus mode may display:
+
+DATE RANGE
+Full corpus (1585–1638)
+
+Selected range mode may display:
+
+DATE RANGE
+1590–1600
+
+Keep this concise.
+
+Do not redesign Method Summary.
+
+---
+
+11. Preserve Existing Temporal Methodology
+
+Do not change:
+
+- year_est inclusion rule;
+- inclusive start/end filtering;
+- Time Granularity Year/Decade behaviour;
+- temporal classifications;
+- diachronic calculations.
+
+This step is only about interaction/state clarity.
+
+---
+
+Do NOT Modify
+
+Do not modify:
+
+- corpus CSV files
+- playwright selection
+- analytical formulas
+- Dashboard composition methodology
+- Lexical analysis
+- Semantic analysis
+- Discursive analysis
+- tokenisation
+- stoplists
+- lemmatisation
+- historical spelling handling
+- cache architecture except effective temporal range identity if needed
+- Time Granularity definitions
+- routing
+- server architecture
+- deployment configuration
+- application version
+- sidebar width
+- general colour scheme
+
+Do not add:
+
+- historical-period presets
+- sliders
+- date histograms
+- new analytical measures
+- AI/LLM functionality
+- server-side analysis
+
+---
+
+Validation
+
+Keep validation targeted.
+
+Confirm:
+
+1. Default mode is Full corpus.
+
+2. Full corpus displays the dynamically derived global DramaScope range.
+
+3. With the current corpus, Full corpus displays 1585–1638.
+
+4. Switching playwrights does not change the Full corpus range display.
+
+5. Shakespeare selected + Full corpus still analyses Shakespeare's available material correctly.
+
+6. Marlowe selected + Full corpus analyses Marlowe's available material correctly.
+
+7. Selected range enables editable From / To fields.
+
+8. The user can type four-digit years normally.
+
+9. Values are validated/clamped only when committed, not on every keystroke.
+
+10. Custom range persists when switching playwrights.
+
+11. Switching back to Full corpus removes the custom temporal restriction.
+
+12. Returning to Selected range restores the previous valid custom range.
+
+13. startYear cannot remain above endYear.
+
+14. Values cannot remain outside corpus bounds after commit.
+
+15. Dashboard, Corpus Browser, Lexical, Semantic, and Discursive still respond to the effective range.
+
+16. Time Granularity remains independent of Date Range.
+
+17. Cache identity follows the effective numerical range.
+
+18. No existing analytical functionality is changed.
+
+19. Run one final TypeScript check and confirm no new errors were introduced. Do not investigate or fix unrelated baseline errors.
+
+20. Summarise only:
+
+- files modified;
+- date-range mode state;
+- effective-range logic;
+- input editing behaviour;
+- validation result.
+
+STOP AFTER STEP 46B.

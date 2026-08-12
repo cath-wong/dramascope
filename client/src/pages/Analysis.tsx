@@ -41,7 +41,9 @@ const DetailsPanel = ({ dataset, tokenCol, settings, ui, playwrights }: any) => 
   const pwLabel = playwrights && playwrights.length > 0
     ? (playwrights.length === 8 ? "All" : playwrights.map((pw: string) => pw.split(" ").pop()).join(", "))
     : "—";
-  const trLabel = ui.temporalRangeKey ? ui.temporalRangeKey.replace("-", "–") : "—";
+  const trLabel = ui.dateRangeMode === "full"
+    ? `Full corpus (${ui.temporalRangeKey.replace("-", "–")})`
+    : (ui.temporalRangeKey ? ui.temporalRangeKey.replace("-", "–") : "—");
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
       <CollapsibleTrigger asChild>

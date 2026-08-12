@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useUI } from "@/contexts/UIContext";
 import { 
@@ -8,7 +9,6 @@ import {
   Filter,
   BookOpen,
   Users,
-  RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -22,7 +22,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Display surname → full name mapping (order controls sidebar order)
@@ -51,6 +50,7 @@ export function Sidebar() {
     selectedPlaywrights, setSelectedPlaywrights,
     availablePlaywrights,
     temporalRange, setTemporalRange,
+    dateRangeMode, setDateRangeMode,
     corpusYearRange,
   } = useUI();
 
@@ -90,28 +90,58 @@ export function Sidebar() {
     }
   };
 
-  // Temporal range helpers
-  const isFullRange =
-    temporalRange.startYear <= corpusYearRange.min &&
-    temporalRange.endYear >= corpusYearRange.max;
+  // ── Date Range local draft state ─────────────────────────────────────────
+  // Free-typing string drafts; validated/clamped only on commit (blur or Enter).
 
-  const handleStartYear = (raw: string) => {
-    const v = parseInt(raw, 10);
-    if (isNaN(v)) return;
-    const clamped = Math.max(corpusYearRange.min, Math.min(v, temporalRange.endYear));
-    setTemporalRange({ ...temporalRange, startYear: clamped });
+  const [draftStart, setDraftStart] = useState<string>(String(temporalRange.startYear));
+  const [draftEnd, setDraftEnd] = useState<string>(String(temporalRange.endYear));
+
+  // When the user switches to "custom" mode, reinitialise drafts from the stored
+  // temporalRange (which defaults to the full corpus range on first load).
+  useEffect(() => {
+    if (dateRangeMode === "custom") {
+      setDraftStart(String(temporalRange.startYear));
+      setDraftEnd(String(temporalRange.endYear));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRangeMode]);
+
+  const commitStart = () => {
+    const v = parseInt(draftStart, 10);
+    if (isNaN(v)) {
+      setDraftStart(String(temporalRange.startYear));
+      return;
+    }
+    // Clamp within corpus bounds, then ensure start ≤ end
+    const clamped = Math.max(corpusYearRange.min, Math.min(v, corpusYearRange.max));
+    const finalStart = Math.min(clamped, temporalRange.endYear);
+    setDraftStart(String(finalStart));
+    setTemporalRange({ startYear: finalStart, endYear: temporalRange.endYear });
   };
 
-  const handleEndYear = (raw: string) => {
-    const v = parseInt(raw, 10);
-    if (isNaN(v)) return;
-    const clamped = Math.min(corpusYearRange.max, Math.max(v, temporalRange.startYear));
-    setTemporalRange({ ...temporalRange, endYear: clamped });
+  const commitEnd = () => {
+    const v = parseInt(draftEnd, 10);
+    if (isNaN(v)) {
+      setDraftEnd(String(temporalRange.endYear));
+      return;
+    }
+    // Clamp within corpus bounds, then ensure end ≥ start
+    const clamped = Math.max(corpusYearRange.min, Math.min(v, corpusYearRange.max));
+    const finalEnd = Math.max(clamped, temporalRange.startYear);
+    setDraftEnd(String(finalEnd));
+    setTemporalRange({ startYear: temporalRange.startYear, endYear: finalEnd });
   };
 
-  const handleResetRange = () => {
-    setTemporalRange({ startYear: corpusYearRange.min, endYear: corpusYearRange.max });
+  const handleStartKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.currentTarget.blur(); }
   };
+
+  const handleEndKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.currentTarget.blur(); }
+  };
+
+  // Whether the corpus has loaded (sentinel check)
+  const corpusLoaded = corpusYearRange.min !== 0 || corpusYearRange.max !== 9999;
 
   return (
     <aside className="w-80 border-r bg-sidebar flex flex-col h-screen overflow-y-auto shrink-0">
@@ -194,50 +224,81 @@ export function Sidebar() {
           <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Global Scope</Label>
 
           {/* DATE RANGE */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Date Range</Label>
-              {!isFullRange && (
-                <button
-                  onClick={handleResetRange}
-                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  title="Reset to full corpus range"
-                >
-                  <RotateCcw className="w-2.5 h-2.5" />
-                  Reset
-                </button>
-              )}
+          <div className="space-y-2">
+            <Label className="text-xs">Date Range</Label>
+
+            {/* Mode toggle — matches Time Granularity styling */}
+            <div className="flex bg-muted p-0.5 rounded-md">
+              <button
+                onClick={() => setDateRangeMode("full")}
+                className={cn(
+                  "flex-1 text-[10px] py-1 rounded-sm transition-all",
+                  dateRangeMode === "full"
+                    ? "bg-background shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Full corpus
+              </button>
+              <button
+                onClick={() => setDateRangeMode("custom")}
+                className={cn(
+                  "flex-1 text-[10px] py-1 rounded-sm transition-all",
+                  dateRangeMode === "custom"
+                    ? "bg-background shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Selected range
+              </button>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 space-y-0.5">
-                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">From</span>
-                <Input
-                  type="number"
-                  value={temporalRange.startYear}
-                  min={corpusYearRange.min}
-                  max={temporalRange.endYear}
-                  onChange={e => handleStartYear(e.target.value)}
-                  onBlur={e => handleStartYear(e.target.value)}
-                  className="h-7 text-xs px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
+
+            {/* Full corpus: static range display */}
+            {dateRangeMode === "full" && (
+              <p className="text-xs font-semibold text-center tabular-nums text-foreground/75 py-0.5">
+                {corpusLoaded
+                  ? `${corpusYearRange.min}–${corpusYearRange.max}`
+                  : "Loading…"}
+              </p>
+            )}
+
+            {/* Selected range: editable From / To inputs */}
+            {dateRangeMode === "custom" && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 space-y-0.5">
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">From</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={draftStart}
+                      onChange={e => setDraftStart(e.target.value)}
+                      onBlur={commitStart}
+                      onKeyDown={handleStartKeyDown}
+                      className="h-7 text-xs px-2"
+                    />
+                  </div>
+                  <span className="text-muted-foreground text-xs mt-4">–</span>
+                  <div className="flex-1 space-y-0.5">
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">To</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={draftEnd}
+                      onChange={e => setDraftEnd(e.target.value)}
+                      onBlur={commitEnd}
+                      onKeyDown={handleEndKeyDown}
+                      className="h-7 text-xs px-2"
+                    />
+                  </div>
+                </div>
+                {corpusLoaded && (
+                  <p className="text-[9px] text-muted-foreground">
+                    Corpus: {corpusYearRange.min}–{corpusYearRange.max}
+                  </p>
+                )}
               </div>
-              <span className="text-muted-foreground text-xs mt-4">–</span>
-              <div className="flex-1 space-y-0.5">
-                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">To</span>
-                <Input
-                  type="number"
-                  value={temporalRange.endYear}
-                  min={temporalRange.startYear}
-                  max={corpusYearRange.max}
-                  onChange={e => handleEndYear(e.target.value)}
-                  onBlur={e => handleEndYear(e.target.value)}
-                  className="h-7 text-xs px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-              </div>
-            </div>
-            <p className="text-[9px] text-muted-foreground">
-              Corpus: {corpusYearRange.min}–{corpusYearRange.max}
-            </p>
+            )}
           </div>
 
           {/* CORPUS SCOPE */}

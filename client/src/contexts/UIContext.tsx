@@ -4,6 +4,7 @@ import { useData } from "./DataContext";
 type CorpusScope = "full" | "play";
 type TimeMode = "year" | "decade";
 type TopN = 10 | 20 | 50 | 100;
+type DateRangeMode = "full" | "custom";
 
 interface TemporalRange {
   startYear: number;
@@ -20,7 +21,10 @@ interface UIState {
   excludeStageDirections: boolean;
   unitType: "all" | "verse" | "prose";
   selectedPlaywrights: string[];
+  /** Stored custom range — only active when dateRangeMode === "custom" */
   temporalRange: TemporalRange;
+  /** Whether the user is filtering by a custom range or using the full corpus */
+  dateRangeMode: DateRangeMode;
 }
 
 interface UIContextType extends UIState {
@@ -34,19 +38,26 @@ interface UIContextType extends UIState {
   setUnitType: (type: "all" | "verse" | "prose") => void;
   setSelectedPlaywrights: (playwrights: string[]) => void;
   setTemporalRange: (range: TemporalRange) => void;
+  setDateRangeMode: (mode: DateRangeMode) => void;
   availablePlays: string[];
   availableGenres: string[];
   availableSpeakers: string[];
   availablePlaywrights: string[];
   /** Full corpus year bounds (derived from all loaded lines) */
   corpusYearRange: { min: number; max: number };
+  /**
+   * The temporal range actually applied to filtering.
+   * = corpusYearRange when dateRangeMode === "full"
+   * = temporalRange   when dateRangeMode === "custom"
+   */
+  effectiveTemporalRange: TemporalRange;
   /** Playwright-and-temporally-filtered lines — primary shared source for Lexical */
   selectedLines: any[];
   /** Playwright-and-temporally-filtered speeches — primary shared source for Semantic/Discursive */
   selectedSpeeches: any[];
   /** Stable string key representing active playwright selection */
   playwrightKey: string;
-  /** Stable string key representing active temporal range */
+  /** Stable string key representing the EFFECTIVE temporal range */
   temporalRangeKey: string;
 }
 
@@ -69,8 +80,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     unitType: "all",
     // Default: Shakespeare only (backward compatible with pre-Step-45 behaviour)
     selectedPlaywrights: ["William Shakespeare"],
-    // Default: sentinel full range — will be replaced by useEffect once corpus loads
+    // Stored custom range — sentinel until corpus loads
     temporalRange: SENTINEL_RANGE,
+    // Default mode: full corpus (no deliberate temporal restriction)
+    dateRangeMode: "full",
   });
 
   // ── Derived corpus metadata ──────────────────────────────────────────────
@@ -96,8 +109,9 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     };
   }, [lines]);
 
-  // Initialise temporalRange to the actual corpus bounds once lines load.
-  // Only fires when the computed bounds change (i.e., once on first load).
+  // Initialise temporalRange (the stored custom range) to the actual corpus bounds
+  // once lines load. Only fires when bounds change (i.e., once on first load).
+  // This ensures "Selected range" starts at the full corpus range by default.
   useEffect(() => {
     if (!lines.length) return;
     setState(s => {
@@ -110,6 +124,20 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     });
   }, [corpusYearRange.min, corpusYearRange.max, lines.length]);
 
+  // ── Effective temporal range ─────────────────────────────────────────────
+
+  /**
+   * The range actually used for filtering. In "full" mode this is the global
+   * corpus bounds (never shrinks to the selected playwright's range). In
+   * "custom" mode this is the user's stored temporalRange.
+   */
+  const effectiveTemporalRange = useMemo((): TemporalRange => {
+    if (state.dateRangeMode === "full") {
+      return { startYear: corpusYearRange.min, endYear: corpusYearRange.max };
+    }
+    return state.temporalRange;
+  }, [state.dateRangeMode, state.temporalRange, corpusYearRange]);
+
   // ── Stable cache/key representations ────────────────────────────────────
 
   const playwrightKey = useMemo(
@@ -117,9 +145,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     [state.selectedPlaywrights]
   );
 
+  /** Cache key uses the EFFECTIVE numerical range so full/custom with same dates share cache */
   const temporalRangeKey = useMemo(
-    () => `${state.temporalRange.startYear}-${state.temporalRange.endYear}`,
-    [state.temporalRange]
+    () => `${effectiveTemporalRange.startYear}-${effectiveTemporalRange.endYear}`,
+    [effectiveTemporalRange]
   );
 
   // ── Playwright + temporal filtered datasets ──────────────────────────────
@@ -127,7 +156,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const selectedLines = useMemo(() => {
     if (!lines.length) return [];
     const pwSet = new Set(state.selectedPlaywrights);
-    const { startYear, endYear } = state.temporalRange;
+    const { startYear, endYear } = effectiveTemporalRange;
     return lines.filter((l: any) => {
       if (!pwSet.has(l.playwright)) return false;
       const y = parseInt(l.year_est, 10);
@@ -135,19 +164,19 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       if (!isNaN(y) && (y < startYear || y > endYear)) return false;
       return true;
     });
-  }, [lines, state.selectedPlaywrights, state.temporalRange]);
+  }, [lines, state.selectedPlaywrights, effectiveTemporalRange]);
 
   const selectedSpeeches = useMemo(() => {
     if (!speeches.length) return [];
     const pwSet = new Set(state.selectedPlaywrights);
-    const { startYear, endYear } = state.temporalRange;
+    const { startYear, endYear } = effectiveTemporalRange;
     return speeches.filter((s: any) => {
       if (!pwSet.has(s.playwright)) return false;
       const y = parseInt(s.year_est, 10);
       if (!isNaN(y) && (y < startYear || y > endYear)) return false;
       return true;
     });
-  }, [speeches, state.selectedPlaywrights, state.temporalRange]);
+  }, [speeches, state.selectedPlaywrights, effectiveTemporalRange]);
 
   // ── Dependent filter options (scoped to active corpus) ───────────────────
 
@@ -208,11 +237,13 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       setState((s) => ({ ...s, selectedPlaywrights }));
     },
     setTemporalRange: (temporalRange) => setState((s) => ({ ...s, temporalRange })),
+    setDateRangeMode: (dateRangeMode) => setState((s) => ({ ...s, dateRangeMode })),
     availablePlays,
     availableGenres,
     availableSpeakers,
     availablePlaywrights,
     corpusYearRange,
+    effectiveTemporalRange,
     selectedLines,
     selectedSpeeches,
     playwrightKey,
