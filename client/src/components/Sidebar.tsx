@@ -148,7 +148,9 @@ export function Sidebar() {
       <div className="px-4 py-5 border-b flex items-start gap-3 shrink-0">
         <Database className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div>
-          <div className="text-xl font-bold tracking-tight leading-none">DramaScope</div>
+          <div className="text-xl font-bold tracking-tight leading-none">
+            DramaScope <span className="text-xs font-normal text-muted-foreground">v1.1</span>
+          </div>
           <div className="text-xs text-muted-foreground font-normal leading-snug max-w-[220px] mt-1">Explore lexical, semantic, and discursive patterns in Early Modern English drama.</div>
         </div>
       </div>
