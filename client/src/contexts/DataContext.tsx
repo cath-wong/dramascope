@@ -104,7 +104,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }));
 
       const buster = import.meta.env.DEV ? `?v=${Date.now()}` : '';
-      const url = `/${filename}${buster}`;
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const url = `${baseUrl}/${filename}${buster}`;
 
       try {
         console.log(`[CSV Load] ----------------------------------------`);
