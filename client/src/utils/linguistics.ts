@@ -42,10 +42,33 @@ export function formatTimeValue(value: unknown): string {
   return num.toString();
 }
 
+const PROTECTED_FINAL_S = new Set([
+  "this", "tis", "'tis", "twas", "'twas", "news", "thomas", "pericles", "athens"
+]);
+
+const PROTECTED_ING = new Set([
+  "nothing", "anything", "something", "everything", "changeling"
+]);
+
+const PROTECTED_ED = new Set([
+  "indeed", "hundred", "speed", "naked", "breed", "bleed"
+]);
+
+const IES_CORRECTIONS: Record<string, string> = {
+  "dies": "die",
+  "lies": "lie",
+  "ties": "tie"
+};
+
 export function lightLemmatize(token: string): string {
   if (token.length <= 3) return token;
 
   let lemma = token;
+  
+  // ies corrections
+  if (IES_CORRECTIONS[lemma]) {
+    return IES_CORRECTIONS[lemma];
+  }
   
   // plural: ies -> y
   if (lemma.endsWith("ies")) return lemma.slice(0, -3) + "y";
@@ -55,22 +78,19 @@ export function lightLemmatize(token: string): string {
     lemma.endsWith("s") &&
     !lemma.endsWith("ss") &&
     !lemma.endsWith("us") &&
-    lemma !== "this" &&
-    lemma !== "tis" &&
-    lemma !== "'tis" &&
-    lemma !== "twas" &&
-    lemma !== "'twas"
+    !lemma.endsWith("'s") &&
+    !PROTECTED_FINAL_S.has(lemma)
   ) {
     lemma = lemma.slice(0, -1);
   }
 
   // ing -> '' for length > 5
-  if (lemma.length > 5 && lemma.endsWith("ing")) {
+  if (lemma.length > 5 && lemma.endsWith("ing") && !PROTECTED_ING.has(lemma)) {
     return lemma.slice(0, -3);
   }
 
   // ed -> '' for length > 4
-  if (lemma.length > 4 && lemma.endsWith("ed")) {
+  if (lemma.length > 4 && lemma.endsWith("ed") && !PROTECTED_ED.has(lemma)) {
     return lemma.slice(0, -2);
   }
 
