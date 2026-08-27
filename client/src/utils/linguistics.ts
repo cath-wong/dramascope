@@ -15,6 +15,13 @@ export function tokenize(text: string): string[] {
   return normaliseText(text).split(" ").filter(t => t.length > 0);
 }
 
+export function normaliseHistoricalSpelling(token: string): string {
+  const lower = token.toLowerCase();
+  if (lower === "haue") return "have";
+  if (lower === "loue") return "love";
+  return token;
+}
+
 export function getStoplist(): Set<string> {
   return new Set([
     "and", "the", "to", "of", "i", "a", "it", "is", "in", "that", "you", "not", "for", "with", "be", "me", "thou", "thee", "thy", "thine", "hath", "doth", "shall", "art", "hast", "come", "do", "go", "st", "re"
@@ -44,7 +51,16 @@ export function lightLemmatize(token: string): string {
   if (lemma.endsWith("ies")) return lemma.slice(0, -3) + "y";
   
   // plural: s -> '' for length > 3
-  if (lemma.endsWith("s") && !lemma.endsWith("ss") && !lemma.endsWith("us")) {
+  if (
+    lemma.endsWith("s") &&
+    !lemma.endsWith("ss") &&
+    !lemma.endsWith("us") &&
+    lemma !== "this" &&
+    lemma !== "tis" &&
+    lemma !== "'tis" &&
+    lemma !== "twas" &&
+    lemma !== "'twas"
+  ) {
     lemma = lemma.slice(0, -1);
   }
 
@@ -62,7 +78,7 @@ export function lightLemmatize(token: string): string {
 }
 
 export function processTokens(text: string, opts: { useStoplist: boolean; useLemmas: boolean }): string[] {
-  const tokens = tokenize(text);
+  const tokens = tokenize(text).map(normaliseHistoricalSpelling);
   const stoplist = getStoplist();
   
   return tokens
