@@ -15,11 +15,22 @@ export function tokenize(text: string): string[] {
   return normaliseText(text).split(" ").filter(t => t.length > 0);
 }
 
+const HISTORICAL_SPELLING_MAP: Record<string, string> = {
+  "haue": "have",
+  "loue": "love",
+  "doe": "do",
+  "vpon": "upon",
+  "goe": "go",
+  "beene": "been",
+  "heere": "here",
+  "selfe": "self",
+  "sonne": "son",
+  "worke": "work"
+};
+
 export function normaliseHistoricalSpelling(token: string): string {
   const lower = token.toLowerCase();
-  if (lower === "haue") return "have";
-  if (lower === "loue") return "love";
-  return token;
+  return HISTORICAL_SPELLING_MAP[lower] ?? token;
 }
 
 export function getStoplist(): Set<string> {
