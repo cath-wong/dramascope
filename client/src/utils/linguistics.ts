@@ -25,7 +25,12 @@ const HISTORICAL_SPELLING_MAP: Record<string, string> = {
   "heere": "here",
   "selfe": "self",
   "sonne": "son",
-  "worke": "work"
+  "worke": "work",
+  "beare": "bear",
+  "hee": "he",
+  "sayd": "said",
+  "speake": "speak",
+  "moe": "more"
 };
 
 export function normaliseHistoricalSpelling(token: string): string {
